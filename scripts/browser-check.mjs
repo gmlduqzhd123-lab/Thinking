@@ -20,8 +20,11 @@ page.on('pageerror', e => errors.push(e.message));
 page.on('console', m => consoleText.push(m.text()));
 await page.goto(process.env.TEST_URL || 'http://127.0.0.1:5173/');
 await page.getByRole('button', { name: '모델 준비' }).click();
+await page.locator('#query').fill('준비 중에 입력한 단위분수 설명');
 await page.locator('#state').filter({ hasText: /준비됨|실패/ }).waitFor({ timeout: 120000 });
 assert.equal(await page.locator('#state').textContent(), '모델 상태: 준비됨');
+assert.equal(await page.locator('#query').inputValue(), '준비 중에 입력한 단위분수 설명');
+assert.equal(await page.getByRole('button', { name: '추천 실행' }).isEnabled(), true);
 console.log(JSON.stringify({ state: await page.locator('#state').textContent(), timing: await page.locator('#timing').textContent(), requests: requests.map(u => new URL(u).pathname), errors }, null, 2));
 {
   for (const e of examples) {

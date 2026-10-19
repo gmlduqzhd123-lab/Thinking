@@ -116,6 +116,14 @@ npx vite preview --host 127.0.0.1 --port 4173
 - **PASS:** `npm run typecheck`, `npm test` 6건, `npm run build`(고정 자산 6개 검증 포함).
 - **한계:** Playwright의 뒤로 가기와 복귀 이벤트 모사는 개발 PC 브라우저 검증이다. 학교 실물 기기의 BFCache 동작은 **NOT_RUN**이며, 교사 검수 독립 60건 부재로 M0 출시 관문은 **BLOCKED**다.
 
+## 모델 준비 중 입력 회귀 (2026-10-20)
+
+`모델 준비` 직후 설명을 입력하는 브라우저 회귀 검사를 추가했다. 수정 전에는 입력 이벤트가 준비 요청의 식별 번호를 바꿔 실제 Worker의 준비 완료 응답을 폐기했다. 정적 preview의 실제 Edge 모델에서 20초 동안 준비 상태가 끝나지 않아 `npm run test:browser`가 종료 코드 1로 **FAIL**했다.
+
+입력이 진행 중인 추론이나 이미 표시된 추천에 영향을 줄 때만 식별 번호를 갱신하도록 수정했다. 준비 중 입력은 유지되며 준비 완료 후 추천 실행 버튼을 사용할 수 있다. 수정 후 `npm run build`(고정 자산 6개 검증), `npm run typecheck`, `npm test` 6건, 실제 모델 `npm run test:browser`, `npm run test:ai` 기술 smoke 2건이 **PASS**했다.
+
+재현: `npm run build`; 별도 셸에서 `npx vite preview --host 127.0.0.1 --port 4185 --strictPort`; 원래 셸에서 `$env:TEST_URL='http://127.0.0.1:4185/'; npm run test:browser`. 이 결과는 개발 PC의 입력 처리 검증이다. 교사 검수 독립 60건, 학교 PC·실물 기기 시험은 **NOT_RUN/BLOCKED**이며 M0 관문은 통과하지 않았다.
+
 ## 해석과 제한
 
 이 시험은 로컬 개발 PC의 브라우저 성공이다. 개발 질의 6건은 개발자가 작성한 가상 초안이며 실제 교사 검수 자료가 아니다. `minSimilarity=0.48`, `minMargin=0.045`는 잠정값이다. E2와 E3의 원시 점수는 모델만으로 반대 의미와 적용 조건을 안전하게 구분하지 못함을 보여 준다. 보류 규칙은 정답을 맞추도록 점수를 바꾸는 방식이 아니라 위험 조건에서 추천을 중단하는 안전 장치이며, 다양한 문장에 대한 일반화는 미검증이다.
