@@ -8,6 +8,7 @@ export const embedding = {
   numThreads: 1,
   pooling: 'mean',
   normalize: true,
+  dimension: 384,
 } as const;
 
 // The main thread and Worker are separate bundles. Compare their complete

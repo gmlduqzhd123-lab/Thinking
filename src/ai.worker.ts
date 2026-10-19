@@ -2,6 +2,7 @@ import { env, pipeline } from '@huggingface/transformers';
 import { cards } from './cards';
 import { judge } from './judge';
 import { embedding, modelContract } from './model-contract';
+import { requireUnitEmbedding } from './embedding-integrity';
 
 type Msg = { type: 'prepare' | 'infer'; requestId: number; sessionRevision: number; text?: string };
 const base = new URL(import.meta.env.BASE_URL, self.location.origin).href;
@@ -26,7 +27,7 @@ function cosine(a: number[], b: number[]) {
 }
 async function embed(text: string): Promise<number[]> {
   const output = await (extractor as any)(text, { pooling: embedding.pooling, normalize: embedding.normalize });
-  return Array.from(output.data as Float32Array);
+  return requireUnitEmbedding(output.data as Float32Array, embedding.dimension);
 }
 async function prepare() {
   if (!preparing) preparing = (async () => {

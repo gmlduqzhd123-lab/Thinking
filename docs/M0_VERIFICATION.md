@@ -98,6 +98,14 @@ npx vite preview --host 127.0.0.1 --port 4173
 - **PASS:** `npm run typecheck`, `npm test` 5건, `npm run build`(6개 자산 해시 확인 포함), `npm run test:browser`, `npm run test:ai` 기술 smoke 2건.
 - **한계:** 별도의 저장된 벡터 색인은 없다. 이 실행 시 검사는 화면·Worker의 선언된 계약 불일치를 잡는다. 실제 제공된 ONNX 파일의 바이트를 브라우저에서 다시 해시하지는 않는다. 빌드 산출물 생성 전에 `verify:assets`가 로컬 자산 해시를 검증한다. 교사 검수 독립 60건과 학교 기기 시험은 **NOT_RUN**이다.
 
+## 임베딩 출력 무결성 (2026-10-20)
+
+교사 검수 파일 재확인 결과 저장소에는 개발자 작성 `docs/HOLDOUT_DRAFT.tsv`만 있었다. 따라서 독립 60건 품질 목표는 **BLOCKED/NOT_RUN**으로 유지했다. 대신 `src/embedding-integrity.ts`에서 카드 벡터와 질의 벡터 모두 기대 차원 384, 모든 원소의 유한성, L2 길이 0.98~1.02를 검사한다. 잘못된 출력은 Worker 오류로 처리되어 추천 성공 메시지를 만들지 않는다. 기대 차원은 `src/model-contract.ts`의 선언에 포함했다.
+
+- **PASS:** `npm test` 6건. 새 단위 시험에서 차원 불일치, NaN, 영벡터, 비정규화 벡터 거부를 확인했다.
+- **PASS:** `npm run typecheck`, `npm run build`(6개 자산 해시 포함), 정적 preview의 실제 Edge 모델 `npm run test:browser`, `npm run test:ai` 기술 smoke 2건. 현재 모델의 카드·질의 벡터가 새 검사를 통과했다.
+- **한계:** 벡터 형상 검사는 추천의 교육적 적합도나 교사 검수를 증명하지 않는다. 학교 교사 PC 30회 p95와 실물 기기 시험도 **NOT_RUN**이다.
+
 ## 해석과 제한
 
 이 시험은 로컬 개발 PC의 브라우저 성공이다. 개발 질의 6건은 개발자가 작성한 가상 초안이며 실제 교사 검수 자료가 아니다. `minSimilarity=0.48`, `minMargin=0.045`는 잠정값이다. E2와 E3의 원시 점수는 모델만으로 반대 의미와 적용 조건을 안전하게 구분하지 못함을 보여 준다. 보류 규칙은 정답을 맞추도록 점수를 바꾸는 방식이 아니라 위험 조건에서 추천을 중단하는 안전 장치이며, 다양한 문장에 대한 일반화는 미검증이다.
