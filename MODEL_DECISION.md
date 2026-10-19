@@ -3,7 +3,7 @@
 ## 확인한 후보
 
 - 원 모델: [`sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`](https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2). 모델 카드의 라이선스 표기는 Apache-2.0이며 384차원 다국어 임베딩 모델이다.
-- ONNX 변환본: [`Xenova/paraphrase-multilingual-MiniLM-L12-v2`](https://huggingface.co/Xenova/paraphrase-multilingual-MiniLM-L12-v2), 리비전 `2c4055b12046f11709e9df2c122e59ffbdc2f900`. 변환본 카드에서 원 모델을 ONNX로 변환했다고 밝힌다. 변환본 저장소의 별도 라이선스 메타데이터는 확인되지 않았다. 따라서 공개 배포 권리는 추가 확인이 필요하다.
+- ONNX 변환본: [`Xenova/paraphrase-multilingual-MiniLM-L12-v2`](https://huggingface.co/Xenova/paraphrase-multilingual-MiniLM-L12-v2), 리비전 `2c4055b12046f11709e9df2c122e59ffbdc2f900`. 변환본 카드에서 원 모델을 ONNX로 변환했다고 밝힌다. 2026-10-19에 고정 리비전의 README frontmatter와 Hugging Face 모델 API를 확인했으나 둘 다 별도 라이선스를 표시하지 않았다. 원 모델의 Apache-2.0 표기만으로 변환본의 공개 배포 권리를 확정하지 않는다.
 - 실행 조합: `@huggingface/transformers@3.8.1`, 함께 설치된 `onnxruntime-web`의 JSEP WASM, `device: wasm`, `dtype: q8`, `numThreads: 1`, mean pooling + L2 정규화. 질의와 카드 벡터 모두 동일 실행 조합으로 생성한다.
 - 파일명, 바이트, SHA-256은 `model-assets.json`에 고정했다. 모델+토크나이저+WASM 파일 총 **157,032,711바이트(149.76MiB)**. 앱 JS/CSS를 더해도 160MiB 목표 안에 있다. 빌드가 불필요하게 생성하는 중복 WASM 파일은 빌드 후 제거하고 정적 preview에서 재시험했다.
 - 공식 [Transformers.js 설정 문서](https://huggingface.co/docs/transformers.js/v3.8.1/en/api/env)상 브라우저에서 원격 모델 기본 허용, 로컬 모델 기본 비허용, 브라우저 캐시 기본 사용 가능성이 있어, 코드에서 로컬 허용·원격 차단·같은 출처 경로·브라우저 캐시 비활성화를 명시했다. [커스텀 모델 문서](https://huggingface.co/docs/transformers.js/v3.8.1/en/custom_usage)의 WASM 경로 설정을 적용했다.

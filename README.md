@@ -17,6 +17,6 @@ npm run dev
 
 개발 서버 주소는 명령 출력에서 확인합니다. 페이지에서 **모델 준비**를 눌러 같은 출처의 정적 모델 자산을 로드한 뒤 설명을 입력하고 **추천 실행**을 누릅니다. 모델이 준비되지 않으면 **기본 카드 보기**를 사용합니다. 모델 바이너리는 Git에 넣지 않으며, `fetch:assets`는 개발·빌드 단계에서만 공식 모델 저장소에 접속합니다. 실행 중 브라우저는 외부 모델 저장소에 접속하지 않습니다.
 
-정적 빌드: `npm run build`; 로컬 시험: `npx vite preview --host 127.0.0.1`. 하위 경로 시험은 PowerShell에서 `$env:APP_BASE='/qa-forks/'; npm run build` 후 같은 preview 명령을 실행합니다. `npm run test:browser`는 설치된 Microsoft Edge를 사용하는 현재 Windows 시험용입니다. `TEST_URL`로 시험 주소를 지정할 수 있습니다.
+정적 빌드: `npm run build`; 로컬 시험: `npx vite preview --host 127.0.0.1`. 하위 경로 시험은 PowerShell에서 `$env:APP_BASE='/qa-forks/'; npm run build` 후 같은 preview 명령을 실행합니다. `npm run test:browser`는 설치된 Microsoft Edge를 사용합니다. `TEST_URL`로 시험 주소를, `M0_BROWSER_PATH`로 브라우저 실행 파일 경로를 지정할 수 있습니다. 모델을 의도적으로 누락시킨 시험 명령은 `TEST_FORCE_MISSING_MODEL=1`을 설정하고 종료 코드 1을 기대합니다.
 
 모델 채택 여부와 한계는 [MODEL_DECISION.md](MODEL_DECISION.md), 재현 결과는 [docs/M0_VERIFICATION.md](docs/M0_VERIFICATION.md)에 기록했습니다.
