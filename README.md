@@ -1,6 +1,6 @@
-# 생각의 갈림길 AI — M0 기술 검증
+# 생각의 갈림길 AI — 개발판
 
-초등 수학 M01의 단위분수 비교를 위한 개발 전용 시험판입니다. 모든 카드와 질의는 개발자가 작성한 가상 초안이며 교사 검수 전입니다. 공개 수업 자료가 아닙니다.
+초등 수학 M01의 단위분수 비교를 위한 개발판입니다. 루트는 M0 로컬 AI 기술 검증, `/lesson.html`은 M1 기본 수업 화면입니다. 모든 콘텐츠는 개발자 작성 초안이며 교사 검수 전입니다. 공개 수업 자료가 아닙니다.
 
 ## 실행
 
@@ -20,5 +20,7 @@ npm run dev
 정적 빌드: `npm run build`; 로컬 시험: `npx vite preview --host 127.0.0.1`. 하위 경로 시험은 PowerShell에서 `$env:APP_BASE='/qa-forks/'; npm run build` 후 같은 preview 명령을 실행합니다. `npm run test:browser`는 설치된 Microsoft Edge를 사용합니다. `TEST_URL`로 시험 주소를, `M0_BROWSER_PATH`로 브라우저 실행 파일 경로를 지정할 수 있습니다. 모델을 의도적으로 누락시킨 시험 명령은 `TEST_FORCE_MISSING_MODEL=1`을 설정하고 종료 코드 1을 기대합니다.
 
 모델 채택 여부와 한계는 [MODEL_DECISION.md](MODEL_DECISION.md), 재현 결과는 [docs/M0_VERIFICATION.md](docs/M0_VERIFICATION.md)에 기록했습니다.
+
+M01 기본 수업 개발 화면은 로컬 정적 preview의 `/lesson.html`에서 열 수 있습니다. AI 추천 없이 개념 선택부터 종료까지 진행하며, 교사 검수 전 콘텐츠로 표시합니다. 흐름 검사는 `npm run test:lesson`, 범위와 미검증 항목은 [docs/M1_VERIFICATION.md](docs/M1_VERIFICATION.md)에 기록했습니다. 공개 GitHub Pages에는 이 화면을 게시하지 않았습니다.
 
 교사 검수 전용 초안과 집계 평가 절차는 [docs/HOLDOUT_REVIEW.md](docs/HOLDOUT_REVIEW.md)에 있습니다. `npm run test:ai`는 실제 브라우저 모델을 사용하는 기술 smoke 시험이며, `npm run test:holdout -- 경로`는 별도 검수 파일이 있어야 실행됩니다.
