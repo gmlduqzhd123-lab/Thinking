@@ -6,6 +6,8 @@ type Phase = 'concept' | 'preview' | 'first' | 'reason' | 'inquiry' | 'summary' 
 const order: Phase[] = ['concept', 'preview', 'first', 'reason', 'inquiry', 'summary', 'again', 'transfer', 'memory', 'end'];
 const reasonCards = ['분모가 클수록 조각이 크다고 생각함', '전체가 같은지 확인이 필요함', '아직 이유를 말하기 어려움'] as const;
 const app = document.querySelector<HTMLElement>('#lesson-app')!;
+const aiEnabled = app.dataset.aiEnabled === 'true';
+let aiPanel: { sync(active: boolean): void; dispose(): void } | undefined;
 let phase: Phase = 'concept';
 let mode: 'example' | 'class' = 'example';
 let participantsRaw = '';
@@ -23,6 +25,7 @@ let reasonSelected = '';
 let error = '';
 
 function resetSession() {
+  aiPanel?.dispose();
   phase = 'concept'; mode = 'example'; participantsRaw = ''; minutes = 20;
   remainingSeconds = 1200; timerRunning = false; inquiryIndex = 0; inquiryDenominator = 6;
   summaryVisible = false; transferAnswerVisible = false; memoryVisible = false;
@@ -91,10 +94,11 @@ function body(): string {
 
 function timerText(): string { const seconds = Math.ceil(remainingSeconds); const m = Math.floor(seconds / 60); const s = seconds % 60; return `${m}:${String(s).padStart(2, '0')}`; }
 function render(focus = false) {
-  app.innerHTML = `<header><p class="eyebrow">M1 개발판 · 교사 검수 미완료 콘텐츠</p><h1>생각의 갈림길 AI</h1><p>정답을 알려 주는 AI가 아니라, 생각을 바꾸는 탐구를 돕는 AI</p></header><aside class="notice"><strong>개발 전용 초안 · 실제 수업 승인 전</strong><p>학생 개인정보를 입력하지 마세요. 이 화면은 기본 수업이며 AI 추천을 실행하지 않습니다.</p></aside><nav aria-label="수업 진행"><span>단계 ${order.indexOf(phase) + 1}/${order.length} · ${mode === 'example' ? '가상 연습' : '실제 수업 입력'}</span>${phase !== 'concept' && phase !== 'end' ? '<button data-action="back">이전 단계</button>' : ''}</nav>${phase !== 'concept' && phase !== 'end' ? `<section class="timer"><strong>수업 타이머 <output id="timer-output">${timerText()}</output></strong><button data-action="timer-toggle">${timerRunning ? '정지' : '시작'}</button><button data-action="timer-extend">5분 연장</button></section>` : ''}<section id="step">${body()}<p id="error" role="alert">${error}</p></section><footer>수업 입력은 이 탭의 메모리에서만 사용합니다. 자동 저장·전송·인쇄하지 않습니다.</footer>`;
+  app.innerHTML = `<header><p class="eyebrow">${aiEnabled ? 'M2' : 'M1'} 개발판 · 교사 검수 미완료 콘텐츠</p><h1>생각의 갈림길 AI</h1><p>정답을 알려 주는 AI가 아니라, 생각을 바꾸는 탐구를 돕는 AI</p></header><aside class="notice"><strong>개발 전용 초안 · 실제 수업 승인 전</strong><p>학생 개인정보를 입력하지 마세요. ${aiEnabled ? 'AI 후보는 교사가 별도로 검토·승인해야 하며 검수 완료 자료가 아닙니다.' : '이 화면은 기본 수업이며 AI 추천을 실행하지 않습니다.'}</p></aside><nav aria-label="수업 진행"><span>단계 ${order.indexOf(phase) + 1}/${order.length} · ${mode === 'example' ? '가상 연습' : '실제 수업 입력'}</span>${phase !== 'concept' && phase !== 'end' ? '<button data-action="back">이전 단계</button>' : ''}</nav>${phase !== 'concept' && phase !== 'end' ? `<section class="timer"><strong>수업 타이머 <output id="timer-output">${timerText()}</output></strong><button data-action="timer-toggle">${timerRunning ? '정지' : '시작'}</button><button data-action="timer-extend">5분 연장</button></section>` : ''}<section id="step">${body()}<p id="error" role="alert">${error}</p></section><footer>수업 입력은 이 탭의 메모리에서만 사용합니다. 자동 저장·전송·인쇄하지 않습니다.</footer>`;
   const p = app.querySelector<HTMLInputElement>('#participants'); if (p) p.value = participantsRaw;
   const poll: Poll | null = phase === 'first' ? 'first' : phase === 'again' ? 'again' : phase === 'transfer' ? 'transfer' : null;
   if (poll && pollData[poll]) for (const choice of CHOICES) app.querySelector<HTMLInputElement>(`[data-count="${choice}"]`)!.value = pollData[poll]![choice];
+  aiPanel?.sync(phase === 'reason');
   if (focus) app.querySelector<HTMLElement>('#step h2')?.focus();
 }
 
@@ -168,3 +172,7 @@ setInterval(() => {
 window.addEventListener('pagehide', resetSession);
 window.addEventListener('pageshow', event => { if (event.persisted) resetSession(); });
 render();
+if (aiEnabled) void import('./lesson-ai-panel').then(({ createLessonAiPanel }) => {
+  aiPanel = createLessonAiPanel(app);
+  aiPanel.sync(phase === 'reason');
+});
