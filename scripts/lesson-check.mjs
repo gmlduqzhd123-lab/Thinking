@@ -73,6 +73,7 @@ try {
   await page.getByRole('button', { name: '집계 생략하고 계속' }).click();
   await page.getByRole('button', { name: '요약 만들기' }).click();
   assert.match(await page.locator('.memory').innerText(), /10\/20명에서 15\/20명으로 바뀌었습니다 \(\+25\.0%p\)/);
+  assert.match(await page.locator('.memory').innerText(), /교사가 선택해 탐구한 이유 카드: 분모가 클수록 조각이 크다고 생각함/);
   assert.match(await page.locator('.memory').innerText(), /개인별 성장으로 해석하지 않습니다/);
   await page.getByRole('button', { name: '이전 단계' }).click();
   for (const [choice, value] of Object.entries({ A: '12', B: '4', C: '0', D: '0' })) await page.locator(`[data-count="${choice}"]`).fill(value);
@@ -80,6 +81,20 @@ try {
   assert.equal(await page.locator('.memory').count(), 0);
   await page.getByRole('button', { name: '요약 만들기' }).click();
   assert.match(await page.locator('.memory').innerText(), /새 문항 M01-UF-02 v1의 집계/);
+  for (let i = 0; i < 7; i++) await page.getByRole('button', { name: '이전 단계' }).click();
+  assert.match(await page.locator('#step h2').innerText(), /이유 카드/);
+  await page.getByRole('button', { name: '전체가 같은지 확인이 필요함' }).click();
+  await page.getByRole('button', { name: '기본 탐구 시작' }).click();
+  await page.getByRole('button', { name: '다음 탐구로' }).click();
+  await page.getByRole('button', { name: '다음 탐구로' }).click();
+  await page.getByRole('button', { name: '개념 정리로' }).click();
+  await page.getByRole('button', { name: '같은 문항 다시 선택' }).click();
+  await page.getByRole('button', { name: '집계 확인 후 계속' }).click();
+  await page.getByRole('button', { name: '집계 확인 후 계속' }).click();
+  assert.equal(await page.locator('.memory').count(), 0);
+  await page.getByRole('button', { name: '요약 만들기' }).click();
+  assert.match(await page.locator('.memory').innerText(), /교사가 선택해 탐구한 이유 카드: 전체가 같은지 확인이 필요함/);
+  assert.doesNotMatch(await page.locator('.memory').innerText(), /교사가 선택해 탐구한 이유 카드: 분모가 클수록/);
   await page.getByRole('button', { name: '이전 단계' }).click();
   await page.getByRole('button', { name: '이전 단계' }).click();
   await page.locator('[data-count="A"]').fill('14');

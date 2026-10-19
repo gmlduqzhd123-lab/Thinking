@@ -27,3 +27,13 @@
 `APP_BASE=/Thinking/`으로 정적 빌드한 뒤 `node scripts/stage-pages-lesson.mjs <빈 디렉터리>`로 수업 HTML과 참조된 JS/CSS 세 파일만 선별했다. 안내 `index.html`과 `.nojekyll`을 더한 `gh-pages` 브랜치에는 M0 앱·모델·WASM·`HOLDOUT_DRAFT.tsv`가 없다. 로컬 정적 서버에서 `npm run test:lesson`과 `npm run test:pages`가 통과한 뒤 게시했다.
 
 첫 공개 브라우저 실행은 타이머 1분 경계에서 `8:59`가 표시돼 **FAIL**했다. `src/lesson.ts`의 남은 시간 표시를 올림 처리해 수정하고 새 자산으로 재배포했다. 최종 `gh-pages` 커밋 `c4f9eee`가 반영된 뒤 공개 URL에서 `TEST_URL=https://gmlduqzhd123-lab.github.io/Thinking/ npm run test:lesson` **PASS**. `npm run test:pages`는 안내 루트·`lesson.html` HTTP 200, 초안 TSV·모델·WASM HTTP 404로 **PASS**. 교체 전 JS 파일도 HTTP 404로 확인했다. 이 결과는 개발용 미리보기 접속과 기술 동작의 증거이며 실제 교사 검수·학교 기기·수업 실증은 아니다.
+
+## 개발자 자체 검토와 이유 카드 요약 회귀 (2026-10-20)
+
+`docs/M01_SELF_REVIEW.md`에 문항 ID, 분수 관계, 기본 탐구 3개, 집계와 요약 문구를 코드·시험과 대조해 기록했다. 교사 판단 4개 항목은 모두 **미검수**이며 독립 시험 60건도 확보되지 않았다.
+
+공개 사이트에서 이유 카드 선택이 메모리 요약에 나타나지 않는 것을 새 `test:lesson` 단언으로 재현해 **FAIL**했다. 선택한 이유 카드를 교사가 고른 탐구 주제로만 요약하고, 카드를 바꾸면 이미 생성한 요약을 무효화하도록 수정했다. 학생 개별 사고에 대한 추론 문구는 추가하지 않았다.
+
+- **PASS:** `npm run typecheck`, `npm test` 9건, `/Thinking/` 대상 `npm run build`(모델 자산 6개 해시 검증 포함), 선별 정적 묶음의 로컬 `npm run test:lesson`·`npm run test:pages`.
+- **PASS:** `gh-pages` 커밋 `417f623` 반영 후 공개 URL의 `npm run test:lesson` 전체 흐름 및 `npm run test:pages` 5개 HTTP 검사. 교체 전 JS 경로 HTTP 404.
+- **NOT_RUN/BLOCKED:** 교사 교육적 승인, 교사 작성·검수 독립 60건 AI 평가, 학교 PC·실물 기기·실제 수업. 공개 화면은 계속 개발용 미리보기이며 출시 관문은 통과하지 않았다.

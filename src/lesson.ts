@@ -4,6 +4,7 @@ import './lesson.css';
 type Poll = 'first' | 'again' | 'transfer';
 type Phase = 'concept' | 'preview' | 'first' | 'reason' | 'inquiry' | 'summary' | 'again' | 'transfer' | 'memory' | 'end';
 const order: Phase[] = ['concept', 'preview', 'first', 'reason', 'inquiry', 'summary', 'again', 'transfer', 'memory', 'end'];
+const reasonCards = ['분모가 클수록 조각이 크다고 생각함', '전체가 같은지 확인이 필요함', '아직 이유를 말하기 어려움'] as const;
 const app = document.querySelector<HTMLElement>('#lesson-app')!;
 let phase: Phase = 'concept';
 let mode: 'example' | 'class' = 'example';
@@ -57,6 +58,7 @@ function memoryText(): string {
   const again = pollData.again && validateCounts(pollData.again, n);
   const transfer = pollData.transfer && validateCounts(pollData.transfer, n);
   const parts = ['같은 전체의 단위분수는 더 많이 나눌수록 한 조각이 작아진다는 점을 탐구했습니다.'];
+  parts.push(reasonSelected ? `교사가 선택해 탐구한 이유 카드: ${reasonCards[Number(reasonSelected)]}. 이는 수업에서 고른 탐구 주제이며 학생 개개인의 생각으로 확정하지 않습니다.` : '교사가 선택한 이유 카드는 없습니다.');
   if (first && again) {
     const change = percentagePointChange(first.counts.A, again.counts.A, n);
     parts.push(`같은 문항 ${FIRST_ITEM.id} v${FIRST_ITEM.version}에서 1/3을 고른 집계는 ${first.counts.A}/${n}명에서 ${again.counts.A}/${n}명으로 바뀌었습니다 (${change >= 0 ? '+' : ''}${change.toFixed(1)}%p). 이는 집단 집계의 차이이며 개인별 성장으로 해석하지 않습니다.`);
@@ -71,7 +73,7 @@ function body(): string {
     case 'concept': return `<h2 tabindex="-1">개념 선택</h2><p>M01 단위분수 비교 · 같은 전체에서 1/3과 1/5 한 조각을 비교합니다.</p><button data-action="next">M01 미리보기</button>`;
     case 'preview': return `<h2 tabindex="-1">수업 미리보기</h2><p>첫 선택 → 이유 카드 → 기본 탐구 3개 → 개념 정리 → 같은 문항 재선택 → 새로운 문제 → 메모리 요약 → 종료</p><fieldset><legend>진행 모드</legend><label><input type="radio" name="mode" value="example" ${mode === 'example' ? 'checked' : ''}> 가상 연습</label><label><input type="radio" name="mode" value="class" ${mode === 'class' ? 'checked' : ''}> 실제 수업 입력</label></fieldset><label>참여 인원 1~60명 <input id="participants" type="text" inputmode="numeric" autocomplete="off"></label><fieldset><legend>수업 시간</legend>${([10, 20, 40] as const).map(value => `<label><input type="radio" name="minutes" value="${value}" ${minutes === value ? 'checked' : ''}> ${value}분</label>`).join('')}</fieldset><p>가상 예시 10/20→15/20은 25%p 차이입니다. 이 수치는 실제 수업 집계에 자동 입력되지 않습니다.</p><button data-action="next">첫 선택으로</button>`;
     case 'first': return `<h2 tabindex="-1">첫 선택</h2>${pollTemplate('first', 3, 5)}`;
-    case 'reason': return `<h2 tabindex="-1">이유 카드</h2><p>학생의 말을 듣고 다음 중 탐구할 이유를 교사가 고릅니다. 이름이나 발언 원문은 기록하지 않습니다.</p><div class="actions">${['분모가 클수록 조각이 크다고 생각함', '전체가 같은지 확인이 필요함', '아직 이유를 말하기 어려움'].map((label, i) => `<button data-reason="${i}" aria-pressed="${reasonSelected === String(i)}">${label}</button>`).join('')}</div><p>선택한 이유는 화면 진행에만 사용하며 저장하지 않습니다.</p><button data-action="next">기본 탐구 시작</button>`;
+    case 'reason': return `<h2 tabindex="-1">이유 카드</h2><p>학생의 말을 듣고 다음 중 탐구할 이유를 교사가 고릅니다. 이름이나 발언 원문은 기록하지 않습니다.</p><div class="actions">${reasonCards.map((label, i) => `<button data-reason="${i}" aria-pressed="${reasonSelected === String(i)}">${label}</button>`).join('')}</div><p>선택한 이유 카드는 요약에만 반영되며 브라우저 저장소에는 남기지 않습니다.</p><button data-action="next">기본 탐구 시작</button>`;
     case 'inquiry': return inquiryTemplate();
     case 'summary': return `<h2 tabindex="-1">개념 정리</h2><p>학생 설명을 먼저 들은 뒤 교사가 정리를 공개합니다.</p><button data-action="summary-reveal">교사가 개념 정리 공개</button>${summaryVisible ? '<p class="answer">같은 전체에서 1/3은 1/5보다 큽니다. 전체를 같은 크기로 더 많이 나누면 한 조각은 작아집니다.</p><button data-action="next">같은 문항 다시 선택</button>' : ''}`;
     case 'again': {
@@ -82,7 +84,7 @@ function body(): string {
       return `<h2 tabindex="-1">다시 선택 · 첫 선택과 동일한 문항</h2>${pollTemplate('again', 3, 5)}${comparison}`;
     }
     case 'transfer': return `<h2 tabindex="-1">새로운 문제</h2><p>이 문항은 첫 선택·재선택 문항과 별개입니다.</p>${pollTemplate('transfer', 4, 6)}<button data-action="transfer-reveal">교사가 새 문제 설명 공개</button><p class="answer" ${transferAnswerVisible ? '' : 'hidden'}>같은 전체라면 1/4이 1/6보다 큽니다.</p>`;
-    case 'memory': return `<h2 tabindex="-1">메모리 요약</h2><p>수업 중 집계만 요약하며 학생별 변화는 추론하지 않습니다.</p><button data-action="memory-generate">요약 만들기</button>${memoryVisible ? `<p class="memory">${memoryText()}</p>` : ''}<button data-action="finish">종료하고 입력 지우기</button>`;
+    case 'memory': return `<h2 tabindex="-1">메모리 요약</h2><p>선택한 이유 카드와 집단 집계만 요약하며 학생별 변화는 추론하지 않습니다.</p><button data-action="memory-generate">요약 만들기</button>${memoryVisible ? `<p class="memory">${memoryText()}</p>` : ''}<button data-action="finish">종료하고 입력 지우기</button>`;
     case 'end': return `<h2 tabindex="-1">종료</h2><p>이 수업의 입력과 집계는 메모리에서 지웠습니다.</p><button data-action="restart">새 수업 시작</button>`;
   }
 }
@@ -135,7 +137,7 @@ app.addEventListener('change', event => {
 app.addEventListener('click', event => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button'); if (!button) return;
   const action = button.dataset.action;
-  if (button.dataset.reason !== undefined) { reasonSelected = button.dataset.reason; render(); return; }
+  if (button.dataset.reason !== undefined) { if (reasonSelected !== button.dataset.reason) memoryVisible = false; reasonSelected = button.dataset.reason; render(); return; }
   if (action === 'next') {
     if (phase === 'preview' && parseParticipants(participantsRaw) === null) { error = '참여 인원은 1~60의 정수로 입력하세요.'; app.querySelector('#error')!.textContent = error; return; }
     next();
