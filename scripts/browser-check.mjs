@@ -43,7 +43,6 @@ console.log(JSON.stringify({ state: await page.locator('#state').textContent(), 
   }
   await page.locator('#query').fill('1/5가 1/3보다 크다고 생각해요.');
   await page.getByRole('button', { name: '추천 실행' }).click();
-  await page.getByRole('button', { name: '추천 실행' }).click();
   await page.getByText('모델 상태: 준비됨').waitFor({ timeout: 20000 });
   await page.locator('#query').fill('teacher@example.com');
   const requestCount = requests.length;
@@ -153,6 +152,7 @@ await timeoutPage.getByRole('button', { name: '모델 준비' }).click();
 await timeoutPage.getByText('모델 상태: 준비됨').waitFor({ timeout: 120000 });
 await timeoutPage.locator('#query').fill('분모가 커지면 한 조각도 커진다고 생각해요.');
 await timeoutPage.getByRole('button', { name: '추천 실행' }).click();
+assert.equal(await timeoutPage.getByRole('button', { name: '추천 실행' }).isDisabled(), true);
 await timeoutPage.clock.fastForward(10_050);
 assert.equal(await timeoutPage.locator('#state').textContent(), '모델 상태: 실패');
 assert.match(await timeoutPage.locator('#result').innerText(), /기본 탐구/);

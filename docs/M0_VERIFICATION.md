@@ -124,6 +124,14 @@ npx vite preview --host 127.0.0.1 --port 4173
 
 재현: `npm run build`; 별도 셸에서 `npx vite preview --host 127.0.0.1 --port 4185 --strictPort`; 원래 셸에서 `$env:TEST_URL='http://127.0.0.1:4185/'; npm run test:browser`. 이 결과는 개발 PC의 입력 처리 검증이다. 교사 검수 독립 60건, 학교 PC·실물 기기 시험은 **NOT_RUN/BLOCKED**이며 M0 관문은 통과하지 않았다.
 
+## 추론 중 중복 실행 방지 (2026-10-20)
+
+실제 모델을 준비한 뒤 결과 응답만 지연시키는 브라우저 시험에서 추론 중 ‘추천 실행’ 버튼이 계속 활성화돼 있었다. 수정 전 `npm run test:browser`는 해당 단언에서 종료 코드 1로 **FAIL**했다. 실행 중에는 버튼을 비활성화하고 결과를 받으면 다시 활성화하도록 수정했다. 취소·오류·시간 초과 시에는 Worker 정리와 함께 비활성 상태를 유지한다.
+
+- **PASS:** 수정 후 `npm run build`(고정 자산 6개 검증), `npm run typecheck`, `npm test` 6건, 정적 preview의 실제 Edge 모델 `npm run test:browser`, `npm run test:ai` 기술 smoke 2건.
+- **NOT_RUN/BLOCKED:** 교사가 검수한 독립 60건 품질 평가, 학교 PC·실물 기기 시험. M0 출시 관문은 통과하지 않았다.
+- 재현: `npm run build`; 별도 셸에서 `npx vite preview --host 127.0.0.1 --port 4186 --strictPort`; 원래 셸에서 `$env:TEST_URL='http://127.0.0.1:4186/'; npm run test:browser`.
+
 ## 해석과 제한
 
 이 시험은 로컬 개발 PC의 브라우저 성공이다. 개발 질의 6건은 개발자가 작성한 가상 초안이며 실제 교사 검수 자료가 아니다. `minSimilarity=0.48`, `minMargin=0.045`는 잠정값이다. E2와 E3의 원시 점수는 모델만으로 반대 의미와 적용 조건을 안전하게 구분하지 못함을 보여 준다. 보류 규칙은 정답을 맞추도록 점수를 바꾸는 방식이 아니라 위험 조건에서 추천을 중단하는 안전 장치이며, 다양한 문장에 대한 일반화는 미검증이다.

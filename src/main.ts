@@ -59,7 +59,7 @@ $('infer').addEventListener('click', () => {
   const text = query.value.trim();
   if (!ready || !text) { setResult('설명을 입력하고 모델을 준비해 주세요.'); return; }
   if (sensitive(text)) { setResult('연락처·식별 번호로 보이는 입력은 사용할 수 없습니다. 일반적인 개념 설명만 적어 주세요.'); return; }
-  nextRevision(); setState('추론 중'); inferButton.disabled = false; cancelButton.disabled = false; setResult('의미를 비교하고 있습니다.');
+  nextRevision(); setState('추론 중'); inferButton.disabled = true; cancelButton.disabled = false; setResult('의미를 비교하고 있습니다.');
   worker!.postMessage({ type: 'infer', requestId, sessionRevision, text });
   timeout = setTimeout(() => { nextRevision(); stopWorker(); setState('실패'); setResult('추론이 10초를 넘어 기본 탐구로 전환합니다. 기본 카드를 열어 주세요.'); }, 10_000);
 });
