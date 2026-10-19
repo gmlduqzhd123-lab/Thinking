@@ -1,0 +1,43 @@
+name: Publish development status page
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/index.html
+      - docs/.nojekyll
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: thinking-pages
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/configure-pages@v5
+      - name: Prepare public status page
+        run: |
+          mkdir -p site-build
+          cp docs/index.html site-build/index.html
+          touch site-build/.nojekyll
+      - name: Upload status page only
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site-build
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
