@@ -25,6 +25,7 @@
 | `TEST_URL=http://127.0.0.1:4174/ npm run test:ai` | PASS, 실제 모델 기술 smoke 2건. 품질 평가 아님 |
 | `APP_BASE=/qa-forks/ npm run build` 및 `TEST_URL=http://127.0.0.1:4175/qa-forks/ npm run test:lesson-ai` | PASS, 하위 경로의 실제 모델 추론·보류·취소·입력 보호 |
 | `APP_BASE=/Thinking/ npm run build` 및 `node scripts/stage-pages-lesson.mjs <빈 디렉터리>` | PASS, M1 HTML과 JS/CSS 3개만 스테이징. M2 HTML·AI 코드·모델·WASM 제외 |
+| `npm run test:pages` 및 공개 `lesson-ai.html` HEAD 확인 | PASS, M1 안내·수업 HTTP 200, M2 경로·초안 TSV·모델·WASM HTTP 404 |
 
 `test:lesson-ai`의 10초 사례는 준비 완료 후 Worker의 추론 메시지만 시험에서 지연시켜 시간 초과 분기를 검증했다. 실제 모델 후보와 보류 사례는 이 지연 주입 없이 실행했다. 브라우저 요청은 같은 출처 GET만 사용했고, 요청 본문·브라우저 저장소·Cache API·IndexedDB 기록은 없었다.
 
