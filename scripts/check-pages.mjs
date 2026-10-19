@@ -5,7 +5,7 @@ if (!origin.pathname.endsWith('/')) {
 }
 
 const checks = [
-  { path: '', expected: 200, marker: '현재 M0 로컬 AI 기술 검증 단계' },
+  { path: '', expected: 200, marker: '이 페이지는 개발 진행 안내입니다. 실제 수업용 화면이 아닙니다.' },
   { path: 'HOLDOUT_DRAFT.tsv', expected: 404 },
   { path: 'models/m01/onnx/model_quantized.onnx', expected: 404 },
   { path: 'wasm/ort-wasm-simd-threaded.jsep.wasm', expected: 404 },

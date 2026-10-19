@@ -66,6 +66,8 @@ npx vite preview --host 127.0.0.1 --port 4173
 
 이후 같은 날 재검사에서 `npm run test:pages` 네 항목 **PASS**(종료 코드 0): 루트 HTTP 200, 초안 TSV·모델·WASM 경로 HTTP 404. 공개 루트의 1,031자 본문은 별도 `gh-pages` 작업 디렉터리의 `index.html`과 문자열이 완전히 일치했다. 따라서 관찰한 공개 산출물은 개발 상태 안내 페이지다. 확인 당시 실행 #5의 build·report는 성공, deploy 작업 상태는 여전히 `queued`로 표시돼 **Actions 실행 최종 성공은 미확인**이다. GitHub [공식 상태 페이지](https://www.githubstatus.com/)는 Actions와 Pages 처리 지연 장애를 공지했다.
 
+추가 재게시 (2026-10-20): 이전 실행 #5의 build·report·deploy가 모두 `success`로 바뀐 것을 확인했다. `gh-pages` 브랜치에는 `index.html`과 `.nojekyll`만 있으며, 새 커밋 `5e71db4`의 안내 페이지에 ‘실제 수업용 화면이 아닙니다’ 문구를 추가했다. 새 문구를 요구하도록 `npm run test:pages`를 갱신해 게시 전에는 루트 검사가 **FAIL**, 게시 후에는 루트 HTTP 200과 초안 TSV·모델·WASM HTTP 404가 모두 **PASS**였다. 공개 루트 1,081자 본문은 브랜치의 `index.html`과 정확히 일치했다. 이 결과는 **안내 페이지 게시 성공**이며 M0 앱 배포나 수업 출시 관문 통과가 아니다.
+
 ## 준비 후 응답 시간 재현 (2026-10-20)
 
 `scripts/measure-performance.mjs`와 `npm run test:performance`를 추가했다. 정적 빌드를 루트에서 preview로 제공한 뒤 브라우저에서 실제 고정 모델을 준비하고, 개인정보 없는 동일한 160자 수학 설명을 30회 입력해 버튼 클릭부터 결과 표시까지의 화면 응답 시간을 재었다. 모델 준비 시간은 별도로 기록한다. 요청은 같은 출처의 GET만 허용하고 질의 비전송·브라우저 저장소 비사용·종료 후 입력 제거를 단언한다. 원문 질의나 개별 결과는 출력하지 않는다.
