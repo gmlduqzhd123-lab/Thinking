@@ -64,6 +64,17 @@ npx vite preview --host 127.0.0.1 --port 4173
 
 2026-10-20 재검증: `scripts/check-pages.mjs`와 `npm run test:pages`를 추가했다. 실제 GitHub Pages URL에서 안내 루트 HTTP 404로 **FAIL**(명령 종료 코드 1), `HOLDOUT_DRAFT.tsv`·`models/m01/onnx/model_quantized.onnx`·`wasm/ort-wasm-simd-threaded.jsep.wasm`은 각각 HTTP 404로 **PASS**였다. [안전한 `gh-pages` 실행 #5](https://github.com/gmlduqzhd123-lab/Thinking/actions/runs/39285159531)의 build·report 작업 단계는 성공했고 deploy 작업은 확인 시점에 `queued`다. `npm run typecheck` PASS, `npm test` 5건 PASS. 재현은 저장소 루트에서 `npm run test:pages`를 실행하며, 네 항목 모두 PASS와 종료 코드 0이 나오기 전에는 배포 완료를 주장하지 않는다.
 
+이후 같은 날 재검사에서 `npm run test:pages` 네 항목 **PASS**(종료 코드 0): 루트 HTTP 200, 초안 TSV·모델·WASM 경로 HTTP 404. 공개 루트의 1,031자 본문은 별도 `gh-pages` 작업 디렉터리의 `index.html`과 문자열이 완전히 일치했다. 따라서 관찰한 공개 산출물은 개발 상태 안내 페이지다. 확인 당시 실행 #5의 build·report는 성공, deploy 작업 상태는 여전히 `queued`로 표시돼 **Actions 실행 최종 성공은 미확인**이다. GitHub [공식 상태 페이지](https://www.githubstatus.com/)는 Actions와 Pages 처리 지연 장애를 공지했다.
+
+## 준비 후 응답 시간 재현 (2026-10-20)
+
+`scripts/measure-performance.mjs`와 `npm run test:performance`를 추가했다. 정적 빌드를 루트에서 preview로 제공한 뒤 브라우저에서 실제 고정 모델을 준비하고, 개인정보 없는 동일한 160자 수학 설명을 30회 입력해 버튼 클릭부터 결과 표시까지의 화면 응답 시간을 재었다. 모델 준비 시간은 별도로 기록한다. 요청은 같은 출처의 GET만 허용하고 질의 비전송·브라우저 저장소 비사용·종료 후 입력 제거를 단언한다. 원문 질의나 개별 결과는 출력하지 않는다.
+
+- **PASS(개발 PC):** Edge 헤드리스 155.0.4283.62, 모델 리비전 `e8f8c211226b894fcb81acc59f3b34ba3efd5f42`, 준비 화면 시간 5,700ms, 준비 후 30회 화면 응답 p95 265ms(최소 228ms, 최대 274ms). 이 값은 Playwright 클릭·대기 오버헤드를 포함한 개발 PC 한 실행의 관찰이다.
+- **PASS:** `npm run typecheck`, `npm test` 5건, `npm run build`, `npm run test:performance`, `npm run test:pages`.
+- **NOT_RUN/BLOCKED:** 학교 교사 PC에서 같은 30회 p95, 실물 기기, 교사 검수 독립 60건 평가. 개발 PC 수치를 학교 환경 목표 통과로 표시하지 않는다.
+- 재현: `npm run build`; 별도 셸에서 `npx vite preview --host 127.0.0.1 --port 4173`; 원래 셸에서 `npm run test:performance`. 다른 포트를 쓰면 `TEST_URL`을 해당 로컬 URL로 지정한다.
+
 ## 원 저장소 ONNX로 고정 자산 교체 (2026-10-20)
 
 - 출처: 원 모델 [`sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`](https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2)의 Apache-2.0 표시, 리비전 `e8f8c211226b894fcb81acc59f3b34ba3efd5f42`. config·tokenizer·`onnx/model_quint8_avx2.onnx`를 같은 리비전에서 내려받고 `model-assets.json`의 크기·SHA-256으로 고정했다. 브라우저 로더가 찾는 로컬 이름 `onnx/model_quantized.onnx`과 원본 경로의 대응을 `fetch-assets.mjs`에 기록했다. Git에는 바이너리를 넣지 않는다.

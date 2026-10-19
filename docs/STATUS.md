@@ -6,6 +6,7 @@
 - 남은 차단: 교사가 작성·검수한 독립 시험 60건이 없어 품질 지표는 미측정. 학교 PC·실물 기기 성능도 미확인. 현재 모델은 라이선스가 표시된 원 저장소의 고정 리비전 자산으로 교체했다.
 - 다음 작업 하나: 교사가 초안 문장과 허용 탐구 집합을 검토해 독립 시험 파일을 확정한다.
 - 공개 주소: GitHub Pages 게시 소스는 `gh-pages` 브랜치 루트다. 브랜치에는 개발 상태 `index.html`과 `.nojekyll` 두 파일만 있다. M0 앱·개발용 콘텐츠·모델 파일은 사이트에 게시하지 않는다. 앱 출시는 위 차단 항목이 해소될 때까지 BLOCKED다.
-- Pages 실행: 이전 `main/docs` 게시가 뒤늦게 완료되면서 개발용 초안 TSV가 Pages URL에서 HTTP 200으로 노출된 것을 발견했다. Pages를 일시 중지해 URL·TSV 모두 404를 확인하고, 두 파일만 담은 `gh-pages` 브랜치를 게시 소스로 설정했다. 중복 게시 경로를 없애기 위해 `main`의 전용 workflow를 제거했다. 재게시 완료와 공개 URL의 최종 200/404 확인은 아직 대기 중이다.
+- Pages 실행: 이전 `main/docs` 게시가 뒤늦게 완료되면서 개발용 초안 TSV가 Pages URL에서 HTTP 200으로 노출된 것을 발견했다. Pages를 일시 중지한 뒤 두 파일만 담은 `gh-pages` 브랜치를 게시 소스로 설정하고 `main`의 중복 workflow를 제거했다. 2026-10-20 재검증에서 공개 안내 페이지 HTTP 200 및 `gh-pages/index.html`과 본문 동일, 초안 TSV·모델·WASM 경로 HTTP 404를 확인했다. 수업용 앱은 게시되지 않았다.
 - 현재 모델 시험: 원 모델 저장소의 Apache-2.0 양자화 ONNX로 고정 자산을 교체했다. 6개 파일 SHA-256 PASS, 총 142.27MiB. Edge 정적 빌드의 루트·하위 경로 `test:browser` PASS, 실제 브라우저 `test:ai` 기술 smoke PASS. 교사 품질 평가와 실물 기기 시험은 NOT_RUN이므로 M0 관문은 보류한다.
-- Pages 재검증 (2026-10-20): `npm run test:pages`를 추가해 공개 안내 페이지의 문구와 HTTP 200, 개발 초안 TSV·모델·WASM URL의 HTTP 404를 함께 검사한다. 현재 결과는 안내 페이지 HTTP 404로 **FAIL**, 비공개 자산 경로 3개 HTTP 404로 **PASS**다. `gh-pages` 실행 #5의 build·report 단계는 성공했지만 deploy 단계가 대기 중이다. 배포 성공 및 사이트 공개 완료로 표시하지 않는다.
+- Pages 재검증 (2026-10-20): `npm run test:pages` 네 항목 **PASS**. GitHub의 Actions·Pages 지연 장애 중 처음에는 루트가 404였으나 재검사에서 200이 됐다. 실행 #5의 deploy 작업 상태 표시는 확인 당시 여전히 `queued`라 실행 기록의 최종 성공은 미확인이다.
+- 성능 재현 코드 (2026-10-20): `npm run test:performance`는 실제 로컬 모델 준비 후 160자 질의 30회의 화면 응답 시간을 측정한다. 개발 PC Edge 헤드리스에서 준비 5,700ms, 준비 후 p95 265ms(최소 228ms, 최대 274ms). **학교 PC 30회 p95와 실물 기기 시험은 NOT_RUN**이며 이 수치로 M0 출시 관문을 통과시키지 않는다.
