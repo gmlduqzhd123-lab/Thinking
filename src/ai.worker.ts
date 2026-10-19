@@ -1,0 +1,64 @@
+import { env, pipeline } from '@huggingface/transformers';
+import { cards } from './cards';
+import { judge } from './judge';
+
+type Msg = { type: 'prepare' | 'infer'; requestId: number; sessionRevision: number; text?: string };
+const base = new URL(import.meta.env.BASE_URL, self.location.origin).href;
+env.allowLocalModels = true;
+env.allowRemoteModels = false;
+env.localModelPath = new URL('models/', base).href;
+env.useBrowserCache = false;
+env.useFSCache = false;
+env.backends.onnx.wasm!.numThreads = 1;
+env.backends.onnx.wasm!.wasmPaths = new URL('wasm/', base).href;
+let extractor: any;
+let preparing: Promise<void> | undefined;
+let cardVectors: number[][] = [];
+let prepareMetrics = { downloadMs: 0, initMs: 0, indexedMs: 0 };
+function send(type: string, requestId: number, sessionRevision: number, extra: Record<string, unknown> = {}) {
+  self.postMessage({ type, requestId, sessionRevision, ...extra });
+}
+function cosine(a: number[], b: number[]) {
+  let dot = 0, aa = 0, bb = 0;
+  for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; aa += a[i] ** 2; bb += b[i] ** 2; }
+  return dot / (Math.sqrt(aa) * Math.sqrt(bb));
+}
+async function embed(text: string): Promise<number[]> {
+  const output = await (extractor as any)(text, { pooling: 'mean', normalize: true });
+  return Array.from(output.data as Float32Array);
+}
+async function prepare() {
+  if (!preparing) preparing = (async () => {
+    const start = performance.now();
+    let firstTransfer = 0;
+    let lastTransfer = 0;
+    extractor = await pipeline('feature-extraction', 'm01', { device: 'wasm', dtype: 'q8', progress_callback: (progress: { status: string }) => {
+      const now = performance.now();
+      if (progress.status === 'initiate' && !firstTransfer) firstTransfer = now;
+      if (progress.status === 'done') lastTransfer = now;
+    } });
+    const loaded = performance.now();
+    const vectorStart = performance.now();
+    cardVectors = await Promise.all(cards.map(c => embed(`${c.hint} ${c.text}`)));
+    prepareMetrics = { downloadMs: firstTransfer && lastTransfer ? lastTransfer - firstTransfer : 0, initMs: loaded - Math.max(lastTransfer, start), indexedMs: performance.now() - vectorStart };
+  })().then(() => undefined).catch(e => { preparing = undefined; throw e; });
+  await preparing;
+}
+self.onmessage = async (event: MessageEvent<Msg>) => {
+  const { type, requestId, sessionRevision, text } = event.data;
+  try {
+    if (type === 'prepare') {
+      const start = performance.now();
+      await prepare();
+      send('ready', requestId, sessionRevision, { prepareMs: performance.now() - start, ...prepareMetrics });
+    } else if (type === 'infer' && text) {
+      await prepare();
+      const start = performance.now();
+      const v = await embed(text);
+      const scores = cards.map((c, i) => ({ id: c.id, similarity: cosine(v, cardVectors[i]) }));
+      send('result', requestId, sessionRevision, { result: judge(scores, text), inferMs: performance.now() - start });
+    }
+  } catch {
+    send('error', requestId, sessionRevision);
+  }
+};
