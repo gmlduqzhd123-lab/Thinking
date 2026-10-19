@@ -90,6 +90,14 @@ npx vite preview --host 127.0.0.1 --port 4173
 
 수정 후 정적 preview의 실제 Edge 모델로 `npm run test:browser` **PASS**, `npm run test:ai` 기술 smoke 2건 **PASS**. `npm run typecheck`, `npm test` 5건, `npm run build` **PASS**. 교사 검수 독립 시험과 학교 실물 기기 시험은 **NOT_RUN**이다.
 
+## 모델·카드 색인 계약 검사 (2026-10-20)
+
+`src/model-contract.ts`의 단일 선언에 모델 출처·고정 리비전, ONNX·토크나이저·WASM을 포함한 6개 자산의 기대 크기·SHA-256, 임베딩 설정(단일 스레드 WASM, q8, mean pooling, 정규화), 카드 ID·힌트·본문을 포함했다. Worker는 이 설정으로 카드 벡터를 매 준비마다 생성하고, 준비 완료·추론 결과 메시지에 계약을 보낸다. 화면 코드는 같은 계약과 정확히 비교해 불일치 시 Worker를 종료하고 AI 추천을 차단하며 기본 카드를 사용할 수 있게 한다.
+
+- **PASS:** 정적 preview의 실제 Edge 모델에서 정상 준비·가상 예시 추론 유지. 브라우저 시험이 준비 완료 메시지의 계약을 고의로 변경했을 때 실패 상태, 추천 버튼 비활성화, 기본 카드 경로를 확인했다.
+- **PASS:** `npm run typecheck`, `npm test` 5건, `npm run build`(6개 자산 해시 확인 포함), `npm run test:browser`, `npm run test:ai` 기술 smoke 2건.
+- **한계:** 별도의 저장된 벡터 색인은 없다. 이 실행 시 검사는 화면·Worker의 선언된 계약 불일치를 잡는다. 실제 제공된 ONNX 파일의 바이트를 브라우저에서 다시 해시하지는 않는다. 빌드 산출물 생성 전에 `verify:assets`가 로컬 자산 해시를 검증한다. 교사 검수 독립 60건과 학교 기기 시험은 **NOT_RUN**이다.
+
 ## 해석과 제한
 
 이 시험은 로컬 개발 PC의 브라우저 성공이다. 개발 질의 6건은 개발자가 작성한 가상 초안이며 실제 교사 검수 자료가 아니다. `minSimilarity=0.48`, `minMargin=0.045`는 잠정값이다. E2와 E3의 원시 점수는 모델만으로 반대 의미와 적용 조건을 안전하게 구분하지 못함을 보여 준다. 보류 규칙은 정답을 맞추도록 점수를 바꾸는 방식이 아니라 위험 조건에서 추천을 중단하는 안전 장치이며, 다양한 문장에 대한 일반화는 미검증이다.

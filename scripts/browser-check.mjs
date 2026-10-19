@@ -96,6 +96,26 @@ await corrupt.getByText('모델 상태: 실패').waitFor({ timeout: 30000 });
 assert.equal(corruptRequests.every(u => new URL(u).origin === new URL(corrupt.url()).origin), true);
 console.log(JSON.stringify({ corruptModel: await corrupt.locator('#state').textContent() }));
 await corrupt.close();
+const mismatched = await browser.newPage();
+await mismatched.addInitScript(() => {
+  const originalSetter = Object.getOwnPropertyDescriptor(Worker.prototype, 'onmessage')?.set;
+  Object.defineProperty(Worker.prototype, 'onmessage', {
+    set(handler) {
+      originalSetter?.call(this, event => handler(event.data?.type === 'ready'
+        ? { data: { ...event.data, contract: 'stale-model-or-index' } }
+        : event));
+    },
+  });
+});
+await mismatched.goto(process.env.TEST_URL || 'http://127.0.0.1:5173/');
+await mismatched.getByRole('button', { name: '모델 준비' }).click();
+await mismatched.getByText('모델 상태: 실패').waitFor({ timeout: 120000 });
+assert.match(await mismatched.locator('#result').innerText(), /모델과 카드 색인의 버전이 일치하지 않습니다/);
+assert.equal(await mismatched.getByRole('button', { name: '추천 실행' }).isDisabled(), true);
+await mismatched.getByRole('button', { name: '기본 카드 보기' }).click();
+assert.match(await mismatched.locator('#result').innerText(), /기본 탐구 카드/);
+console.log(JSON.stringify({ modelIndexMismatch: await mismatched.locator('#state').textContent() }));
+await mismatched.close();
 const timeoutPage = await browser.newPage();
 await timeoutPage.addInitScript(() => {
   const originalSetter = Object.getOwnPropertyDescriptor(Worker.prototype, 'onmessage')?.set;

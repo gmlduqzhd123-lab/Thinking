@@ -1,6 +1,7 @@
 import { env, pipeline } from '@huggingface/transformers';
 import { cards } from './cards';
 import { judge } from './judge';
+import { embedding, modelContract } from './model-contract';
 
 type Msg = { type: 'prepare' | 'infer'; requestId: number; sessionRevision: number; text?: string };
 const base = new URL(import.meta.env.BASE_URL, self.location.origin).href;
@@ -9,7 +10,7 @@ env.allowRemoteModels = false;
 env.localModelPath = new URL('models/', base).href;
 env.useBrowserCache = false;
 env.useFSCache = false;
-env.backends.onnx.wasm!.numThreads = 1;
+env.backends.onnx.wasm!.numThreads = embedding.numThreads;
 env.backends.onnx.wasm!.wasmPaths = new URL('wasm/', base).href;
 let extractor: any;
 let preparing: Promise<void> | undefined;
@@ -24,7 +25,7 @@ function cosine(a: number[], b: number[]) {
   return dot / (Math.sqrt(aa) * Math.sqrt(bb));
 }
 async function embed(text: string): Promise<number[]> {
-  const output = await (extractor as any)(text, { pooling: 'mean', normalize: true });
+  const output = await (extractor as any)(text, { pooling: embedding.pooling, normalize: embedding.normalize });
   return Array.from(output.data as Float32Array);
 }
 async function prepare() {
@@ -32,7 +33,7 @@ async function prepare() {
     const start = performance.now();
     let firstTransfer = 0;
     let lastTransfer = 0;
-    extractor = await pipeline('feature-extraction', 'm01', { device: 'wasm', dtype: 'q8', progress_callback: (progress: { status: string }) => {
+    extractor = await pipeline('feature-extraction', embedding.model, { device: embedding.device, dtype: embedding.dtype, progress_callback: (progress: { status: string }) => {
       const now = performance.now();
       if (progress.status === 'initiate' && !firstTransfer) firstTransfer = now;
       if (progress.status === 'done') lastTransfer = now;
@@ -50,13 +51,13 @@ self.onmessage = async (event: MessageEvent<Msg>) => {
     if (type === 'prepare') {
       const start = performance.now();
       await prepare();
-      send('ready', requestId, sessionRevision, { prepareMs: performance.now() - start, ...prepareMetrics });
+      send('ready', requestId, sessionRevision, { contract: modelContract, prepareMs: performance.now() - start, ...prepareMetrics });
     } else if (type === 'infer' && text) {
       await prepare();
       const start = performance.now();
       const v = await embed(text);
       const scores = cards.map((c, i) => ({ id: c.id, similarity: cosine(v, cardVectors[i]) }));
-      send('result', requestId, sessionRevision, { result: judge(scores, text), inferMs: performance.now() - start });
+      send('result', requestId, sessionRevision, { contract: modelContract, result: judge(scores, text), inferMs: performance.now() - start });
     }
   } catch {
     send('error', requestId, sessionRevision);

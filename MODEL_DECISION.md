@@ -7,6 +7,7 @@
 - 현재 기술 검증 자산: 원 모델 저장소의 [`onnx/model_quint8_avx2.onnx`](https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2/tree/e8f8c211226b894fcb81acc59f3b34ba3efd5f42/onnx), 리비전 `e8f8c211226b894fcb81acc59f3b34ba3efd5f42`. 원 저장소의 모델 카드에 Apache-2.0이 명시돼 있다. 같은 리비전의 config·tokenizer·ONNX 4개 파일을 해시 고정해 시험했고, Edge 브라우저 WASM의 루트·하위 경로 정적 빌드에서 실제 추론이 성공했다. Xenova 변환본은 현재 파일 목록에서 제외했다.
 - 실행 조합: `@huggingface/transformers@3.8.1`, 함께 설치된 `onnxruntime-web`의 JSEP WASM, `device: wasm`, `dtype: q8`, `numThreads: 1`, mean pooling + L2 정규화. 질의와 카드 벡터 모두 동일 실행 조합으로 생성한다.
 - 파일명, 바이트, SHA-256은 `model-assets.json`에 고정했다. 현재 모델+토크나이저+WASM 파일 총 **149,177,062바이트(142.27MiB)**. 앱 JS/CSS를 더해도 160MiB 목표 안에 있다. 빌드가 불필요하게 생성하는 중복 WASM 파일은 빌드 후 제거한다.
+- 카드 벡터는 현재 Worker가 모델 준비 시 생성한다. 화면과 Worker는 고정 리비전·기대 자산 해시·임베딩 설정·카드 내용을 공통 계약으로 비교하고, 불일치 시 AI 추천을 중단한다. 브라우저에서 모델 바이너리 전체를 다시 해시하는 검사는 아직 없으므로, 이 계약만으로 운영 자산의 실제 바이트 일치를 증명하지는 않는다.
 - 공식 [Transformers.js 설정 문서](https://huggingface.co/docs/transformers.js/v3.8.1/en/api/env)상 브라우저에서 원격 모델 기본 허용, 로컬 모델 기본 비허용, 브라우저 캐시 기본 사용 가능성이 있어, 코드에서 로컬 허용·원격 차단·같은 출처 경로·브라우저 캐시 비활성화를 명시했다. [커스텀 모델 문서](https://huggingface.co/docs/transformers.js/v3.8.1/en/custom_usage)의 WASM 경로 설정을 적용했다.
 
 ## 실제 관찰과 한계

@@ -1,7 +1,8 @@
 import { cards, examples, baseline } from './cards';
+import { modelContract } from './model-contract';
 import './style.css';
 
-type WorkerMessage = { type: string; requestId: number; sessionRevision: number; prepareMs?: number; downloadMs?: number; initMs?: number; indexedMs?: number; inferMs?: number; result?: { hold: boolean; reason: string; scores: { id: string; similarity: number }[] } };
+type WorkerMessage = { type: string; requestId: number; sessionRevision: number; contract?: string; prepareMs?: number; downloadMs?: number; initMs?: number; indexedMs?: number; inferMs?: number; result?: { hold: boolean; reason: string; scores: { id: string; similarity: number }[] } };
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `<header><p class="eyebrow">M0 · 로컬 AI 기술 검증</p><h1>생각의 갈림길 AI</h1><p>정답을 알려 주는 AI가 아니라, 생각을 바꾸는 탐구를 돕는 AI</p></header><section class="notice"><strong>개발판 · 가상 예시</strong><p>M01: 길이가 같은 두 리본에서 1/3과 1/5 한 조각을 비교합니다. 아래 자료는 개발자가 쓴 초안이며 교사 검수를 받지 않았습니다. 실제 수업용으로 사용하지 마세요.</p></section><section><h2>개념 설명 입력</h2><label for="query">학생 이름·번호·개인 사정 없이 수학 개념상의 혼동만 적어 주세요.</label><textarea id="query" maxlength="160" rows="3" placeholder="예: 분모가 커지면 한 조각도 커진다고 생각해요."></textarea><p id="count">0/160자</p><p class="hint">개인정보 필터는 보조 장치이며 완전한 익명화를 보장하지 않습니다.</p><div class="buttons"><button id="prepare">모델 준비</button><button id="infer" disabled>추천 실행</button><button id="cancel" disabled>취소</button><button id="reset">초기화</button><button id="basic">기본 카드 보기</button><button id="close">종료</button></div><p id="state" role="status">모델 상태: 미준비</p><p id="timing"></p></section><section id="result" aria-live="polite"><h2>결과</h2><p>모델 준비 후 일반적인 개념 설명을 입력해 주세요.</p></section><section><h2>가상 개발 질의</h2><p>개발자 작성 · 교사 검수 미완료. 시험 기대값은 진단 정답이 아닙니다.</p><ul id="examples"></ul></section><footer>입력과 결과는 실행 메모리에만 둡니다. 유사도는 정답 확률이나 학생 진단 정확도가 아닙니다.</footer>`;
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -25,6 +26,10 @@ function createWorker() {
   worker = new Worker(new URL('./ai.worker.ts', import.meta.url), { type: 'module' });
   worker.onmessage = ({ data }: MessageEvent<WorkerMessage>) => {
     if (data.requestId !== requestId || data.sessionRevision !== sessionRevision) return;
+    if ((data.type === 'ready' || data.type === 'result') && data.contract !== modelContract) {
+      nextRevision(); stopWorker(); setState('실패'); setResult('모델과 카드 색인의 버전이 일치하지 않습니다. 기본 카드로 계속해 주세요.');
+      return;
+    }
     if (data.type === 'ready') {
       ready = true; inferButton.disabled = false; cancelButton.disabled = true;
       setState('준비됨'); $('timing').textContent = `모델 준비 전체 ${Math.round(data.prepareMs || 0)}ms · 파일 로딩 ${Math.round(data.downloadMs || 0)}ms · 초기화 ${Math.round(data.initMs || 0)}ms · 카드 색인 ${Math.round(data.indexedMs || 0)}ms (브라우저 로컬 측정)`;
