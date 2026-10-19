@@ -16,6 +16,7 @@ let sessionRevision = 0;
 let ready = false;
 let timeout: ReturnType<typeof setTimeout> | undefined;
 function setState(label: string) { state.textContent = `모델 상태: ${label}`; }
+function setResult(message: string) { result.removeAttribute('data-hold'); result.textContent = message; }
 function clearTimer() { if (timeout) clearTimeout(timeout); timeout = undefined; }
 function stopWorker() { clearTimer(); worker?.terminate(); worker = undefined; ready = false; inferButton.disabled = true; cancelButton.disabled = true; }
 function nextRevision() { sessionRevision++; requestId++; clearTimer(); }
@@ -42,25 +43,25 @@ function createWorker() {
       result.append(list);
       const note = document.createElement('p'); note.textContent = `기본 키워드 검색: ${baseline(query.value)} · 준비 후 추론 ${Math.round(data.inferMs || 0)}ms`; result.append(note);
     } else if (data.type === 'error') {
-      stopWorker(); setState('실패'); result.textContent = '모델 파일 또는 실행 환경을 확인해 주세요. 기본 카드로 계속할 수 있습니다.';
+      stopWorker(); setState('실패'); setResult('모델 파일 또는 실행 환경을 확인해 주세요. 기본 카드로 계속할 수 있습니다.');
     }
   };
-  worker.onerror = () => { stopWorker(); setState('실패'); result.textContent = '모델을 실행하지 못했습니다. 기본 카드로 계속할 수 있습니다.'; };
+  worker.onerror = () => { stopWorker(); setState('실패'); setResult('모델을 실행하지 못했습니다. 기본 카드로 계속할 수 있습니다.'); };
 }
 function sensitive(text: string) { return /\b\d{2,3}[- ]?\d{3,4}[- ]?\d{4}\b|[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}|\b\d{6}[- ]?\d{7}\b/.test(text); }
-$('prepare').addEventListener('click', () => { nextRevision(); createWorker(); setState('준비 중'); result.textContent = '같은 출처의 모델과 WASM을 준비하고 있습니다.'; cancelButton.disabled = false; worker!.postMessage({ type: 'prepare', requestId, sessionRevision }); });
+$('prepare').addEventListener('click', () => { nextRevision(); createWorker(); setState('준비 중'); setResult('같은 출처의 모델과 WASM을 준비하고 있습니다.'); cancelButton.disabled = false; worker!.postMessage({ type: 'prepare', requestId, sessionRevision }); });
 $('infer').addEventListener('click', () => {
   const text = query.value.trim();
-  if (!ready || !text) { result.textContent = '설명을 입력하고 모델을 준비해 주세요.'; return; }
-  if (sensitive(text)) { result.textContent = '연락처·식별 번호로 보이는 입력은 사용할 수 없습니다. 일반적인 개념 설명만 적어 주세요.'; return; }
-  nextRevision(); setState('추론 중'); inferButton.disabled = false; cancelButton.disabled = false; result.textContent = '의미를 비교하고 있습니다.';
+  if (!ready || !text) { setResult('설명을 입력하고 모델을 준비해 주세요.'); return; }
+  if (sensitive(text)) { setResult('연락처·식별 번호로 보이는 입력은 사용할 수 없습니다. 일반적인 개념 설명만 적어 주세요.'); return; }
+  nextRevision(); setState('추론 중'); inferButton.disabled = false; cancelButton.disabled = false; setResult('의미를 비교하고 있습니다.');
   worker!.postMessage({ type: 'infer', requestId, sessionRevision, text });
-  timeout = setTimeout(() => { nextRevision(); stopWorker(); setState('실패'); result.textContent = '추론이 10초를 넘어 기본 탐구로 전환합니다. 기본 카드를 열어 주세요.'; }, 10_000);
+  timeout = setTimeout(() => { nextRevision(); stopWorker(); setState('실패'); setResult('추론이 10초를 넘어 기본 탐구로 전환합니다. 기본 카드를 열어 주세요.'); }, 10_000);
 });
-$('cancel').addEventListener('click', () => { nextRevision(); stopWorker(); setState('취소'); result.textContent = '요청을 취소했습니다. 기본 카드로 계속할 수 있습니다.'; });
-$('reset').addEventListener('click', () => { nextRevision(); stopWorker(); query.value = ''; $('count').textContent = '0/160자'; $('timing').textContent = ''; setState('미준비'); result.textContent = '초기화했습니다. 이전 결과는 사용할 수 없습니다.'; });
-$('close').addEventListener('click', () => { nextRevision(); stopWorker(); query.value = ''; $('count').textContent = '0/160자'; $('timing').textContent = ''; setState('미준비'); result.textContent = '종료했습니다. 수업 입력과 결과를 메모리에서 비웠습니다.'; });
-$('basic').addEventListener('click', () => { result.replaceChildren(); const h = document.createElement('h2'); h.textContent = '기본 탐구 카드 · 개발자 초안'; result.append(h); const list = document.createElement('ul'); cards.forEach(c => { const li = document.createElement('li'); li.textContent = `${c.title}: ${c.text}`; list.append(li); }); result.append(list); });
-query.addEventListener('input', () => { nextRevision(); $('count').textContent = `${query.value.length}/160자`; if (state.textContent?.includes('추론 중')) { stopWorker(); setState('취소'); } });
+$('cancel').addEventListener('click', () => { nextRevision(); stopWorker(); setState('취소'); setResult('요청을 취소했습니다. 기본 카드로 계속할 수 있습니다.'); });
+$('reset').addEventListener('click', () => { nextRevision(); stopWorker(); query.value = ''; $('count').textContent = '0/160자'; $('timing').textContent = ''; setState('미준비'); setResult('초기화했습니다. 이전 결과는 사용할 수 없습니다.'); });
+$('close').addEventListener('click', () => { nextRevision(); stopWorker(); query.value = ''; $('count').textContent = '0/160자'; $('timing').textContent = ''; setState('미준비'); setResult('종료했습니다. 수업 입력과 결과를 메모리에서 비웠습니다.'); });
+$('basic').addEventListener('click', () => { result.removeAttribute('data-hold'); result.replaceChildren(); const h = document.createElement('h2'); h.textContent = '기본 탐구 카드 · 개발자 초안'; result.append(h); const list = document.createElement('ul'); cards.forEach(c => { const li = document.createElement('li'); li.textContent = `${c.title}: ${c.text}`; list.append(li); }); result.append(list); });
+query.addEventListener('input', () => { const hadRecommendation = result.hasAttribute('data-hold'); const wasInferring = state.textContent?.includes('추론 중'); nextRevision(); $('count').textContent = `${query.value.length}/160자`; if (wasInferring) { stopWorker(); setState('취소'); } if (hadRecommendation || wasInferring) setResult('입력을 수정했습니다. 이전 추천은 무효입니다. 다시 실행해 주세요.'); });
 const ex = $('examples'); examples.forEach(e => { const li = document.createElement('li'); const b = document.createElement('button'); b.textContent = `${e.id}: ${e.text}`; b.addEventListener('click', () => { query.value = e.text; query.dispatchEvent(new Event('input')); }); li.append(b); ex.append(li); });
-window.addEventListener('pagehide', () => { nextRevision(); stopWorker(); query.value = ''; result.replaceChildren(); });
+window.addEventListener('pagehide', () => { nextRevision(); stopWorker(); query.value = ''; result.removeAttribute('data-hold'); result.replaceChildren(); });

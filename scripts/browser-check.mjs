@@ -31,6 +31,11 @@ console.log(JSON.stringify({ state: await page.locator('#state').textContent(), 
     const output = await page.locator('#result').innerText();
     if (e.expected === 'hold') assert.match(output, /이유를 더 확인해야 합니다/);
     else if (e.id === 'E1') assert.match(output, /같은 전체 나누기/);
+    if (e.id === 'E1') {
+      await page.locator('#query').fill('분모가 무엇인지 모르겠어요.');
+      assert.equal(await page.locator('#result').getAttribute('data-hold'), null);
+      assert.match(await page.locator('#result').innerText(), /이전 추천은 무효/);
+    }
     console.log(JSON.stringify({ id: e.id, expected: e.expected, result: output }));
   }
   await page.locator('#query').fill('1/5가 1/3보다 크다고 생각해요.');
