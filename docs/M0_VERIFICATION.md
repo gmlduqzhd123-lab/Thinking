@@ -53,6 +53,13 @@ npx vite preview --host 127.0.0.1 --port 4173
 
 초안 문장과 숫자만 바꾼 변형을 거부하는 검사는 완전한 의미 중복 탐지가 아니다. 교사는 독립 작성·검수와 개발 세트와의 분리를 별도로 확인해야 한다. 사용 절차는 `docs/HOLDOUT_REVIEW.md`에 있다.
 
+## GitHub Pages 게시 시도 (2026-10-20)
+
+- `docs/index.html`은 개발 상태 안내만 표시한다. 수업용 앱과 모델 바이너리는 공개 산출물에서 제외했다.
+- GitHub Pages 소스를 `main/docs`로 지정한 자동 실행이 대기 상태를 벗어나지 못해, `pages.yml`의 전용 워크플로로 변경했다. 워크플로는 `docs/index.html`만 별도 디렉터리에 복사한 뒤 업로드한다. 개발용 TSV·모델·WASM은 업로드 경로 밖에 있다.
+- API에서 Pages `build_type=workflow` 확인, `workflow_dispatch` HTTP 204 확인. 실행 [39281275323](https://github.com/gmlduqzhd123-lab/Thinking/actions/runs/39281275323)은 확인 당시 `queued`다. `https://gmlduqzhd123-lab.github.io/Thinking/`는 HTTP 404였다. 따라서 공개 접속 시험은 **FAIL/미게시**, GitHub 실행 완료는 **BLOCKED**다.
+- 재현: 해당 실행이 `success`가 된 뒤 사이트 URL을 GET으로 열고 HTTP 200 및 안내 문구를 확인한다. 그 전에는 배포 성공으로 보고하지 않는다.
+
 ## 해석과 제한
 
 이 시험은 로컬 개발 PC의 브라우저 성공이다. 개발 질의 6건은 개발자가 작성한 가상 초안이며 실제 교사 검수 자료가 아니다. `minSimilarity=0.48`, `minMargin=0.045`는 잠정값이다. E2와 E3의 원시 점수는 모델만으로 반대 의미와 적용 조건을 안전하게 구분하지 못함을 보여 준다. 보류 규칙은 정답을 맞추도록 점수를 바꾸는 방식이 아니라 위험 조건에서 추천을 중단하는 안전 장치이며, 다양한 문장에 대한 일반화는 미검증이다.
