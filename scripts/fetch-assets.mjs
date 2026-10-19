@@ -5,7 +5,7 @@ import { pipeline } from 'node:stream/promises';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const manifest = JSON.parse(readFileSync(new URL('../model-assets.json', import.meta.url)));
-for (const [name, [bytes, expectedHash]] of Object.entries(manifest.files)) {
+for (const [name, [bytes, expectedHash, sourcePath]] of Object.entries(manifest.files)) {
   const dest = new URL(`../public/${name}`, import.meta.url);
   mkdirSync(dirname(fileURLToPath(dest)), { recursive: true });
   const temp = `${fileURLToPath(dest)}.part`;
@@ -14,7 +14,7 @@ for (const [name, [bytes, expectedHash]] of Object.entries(manifest.files)) {
       const source = new URL(`../node_modules/onnxruntime-web/dist/${name.slice(5)}`, import.meta.url);
       copyFileSync(source, temp);
     } else {
-      const url = `https://huggingface.co/${manifest.source}/resolve/${manifest.revision}/${name.replace('models/m01/', '')}`;
+      const url = `https://huggingface.co/${manifest.source}/resolve/${manifest.revision}/${sourcePath || name.replace('models/m01/', '')}`;
       const response = await fetch(url, { redirect: 'follow' });
       if (!response.ok || !response.body) throw new Error(`Download failed for ${name}: HTTP ${response.status}`);
       await pipeline(Readable.fromWeb(response.body), createWriteStream(temp));

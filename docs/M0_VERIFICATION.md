@@ -18,9 +18,9 @@ npm run build
 npx vite preview --host 127.0.0.1 --port 4173
 ```
 
-다른 셸에서 `TEST_URL=http://127.0.0.1:4173/ npm run test:browser`를 실행한다. Windows PowerShell에서는 `$env:TEST_URL='http://127.0.0.1:4173/'; npm run test:browser`를 사용한다. 하위 경로 시험은 `$env:APP_BASE='/qa-forks/'; npm run build`로 다시 빌드하고 preview를 재시작한 뒤 `TEST_URL`을 `http://127.0.0.1:4173/qa-forks/`로 설정한다. `fetch:assets`만 개발·빌드 중 공식 모델 저장소와 통신한다.
+다른 셸에서 `TEST_URL=http://127.0.0.1:4173/ npm run test:browser`를 실행한다. Windows PowerShell에서는 `$env:TEST_URL='http://127.0.0.1:4173/'; npm run test:browser`를 사용한다. 하위 경로 시험은 `$env:APP_BASE='/qa-forks/'; npm run build`로 다시 빌드하고 **같은 `APP_BASE` 환경 변수로 preview를 재시작**한 뒤 `TEST_URL`을 `http://127.0.0.1:4173/qa-forks/`로 설정한다. `fetch:assets`만 개발·빌드 중 공식 모델 저장소와 통신한다.
 
-## 결과
+## 초기 Xenova 후보 결과 (교체 전 기록)
 
 | 항목 | 상태 | 관찰 |
 |---|---|---|
@@ -59,6 +59,17 @@ npx vite preview --host 127.0.0.1 --port 4173
 - GitHub Pages 소스를 `main/docs`로 지정한 자동 실행이 대기 상태를 벗어나지 못해, `pages.yml`의 전용 워크플로로 변경했다. 워크플로는 `docs/index.html`만 별도 디렉터리에 복사한 뒤 업로드한다. 개발용 TSV·모델·WASM은 업로드 경로 밖에 있다.
 - API에서 Pages `build_type=workflow` 확인, `workflow_dispatch` HTTP 204 확인. 실행 [39281275323](https://github.com/gmlduqzhd123-lab/Thinking/actions/runs/39281275323)은 확인 당시 `queued`다. `https://gmlduqzhd123-lab.github.io/Thinking/`는 HTTP 404였다. 따라서 공개 접속 시험은 **FAIL/미게시**, GitHub 실행 완료는 **BLOCKED**다.
 - 재현: 해당 실행이 `success`가 된 뒤 사이트 URL을 GET으로 열고 HTTP 200 및 안내 문구를 확인한다. 그 전에는 배포 성공으로 보고하지 않는다.
+
+2026-10-20에 뒤늦게 완료된 이전 `main/docs` 게시로 루트는 HTTP 200이 됐으나 `HOLDOUT_DRAFT.tsv`도 HTTP 200(7,428바이트)이었다. 개발용 초안을 Pages 게시 대상으로 두지 않기 위해 Pages를 일시 중지했고 루트와 TSV 경로 모두 HTTP 404를 확인했다. `gh-pages` 브랜치에는 `index.html`과 `.nojekyll`만 커밋했다. Pages API는 `build_type=legacy`, `source=gh-pages/`, `status=building`을 반환했다. 최종 배포가 끝나기 전에는 사이트 게시 PASS로 표시하지 않는다. 완료 후 루트 HTTP 200과 TSV·모델 경로 HTTP 404를 각각 다시 확인한다.
+
+## 원 저장소 ONNX로 고정 자산 교체 (2026-10-20)
+
+- 출처: 원 모델 [`sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`](https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2)의 Apache-2.0 표시, 리비전 `e8f8c211226b894fcb81acc59f3b34ba3efd5f42`. config·tokenizer·`onnx/model_quint8_avx2.onnx`를 같은 리비전에서 내려받고 `model-assets.json`의 크기·SHA-256으로 고정했다. 브라우저 로더가 찾는 로컬 이름 `onnx/model_quantized.onnx`과 원본 경로의 대응을 `fetch-assets.mjs`에 기록했다. Git에는 바이너리를 넣지 않는다.
+- 처음에는 Playwright 요청 가로채기로 118MB ONNX를 대체했을 때 브라우저가 종료됐다. 별도 정적 서버에서 같은 해시 파일을 직접 제공하자 Edge WASM 추론이 성공했다. 가로채기 실패를 모델 비호환으로 해석하지 않고 실제 정적 배포 방식으로 재시험했다.
+- **PASS:** `npm run fetch:assets`, `npm run verify:assets` — 6개 파일, **149,177,062바이트(142.27MiB)**. Node CPU에서도 한국어 문장 384차원 임베딩을 관찰했다.
+- **PASS:** `npm run typecheck`, `npm test` 5건, 루트와 `/qa-forks/`의 `npm run build`, 두 경로의 정적 preview에서 `npm run test:browser`, 루트 정적 preview의 `npm run test:ai` 기술 smoke 2건. 기존 6개 개발 예시의 보류·추천 경로, 누락·손상·추론 시간 초과, 입력 보호 검사는 통과했다. 하위 경로 시험의 첫 시도는 preview에 `APP_BASE`를 전달하지 않아 404가 났고, 환경 변수를 맞춰 재실행해 통과했다.
+- 루트 준비 전체 7,357ms(파일 로딩 5,623ms, 초기화 1,255ms, 카드 색인 477ms), 하위 경로 준비 전체 5,300ms(파일 로딩 4,057ms, 초기화 972ms, 카드 색인 270ms). 각각 한 번의 개발 PC 관찰이다.
+- **BLOCKED/NOT_RUN:** 교사가 검수한 독립 60건이 없어 추천 품질 목표를 평가하지 않았다. 학교 PC 30회 p95·실물 기기·실제 수업도 미실행이다. 원 저장소의 라이선스 표기 확인과 기술 시험 통과를 수업 출시 승인으로 취급하지 않는다.
 
 ## 해석과 제한
 
