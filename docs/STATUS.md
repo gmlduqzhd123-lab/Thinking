@@ -8,3 +8,4 @@
 - 공개 주소: GitHub Pages 게시 소스는 `gh-pages` 브랜치 루트다. 브랜치에는 개발 상태 `index.html`과 `.nojekyll` 두 파일만 있다. M0 앱·개발용 콘텐츠·모델 파일은 사이트에 게시하지 않는다. 앱 출시는 위 차단 항목이 해소될 때까지 BLOCKED다.
 - Pages 실행: 이전 `main/docs` 게시가 뒤늦게 완료되면서 개발용 초안 TSV가 Pages URL에서 HTTP 200으로 노출된 것을 발견했다. Pages를 일시 중지해 URL·TSV 모두 404를 확인하고, 두 파일만 담은 `gh-pages` 브랜치를 게시 소스로 설정했다. 중복 게시 경로를 없애기 위해 `main`의 전용 workflow를 제거했다. 재게시 완료와 공개 URL의 최종 200/404 확인은 아직 대기 중이다.
 - 현재 모델 시험: 원 모델 저장소의 Apache-2.0 양자화 ONNX로 고정 자산을 교체했다. 6개 파일 SHA-256 PASS, 총 142.27MiB. Edge 정적 빌드의 루트·하위 경로 `test:browser` PASS, 실제 브라우저 `test:ai` 기술 smoke PASS. 교사 품질 평가와 실물 기기 시험은 NOT_RUN이므로 M0 관문은 보류한다.
+- Pages 재검증 (2026-10-20): `npm run test:pages`를 추가해 공개 안내 페이지의 문구와 HTTP 200, 개발 초안 TSV·모델·WASM URL의 HTTP 404를 함께 검사한다. 현재 결과는 안내 페이지 HTTP 404로 **FAIL**, 비공개 자산 경로 3개 HTTP 404로 **PASS**다. `gh-pages` 실행 #5의 build·report 단계는 성공했지만 deploy 단계가 대기 중이다. 배포 성공 및 사이트 공개 완료로 표시하지 않는다.

@@ -62,6 +62,8 @@ npx vite preview --host 127.0.0.1 --port 4173
 
 2026-10-20에 뒤늦게 완료된 이전 `main/docs` 게시로 루트는 HTTP 200이 됐으나 `HOLDOUT_DRAFT.tsv`도 HTTP 200(7,428바이트)이었다. 개발용 초안을 Pages 게시 대상으로 두지 않기 위해 Pages를 일시 중지했고 루트와 TSV 경로 모두 HTTP 404를 확인했다. `gh-pages` 브랜치에는 `index.html`과 `.nojekyll`만 커밋했다. Pages API는 `build_type=legacy`, `source=gh-pages/`, `status=building`을 반환했다. 중복 게시 경로가 생기지 않도록 `main`의 별도 Pages workflow를 제거했다. 최종 배포가 끝나기 전에는 사이트 게시 PASS로 표시하지 않는다. 완료 후 루트 HTTP 200과 TSV·모델 경로 HTTP 404를 각각 다시 확인한다.
 
+2026-10-20 재검증: `scripts/check-pages.mjs`와 `npm run test:pages`를 추가했다. 실제 GitHub Pages URL에서 안내 루트 HTTP 404로 **FAIL**(명령 종료 코드 1), `HOLDOUT_DRAFT.tsv`·`models/m01/onnx/model_quantized.onnx`·`wasm/ort-wasm-simd-threaded.jsep.wasm`은 각각 HTTP 404로 **PASS**였다. [안전한 `gh-pages` 실행 #5](https://github.com/gmlduqzhd123-lab/Thinking/actions/runs/39285159531)의 build·report 작업 단계는 성공했고 deploy 작업은 확인 시점에 `queued`다. `npm run typecheck` PASS, `npm test` 5건 PASS. 재현은 저장소 루트에서 `npm run test:pages`를 실행하며, 네 항목 모두 PASS와 종료 코드 0이 나오기 전에는 배포 완료를 주장하지 않는다.
+
 ## 원 저장소 ONNX로 고정 자산 교체 (2026-10-20)
 
 - 출처: 원 모델 [`sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`](https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2)의 Apache-2.0 표시, 리비전 `e8f8c211226b894fcb81acc59f3b34ba3efd5f42`. config·tokenizer·`onnx/model_quint8_avx2.onnx`를 같은 리비전에서 내려받고 `model-assets.json`의 크기·SHA-256으로 고정했다. 브라우저 로더가 찾는 로컬 이름 `onnx/model_quantized.onnx`과 원본 경로의 대응을 `fetch-assets.mjs`에 기록했다. Git에는 바이너리를 넣지 않는다.
