@@ -60,7 +60,7 @@ npx vite preview --host 127.0.0.1 --port 4173
 - API에서 Pages `build_type=workflow` 확인, `workflow_dispatch` HTTP 204 확인. 실행 [39281275323](https://github.com/gmlduqzhd123-lab/Thinking/actions/runs/39281275323)은 확인 당시 `queued`다. `https://gmlduqzhd123-lab.github.io/Thinking/`는 HTTP 404였다. 따라서 공개 접속 시험은 **FAIL/미게시**, GitHub 실행 완료는 **BLOCKED**다.
 - 재현: 해당 실행이 `success`가 된 뒤 사이트 URL을 GET으로 열고 HTTP 200 및 안내 문구를 확인한다. 그 전에는 배포 성공으로 보고하지 않는다.
 
-2026-10-20에 뒤늦게 완료된 이전 `main/docs` 게시로 루트는 HTTP 200이 됐으나 `HOLDOUT_DRAFT.tsv`도 HTTP 200(7,428바이트)이었다. 개발용 초안을 Pages 게시 대상으로 두지 않기 위해 Pages를 일시 중지했고 루트와 TSV 경로 모두 HTTP 404를 확인했다. `gh-pages` 브랜치에는 `index.html`과 `.nojekyll`만 커밋했다. Pages API는 `build_type=legacy`, `source=gh-pages/`, `status=building`을 반환했다. 최종 배포가 끝나기 전에는 사이트 게시 PASS로 표시하지 않는다. 완료 후 루트 HTTP 200과 TSV·모델 경로 HTTP 404를 각각 다시 확인한다.
+2026-10-20에 뒤늦게 완료된 이전 `main/docs` 게시로 루트는 HTTP 200이 됐으나 `HOLDOUT_DRAFT.tsv`도 HTTP 200(7,428바이트)이었다. 개발용 초안을 Pages 게시 대상으로 두지 않기 위해 Pages를 일시 중지했고 루트와 TSV 경로 모두 HTTP 404를 확인했다. `gh-pages` 브랜치에는 `index.html`과 `.nojekyll`만 커밋했다. Pages API는 `build_type=legacy`, `source=gh-pages/`, `status=building`을 반환했다. 중복 게시 경로가 생기지 않도록 `main`의 별도 Pages workflow를 제거했다. 최종 배포가 끝나기 전에는 사이트 게시 PASS로 표시하지 않는다. 완료 후 루트 HTTP 200과 TSV·모델 경로 HTTP 404를 각각 다시 확인한다.
 
 ## 원 저장소 ONNX로 고정 자산 교체 (2026-10-20)
 
