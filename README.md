@@ -21,6 +21,6 @@ npm run dev
 
 모델 채택 여부와 한계는 [MODEL_DECISION.md](MODEL_DECISION.md), 재현 결과는 [docs/M0_VERIFICATION.md](docs/M0_VERIFICATION.md)에 기록했습니다.
 
-M01 기본 수업 개발 화면은 로컬 정적 preview의 `/lesson.html`에서 열 수 있습니다. AI 추천 없이 개념 선택부터 종료까지 진행하며, 교사 검수 전 콘텐츠로 표시합니다. 흐름 검사는 `npm run test:lesson`, 범위와 미검증 항목은 [docs/M1_VERIFICATION.md](docs/M1_VERIFICATION.md)에 기록했습니다. 공개 GitHub Pages에는 이 화면을 게시하지 않았습니다.
+M01 기본 수업 개발 화면은 로컬 정적 preview의 `/lesson.html` 또는 [GitHub Pages 개발용 미리보기](https://gmlduqzhd123-lab.github.io/Thinking/lesson.html)에서 열 수 있습니다. AI 추천 없이 개념 선택부터 종료까지 진행하며, 교사 검수 전 콘텐츠로 표시합니다. 흐름 검사는 `npm run test:lesson`, 범위와 미검증 항목은 [docs/M1_VERIFICATION.md](docs/M1_VERIFICATION.md)에 기록했습니다. 공개 미리보기에는 로컬 AI 모델과 검수 전 시험 파일을 포함하지 않았습니다.
 
 교사 검수 전용 초안과 집계 평가 절차는 [docs/HOLDOUT_REVIEW.md](docs/HOLDOUT_REVIEW.md)에 있습니다. `npm run test:ai`는 실제 브라우저 모델을 사용하는 기술 smoke 시험이며, `npm run test:holdout -- 경로`는 별도 검수 파일이 있어야 실행됩니다.

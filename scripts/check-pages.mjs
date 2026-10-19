@@ -5,7 +5,8 @@ if (!origin.pathname.endsWith('/')) {
 }
 
 const checks = [
-  { path: '', expected: 200, marker: '이 페이지는 개발 진행 안내입니다. 실제 수업용 화면이 아닙니다.' },
+  { path: '', expected: 200, marker: '<a href="./lesson.html">M01 수업 화면 미리보기 열기</a>' },
+  { path: 'lesson.html', expected: 200, marker: '<title>M01 단위분수 비교 · 개발용 수업</title>' },
   { path: 'HOLDOUT_DRAFT.tsv', expected: 404 },
   { path: 'models/m01/onnx/model_quantized.onnx', expected: 404 },
   { path: 'wasm/ort-wasm-simd-threaded.jsep.wasm', expected: 404 },
