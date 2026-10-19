@@ -75,6 +75,23 @@ console.log(JSON.stringify({ state: await page.locator('#state').textContent(), 
   await page.goto('about:blank');
   await page.goBack();
   assert.equal(await page.locator('#query').inputValue(), '');
+  await page.getByRole('button', { name: '모델 준비' }).click();
+  await page.getByText('모델 상태: 준비됨').waitFor({ timeout: 120000 });
+  await page.locator('#query').fill('복귀 후 남아서는 안 되는 개발용 문장');
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })));
+  assert.equal(await page.locator('#query').inputValue(), '');
+  assert.equal(await page.locator('#state').textContent(), '모델 상태: 미준비');
+  assert.equal(await page.locator('#timing').textContent(), '');
+  assert.equal(await page.getByRole('button', { name: '추천 실행' }).isDisabled(), true);
+  await page.locator('#query').fill('뒤로 가기 캐시에서 복원된 개발용 문장');
+  await page.evaluate(() => {
+    document.querySelector('#state').textContent = '모델 상태: 준비됨';
+    document.querySelector('#timing').textContent = '이전 모델 준비 시간';
+    window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+  });
+  assert.equal(await page.locator('#query').inputValue(), '');
+  assert.equal(await page.locator('#state').textContent(), '모델 상태: 미준비');
+  assert.equal(await page.locator('#timing').textContent(), '');
 }
 const bad = await browser.newPage();
 const badRequests = [];

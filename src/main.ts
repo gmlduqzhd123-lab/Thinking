@@ -69,4 +69,12 @@ $('close').addEventListener('click', () => { nextRevision(); stopWorker(); query
 $('basic').addEventListener('click', () => { result.removeAttribute('data-hold'); result.replaceChildren(); const h = document.createElement('h2'); h.textContent = '기본 탐구 카드 · 개발자 초안'; result.append(h); const list = document.createElement('ul'); cards.forEach(c => { const li = document.createElement('li'); li.textContent = `${c.title}: ${c.text}`; list.append(li); }); result.append(list); });
 query.addEventListener('input', () => { const hadRecommendation = result.hasAttribute('data-hold'); const wasInferring = state.textContent?.includes('추론 중'); nextRevision(); $('count').textContent = `${query.value.length}/160자`; if (wasInferring) { stopWorker(); setState('취소'); } if (hadRecommendation || wasInferring) setResult('입력을 수정했습니다. 이전 추천은 무효입니다. 다시 실행해 주세요.'); });
 const ex = $('examples'); examples.forEach(e => { const li = document.createElement('li'); const b = document.createElement('button'); b.textContent = `${e.id}: ${e.text}`; b.addEventListener('click', () => { query.value = e.text; query.dispatchEvent(new Event('input')); }); li.append(b); ex.append(li); });
-window.addEventListener('pagehide', () => { nextRevision(); stopWorker(); query.value = ''; result.removeAttribute('data-hold'); result.replaceChildren(); });
+function clearNavigationSession() {
+  nextRevision(); stopWorker(); query.value = '';
+  $('count').textContent = '0/160자';
+  $('timing').textContent = '';
+  setState('미준비');
+  setResult('이전 입력과 추천을 지웠습니다. 모델을 다시 준비해 주세요.');
+}
+window.addEventListener('pagehide', clearNavigationSession);
+window.addEventListener('pageshow', event => { if (event.persisted) clearNavigationSession(); });

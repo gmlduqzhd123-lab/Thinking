@@ -106,6 +106,14 @@ npx vite preview --host 127.0.0.1 --port 4173
 - **PASS:** `npm run typecheck`, `npm run build`(6개 자산 해시 포함), 정적 preview의 실제 Edge 모델 `npm run test:browser`, `npm run test:ai` 기술 smoke 2건. 현재 모델의 카드·질의 벡터가 새 검사를 통과했다.
 - **한계:** 벡터 형상 검사는 추천의 교육적 적합도나 교사 검수를 증명하지 않는다. 학교 교사 PC 30회 p95와 실물 기기 시험도 **NOT_RUN**이다.
 
+## 페이지 이동·복귀 상태 회귀 (2026-10-20)
+
+기존 `pagehide`는 질의와 Worker를 지웠지만 상태 문구와 준비 시간은 남겼다. 실제 Edge 브라우저에서 모델 준비 후 `pagehide` 이벤트를 발생시키는 회귀 검사를 추가하자 ‘모델 상태: 준비됨’이 남아 **FAIL**했다. `pagehide`와 `pageshow.persisted`에 공통 초기화를 적용해 입력, 추천 결과 판정, 준비 시간, 버튼 상태, Worker를 함께 초기화했다.
+
+- **PASS:** 수정 후 정적 preview의 실제 모델 `npm run test:browser`에서 뒤로 가기 경로, `pagehide`, 캐시 복귀를 모사한 `pageshow.persisted` 이벤트의 초기화 확인. `npm run test:ai` 기술 smoke 2건도 PASS.
+- **PASS:** `npm run typecheck`, `npm test` 6건, `npm run build`(고정 자산 6개 검증 포함).
+- **한계:** Playwright의 뒤로 가기와 복귀 이벤트 모사는 개발 PC 브라우저 검증이다. 학교 실물 기기의 BFCache 동작은 **NOT_RUN**이며, 교사 검수 독립 60건 부재로 M0 출시 관문은 **BLOCKED**다.
+
 ## 해석과 제한
 
 이 시험은 로컬 개발 PC의 브라우저 성공이다. 개발 질의 6건은 개발자가 작성한 가상 초안이며 실제 교사 검수 자료가 아니다. `minSimilarity=0.48`, `minMargin=0.045`는 잠정값이다. E2와 E3의 원시 점수는 모델만으로 반대 의미와 적용 조건을 안전하게 구분하지 못함을 보여 준다. 보류 규칙은 정답을 맞추도록 점수를 바꾸는 방식이 아니라 위험 조건에서 추천을 중단하는 안전 장치이며, 다양한 문장에 대한 일반화는 미검증이다.
