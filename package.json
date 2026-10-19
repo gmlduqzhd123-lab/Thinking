@@ -9,7 +9,9 @@
     "build": "npm run verify:assets && tsc --noEmit && vite build && node scripts/prune-build.mjs",
     "verify:assets": "node scripts/verify-assets.mjs",
     "test:browser": "node scripts/browser-check.mjs",
-    "fetch:assets": "node scripts/fetch-assets.mjs"
+    "fetch:assets": "node scripts/fetch-assets.mjs",
+    "test:ai": "node scripts/evaluate-holdout.mjs --smoke",
+    "test:holdout": "node scripts/evaluate-holdout.mjs"
   },
   "dependencies": {
     "@huggingface/transformers": "3.8.1"

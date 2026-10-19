@@ -30,13 +30,14 @@ function createWorker() {
     } else if (data.type === 'result' && data.result) {
       clearTimer(); cancelButton.disabled = true; inferButton.disabled = false; setState('준비됨');
       const outcome = data.result;
+      result.dataset.hold = String(outcome.hold);
       result.replaceChildren();
       const title = document.createElement('h2'); title.textContent = outcome.hold ? '이유를 더 확인해야 합니다' : 'AI 의미 비교 후보 · 교사 검토 필요'; result.append(title);
       const detail = document.createElement('p'); detail.textContent = outcome.hold ? outcome.reason : '가상 초안 카드의 의미 유사도 순서입니다. 교사 승인 전 자동 전환되지 않습니다.'; result.append(detail);
       const list = document.createElement('ol');
       for (const score of outcome.scores) {
         const card = cards.find(c => c.id === score.id)!;
-        const item = document.createElement('li'); item.textContent = `${card.title} · 유사도 ${score.similarity.toFixed(3)}`; list.append(item);
+        const item = document.createElement('li'); item.dataset.cardId = card.id; item.textContent = `${card.title} · 유사도 ${score.similarity.toFixed(3)}`; list.append(item);
       }
       result.append(list);
       const note = document.createElement('p'); note.textContent = `기본 키워드 검색: ${baseline(query.value)} · 준비 후 추론 ${Math.round(data.inferMs || 0)}ms`; result.append(note);
