@@ -9,7 +9,7 @@ const html = await readFile(join(dist, 'lesson.html'), 'utf8');
 if (!html.includes('<title>M01 단위분수 비교 · 개발용 수업</title>') || !html.includes('noindex, nofollow')) throw new Error('Missing development-preview labels');
 const references = [...html.matchAll(/(?:src|href)="(\/Thinking\/assets\/[^"\s]+)"/g)].map(match => match[1]);
 const assets = [...new Set(references.map(reference => reference.split('/').at(-1)))];
-if (assets.length !== 3 || !assets.some(name => /^lesson-.+\.js$/.test(name)) || !assets.some(name => /^lesson-.+\.css$/.test(name)) || !assets.some(name => /^modulepreload-polyfill-.+\.js$/.test(name))) throw new Error('Unexpected lesson asset graph');
+if (assets.length !== 3 || !assets.some(name => /^lesson-.+\.js$/.test(name)) || !assets.some(name => /^lesson-.+\.css$/.test(name)) || !assets.some(name => /^(?:modulepreload-polyfill|constants)-.+\.js$/.test(name))) throw new Error('Unexpected lesson asset graph');
 if (assets.some(name => basename(name) !== name)) throw new Error('Unexpected asset path');
 try { await readdir(target); throw new Error('Stage directory already exists'); } catch (error) { if (error.code !== 'ENOENT') throw error; }
 await mkdir(join(target, 'assets'), { recursive: true });
