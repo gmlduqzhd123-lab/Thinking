@@ -91,7 +91,11 @@ self.onmessage = async (event: MessageEvent<Msg>) => {
         inferMs: performance.now() - start,
       });
     }
-  } catch {
-    send('error', requestId, sessionRevision);
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    const code = detail.includes('WebAssembly') ? 'WASM_UNSUPPORTED'
+      : detail.includes('fetch') || detail.includes('network') ? 'MODEL_DOWNLOAD'
+      : 'UNKNOWN';
+    send('error', requestId, sessionRevision, { errorCode: code, errorDetail: detail });
   }
 };

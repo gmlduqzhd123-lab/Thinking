@@ -1,7 +1,8 @@
 import { cards } from './cards';
 import { modelContract } from './model-contract';
-import { sensitive } from './privacy';
+import { sensitive, detectSensitiveType } from './privacy';
 import { INFERENCE_TIMEOUT_MS, MAX_QUERY_LENGTH } from './constants';
+import { checkWasmSupport, getUserMessage } from './errors';
 
 type Outcome = { hold: boolean; reason: string; scores: { id: string; similarity: number }[] };
 type WorkerReply = { type: string; requestId: number; sessionRevision: number; contract?: string; result?: Outcome };
@@ -123,6 +124,12 @@ export function createLessonAiPanel(root: HTMLElement) {
   }
 
   function prepare() {
+    if (!checkWasmSupport()) {
+      state = '실패';
+      message = getUserMessage('WASM_UNSUPPORTED');
+      draw();
+      return;
+    }
     invalidate(); stopWorker(); state = '준비 중';
     message = '같은 출처의 모델과 WASM을 준비하고 있습니다.';
     worker = new Worker(new URL('./ai.worker.ts', import.meta.url), { type: 'module' });
@@ -169,7 +176,8 @@ export function createLessonAiPanel(root: HTMLElement) {
       return;
     }
     if (sensitive(text)) {
-      message = '연락처·식별 번호로 보이는 입력은 사용할 수 없습니다.';
+      const type = detectSensitiveType(text);
+      message = `${type ? type + '(으)로' : '연락처·식별 번호로'} 보이는 입력은 사용할 수 없습니다.`;
       draw();
       return;
     }

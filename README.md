@@ -1,28 +1,134 @@
-# 생각의 갈림길 AI — 개발판
+# 생각의 갈림길 AI — 초등 수학 AI 수업 도구
 
-초등 수학 M01의 단위분수 비교를 위한 개발판입니다. 루트는 M0 로컬 AI 기술 검증, `/lesson.html`은 M1 기본 수업 화면입니다. 모든 콘텐츠는 개발자 작성 초안이며 교사 검수 전입니다. 공개 수업 자료가 아닙니다.
+> **⚠️ 개발 미리보기(Development Preview)입니다.** 교사 검수·학교 기기 검증이 완료되지 않았으며, 수업 현장 배포 승인 전입니다.
 
-## 실행
+**생각의 갈림길 AI**는 초등학교 수학 수업에서 학생들의 개념 혼동(misconception)을 비교·분석하는 교사 지원 도구입니다. 단위분수 크기 비교(예: 1/3과 1/5) 단원에서 학생들이 흔히 보이는 오개념 패턴을 로컬 AI(문장 임베딩)로 매칭하여 탐구 카드를 추천합니다.
 
-Node.js 24에서:
+---
 
-```sh
+## 주요 기능
+
+- 📊 **실시간 투표 집계** — 학생 선택을 입력하면 즉시 분포 차트를 시각화합니다.
+- 🤖 **로컬 AI 추천** — ONNX WASM 기반 문장 임베딩으로 학생 혼동 패턴을 탐구 카드에 매칭합니다. 외부 서버 없이 브라우저 안에서만 동작합니다.
+- 🔒 **개인정보 보호** — 학생 이름·번호·발언 원문을 입력하지 않으며, 모든 데이터는 브라우저 메모리에만 존재합니다. 서버 전송·저장 없음.
+- 📱 **반응형 UI** — 데스크톱·태블릿·모바일 화면에 맞는 레이아웃을 제공합니다.
+- 🌙 **다크 모드** — 시스템 설정에 따른 자동 전환을 지원합니다.
+- 📋 **JSON 내보내기** — 수업 결과를 JSON 파일로 내보낼 수 있습니다.
+- 🧩 **다단원 확장** — `UnitConfig` 타입을 따르는 데이터 파일을 추가하면 새 단원을 지원합니다.
+
+---
+
+## 사전 요구 사항
+
+| 항목 | 버전 |
+|------|------|
+| Node.js | **24 이상** |
+| npm | Node.js에 포함 |
+
+---
+
+## 설치
+
+```bash
 npm ci
 npm run fetch:assets
-npm run verify:assets
-npm run typecheck
-npm test
+```
+
+`fetch:assets`는 ONNX 모델 파일과 WASM 런타임을 다운로드합니다. 네트워크 연결이 필요합니다.
+
+---
+
+## 개발
+
+```bash
 npm run dev
 ```
 
-개발 서버 주소는 명령 출력에서 확인합니다. 페이지에서 **모델 준비**를 눌러 같은 출처의 정적 모델 자산을 로드한 뒤 설명을 입력하고 **추천 실행**을 누릅니다. 모델이 준비되지 않으면 **기본 카드 보기**를 사용합니다. 모델 바이너리는 Git에 넣지 않으며, `fetch:assets`는 개발·빌드 단계에서만 공식 모델 저장소에 접속합니다. 실행 중 브라우저는 외부 모델 저장소에 접속하지 않습니다.
+Vite 개발 서버가 `http://127.0.0.1:5173`에서 시작됩니다.
 
-정적 빌드: `npm run build`; 로컬 시험: `npx vite preview --host 127.0.0.1`. 하위 경로 시험은 PowerShell에서 `$env:APP_BASE='/qa-forks/'; npm run build` 후 같은 preview 명령을 실행합니다. `npm run test:browser`는 설치된 Microsoft Edge를 사용합니다. `TEST_URL`로 시험 주소를, `M0_BROWSER_PATH`로 브라우저 실행 파일 경로를 지정할 수 있습니다. 모델을 의도적으로 누락시킨 시험 명령은 `TEST_FORCE_MISSING_MODEL=1`을 설정하고 종료 코드 1을 기대합니다.
+| 페이지 | 경로 | 설명 |
+|--------|------|------|
+| M0 기술 검증 | `/` (`index.html`) | AI 파이프라인 단독 검증 |
+| M1 기본 수업 | `/lesson.html` | AI 없이 수업 흐름만 사용 |
+| M2 AI 수업 | `/lesson-ai.html` | AI 후보 패널이 포함된 수업 |
 
-모델 채택 여부와 한계는 [MODEL_DECISION.md](MODEL_DECISION.md), 재현 결과는 [docs/M0_VERIFICATION.md](docs/M0_VERIFICATION.md)에 기록했습니다.
+---
 
-M01 기본 수업 개발 화면은 로컬 정적 preview의 `/lesson.html` 또는 [GitHub Pages 개발용 미리보기](https://gmlduqzhd123-lab.github.io/Thinking/lesson.html)에서 열 수 있습니다. AI 추천 없이 개념 선택부터 종료까지 진행하며, 교사 검수 전 콘텐츠로 표시합니다. 흐름 검사는 `npm run test:lesson`, 범위와 미검증 항목은 [docs/M1_VERIFICATION.md](docs/M1_VERIFICATION.md)에 기록했습니다. 공개 미리보기에는 로컬 AI 모델과 검수 전 시험 파일을 포함하지 않았습니다.
+## 빌드
 
-M01 화면의 수학·문구·집계 규칙을 개발자가 대조한 결과는 [docs/M01_SELF_REVIEW.md](docs/M01_SELF_REVIEW.md)에 있습니다. 자체 검토는 교사 승인이나 실제 수업 검증이 아닙니다.
+```bash
+npm run build
+```
 
-교사 검수 전용 초안과 집계 평가 절차는 [docs/HOLDOUT_REVIEW.md](docs/HOLDOUT_REVIEW.md)에 있습니다. `npm run test:ai`는 실제 브라우저 모델을 사용하는 기술 smoke 시험이며, `npm run test:holdout -- 경로`는 별도 검수 파일이 있어야 실행됩니다.
+빌드 과정:
+1. `verify:assets` — 모델 파일 SHA-256 무결성 검증
+2. `tsc --noEmit` — TypeScript 타입 검사
+3. `vite build` — 프로덕션 번들 생성
+4. `prune-build.mjs` — 빌드 산출물 정리
+
+---
+
+## 테스트
+
+| 명령어 | 설명 |
+|--------|------|
+| `npm test` | 단위 테스트 (Node.js `--test` 러너) |
+| `npm run test:browser` | 정적 빌드의 브라우저 E2E 테스트 (Playwright) |
+| `npm run test:lesson` | M1 수업 흐름 E2E 테스트 |
+| `npm run test:lesson-ai` | M2 AI 수업 흐름 E2E 테스트 |
+| `npm run test:ai` | AI 홀드아웃 smoke 테스트 |
+| `npm run test:holdout` | 홀드아웃 전체 평가 |
+| `npm run test:performance` | 로컬 모델 성능 측정 (30회) |
+| `npm run test:pages` | GitHub Pages 배포 확인 |
+| `npm run typecheck` | TypeScript 타입 검사만 실행 |
+
+---
+
+## 프로젝트 구조
+
+```
+Thinking/
+├── index.html              # M0 기술 검증 페이지
+├── lesson.html             # M1 기본 수업 페이지
+├── lesson-ai.html          # M2 AI 수업 페이지
+├── model-assets.json       # 모델 파일 목록·해시·출처
+├── vite.config.ts          # Vite 빌드 설정
+├── tsconfig.json           # TypeScript 설정
+├── src/
+│   ├── main.ts             # M0 페이지 진입점
+│   ├── lesson.ts           # M1/M2 수업 렌더러 (10단계 수업 흐름)
+│   ├── lesson-ai-panel.ts  # M2 AI 후보 패널 UI
+│   ├── lesson-core.ts      # 수업 핵심 로직 (투표 검증·분수 계산)
+│   ├── ai.worker.ts        # Web Worker — 모델 로드·임베딩·추론
+│   ├── judge.ts            # AI 판단 로직 (보류 규칙·임계값)
+│   ├── cards.ts            # 탐구 카드 정의·기본 매칭
+│   ├── constants.ts        # 프로젝트 전역 상수
+│   ├── model-contract.ts   # 메인↔Worker 모델 계약
+│   ├── embedding-integrity.ts # 임베딩 벡터 무결성 검증
+│   ├── privacy.ts          # 개인정보 감지 필터
+│   ├── unit-types.ts       # 다단원 타입 정의
+│   ├── units/
+│   │   └── m01.ts          # M01 단위분수 비교 단원 설정
+│   ├── style.css           # M0 스타일
+│   └── lesson.css          # 수업 페이지 스타일
+├── scripts/                # 빌드·테스트·배포 스크립트
+├── tests/                  # 단위 테스트 (.test.mjs)
+├── docs/                   # 문서·검증 기록
+└── test-screenshots/       # 반응형 테스트 스크린샷
+```
+
+---
+
+## 라이선스
+
+이 프로젝트의 라이선스 정보는 저장소 루트를 참고하세요. 사용된 ONNX 모델은 원 저장소의 Apache-2.0 라이선스를 따릅니다.
+
+---
+
+## 관련 문서
+
+- [아키텍처](docs/ARCHITECTURE.md)
+- [교사 안내서](docs/TEACHER_GUIDE.md)
+- [기여 가이드](docs/CONTRIBUTING.md)
+- [변경 이력](CHANGELOG.md)
+- [개발 상태](docs/STATUS.md)

@@ -1,7 +1,8 @@
 import { cards, examples, baseline } from './cards';
 import { modelContract } from './model-contract';
-import { sensitive } from './privacy';
+import { sensitive, detectSensitiveType } from './privacy';
 import { INFERENCE_TIMEOUT_MS, MAX_QUERY_LENGTH } from './constants';
+import { checkWasmSupport, getUserMessage, type ErrorCode } from './errors';
 import './style.css';
 
 // ─── 타입 ────────────────────────────────────────────────────────
@@ -17,6 +18,8 @@ type WorkerMessage = {
   inferMs?: number;
   percent?: number;
   file?: string;
+  errorCode?: ErrorCode;
+  errorDetail?: string;
   result?: {
     hold: boolean;
     reason: string;
@@ -94,6 +97,7 @@ function renderHeader(): string {
     <p class="eyebrow">M0 · 로컬 AI 기술 검증</p>
     <h1>생각의 갈림길 AI</h1>
     <p>정답을 알려 주는 AI가 아니라, 생각을 바꾸는 탐구를 돕는 AI</p>
+    <button id="theme-toggle" class="theme-toggle" aria-label="다크 모드 전환" type="button">🌙</button>
   </header>`;
 }
 
@@ -287,7 +291,8 @@ function createWorker() {
       stopWorker();
       hideProgress();
       setState('실패');
-      setResult('모델 파일 또는 실행 환경을 확인해 주세요. 기본 카드로 계속할 수 있습니다.');
+      const code = data.errorCode ?? 'UNKNOWN';
+      setResult(getUserMessage(code));
     }
   };
 
@@ -295,12 +300,17 @@ function createWorker() {
     stopWorker();
     hideProgress();
     setState('실패');
-    setResult('모델을 실행하지 못했습니다. 기본 카드로 계속할 수 있습니다.');
+    setResult(getUserMessage('WORKER_INIT'));
   };
 }
 
 // ─── 이벤트 핸들러 ───────────────────────────────────────────────
 function handlePrepare() {
+  if (!checkWasmSupport()) {
+    setResult(getUserMessage('WASM_UNSUPPORTED'));
+    setState('실패');
+    return;
+  }
   nextRevision();
   createWorker();
   setState('준비 중');
@@ -318,7 +328,8 @@ function handleInfer() {
     return;
   }
   if (sensitive(text)) {
-    setResult('연락처·식별 번호로 보이는 입력은 사용할 수 없습니다. 일반적인 개념 설명만 적어 주세요.');
+    const type = detectSensitiveType(text);
+    setResult(`${type ? type + '(으)로' : '연락처·식별 번호로'} 보이는 입력은 사용할 수 없습니다. 일반적인 개념 설명만 적어 주세요.`);
     return;
   }
 
@@ -333,7 +344,7 @@ function handleInfer() {
     nextRevision();
     stopWorker();
     setState('실패');
-    setResult('추론이 10초를 넘어 기본 탐구로 전환합니다. 기본 카드를 열어 주세요.');
+    setResult(getUserMessage('INFERENCE_TIMEOUT'));
   }, INFERENCE_TIMEOUT_MS);
 }
 
@@ -407,6 +418,13 @@ $('reset').addEventListener('click', handleReset);
 $('close').addEventListener('click', handleClose);
 $('basic').addEventListener('click', renderBasicCards);
 $<HTMLTextAreaElement>('query').addEventListener('input', handleQueryInput);
+$('theme-toggle').addEventListener('click', () => {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  $('theme-toggle').textContent = next === 'dark' ? '☀️' : '🌙';
+});
 
 // 가상 개발 질의 목록 렌더
 const exList = $('examples');

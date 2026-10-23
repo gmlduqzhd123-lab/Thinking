@@ -344,6 +344,7 @@ function renderPageHeader(): string {
     <p class="eyebrow">${aiEnabled ? 'M2' : 'M1'} 개발판 · 교사 검수 미완료 콘텐츠</p>
     <h1>생각의 갈림길 AI</h1>
     <p>정답을 알려 주는 AI가 아니라, 생각을 바꾸는 탐구를 돕는 AI</p>
+    <button id="theme-toggle" class="theme-toggle" aria-label="다크 모드 전환" type="button">🌙</button>
   </header>`;
 }
 
@@ -351,7 +352,7 @@ function renderPageNotice(): string {
   const aiNote = aiEnabled
     ? 'AI 후보는 교사가 별도로 검토·승인해야 하며 검수 완료 자료가 아닙니다.'
     : '이 화면은 기본 수업이며 AI 추천을 실행하지 않습니다.';
-  return `<aside class="notice">
+  return `<aside class="notice" role="note">
     <strong>개발 전용 초안 · 실제 수업 승인 전</strong>
     <p>학생 개인정보를 입력하지 마세요. ${aiNote}</p>
   </aside>`;
@@ -379,12 +380,14 @@ function renderTimer(): string {
 }
 
 function render(focus = false) {
+  const currentLabel = phaseLabels[phase];
   app.innerHTML = [
     renderPageHeader(),
     renderPageNotice(),
     renderProgressNav(),
     renderTimer(),
-    `<section id="step">${body()}<p id="error" role="alert">${error}</p></section>`,
+    `<section id="step" role="region" aria-label="${currentLabel}">${body()}<p id="error" role="alert">${error}</p></section>`,
+    `<div id="step-announce" class="sr-only" aria-live="assertive" role="status"></div>`,
     '<footer>수업 입력은 이 탭의 메모리에서만 사용합니다. 자동 저장·전송·인쇄하지 않습니다.</footer>',
   ].join('');
 
@@ -400,7 +403,12 @@ function render(focus = false) {
   }
 
   aiPanel?.sync(phase === 'reason');
-  if (focus) app.querySelector<HTMLElement>('#step h2')?.focus();
+  if (focus) {
+    app.querySelector<HTMLElement>('#step h2')?.focus();
+    // 스크린 리더에 단계 변경 알림
+    const announce = app.querySelector('#step-announce');
+    if (announce) announce.textContent = `${phaseLabels[phase]} 단계로 이동했습니다.`;
+  }
 }
 
 // ─── 네비게이션 ──────────────────────────────────────────────────
@@ -477,6 +485,16 @@ app.addEventListener('change', event => {
 app.addEventListener('click', event => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button');
   if (!button) return;
+
+  // 다크 모드 토글
+  if (button.id === 'theme-toggle') {
+    const html = document.documentElement;
+    const current = html.getAttribute('data-theme');
+    const next = current === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    button.textContent = next === 'dark' ? '☀️' : '🌙';
+    return;
+  }
 
   const action = button.dataset.action;
 
