@@ -329,7 +329,7 @@ function handleInfer() {
   }
   if (sensitive(text)) {
     const type = detectSensitiveType(text);
-    setResult(`${type ? type + '(으)로' : '연락처·식별 번호로'} 보이는 입력은 사용할 수 없습니다. 일반적인 개념 설명만 적어 주세요.`);
+    setResult(`연락처·식별 번호${type ? `(${type})` : ''}로 보이는 입력은 사용할 수 없습니다. 일반적인 개념 설명만 적어 주세요.`);
     return;
   }
 

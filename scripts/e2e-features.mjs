@@ -9,9 +9,10 @@
  * 모델 파일 없이 UI 기능만 검증합니다.
  */
 
+import { existsSync } from 'node:fs';
 import { chromium } from 'playwright';
 
-const BASE = process.env.BASE_URL || 'http://localhost:4175/Thinking/';
+const BASE = process.env.BASE_URL || 'http://127.0.0.1:4173/';
 const results = [];
 
 function log(name, pass, detail = '') {
@@ -185,7 +186,11 @@ async function testLessonFeatures(browser) {
 }
 
 // ─── 실행 ──────────────────────────────────────────────────────
-const browser = await chromium.launch();
+const browserPath = process.env.M0_BROWSER_PATH || [
+  'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+  'C:/Program Files/Microsoft Edge/Application/msedge.exe',
+].find(existsSync);
+const browser = await chromium.launch(browserPath ? { executablePath: browserPath, headless: true } : { channel: 'msedge', headless: true });
 try {
   await testM0Features(browser);
   await testLessonFeatures(browser);
