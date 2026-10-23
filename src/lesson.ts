@@ -1,4 +1,4 @@
-import { CHOICES, FIRST_ITEM, TRANSFER_ITEM, emptyCounts, fractionSegments, parseParticipants, percentagePointChange, validateCounts, type RawCounts } from './lesson-core';
+import { CHOICES, FIRST_ITEM, TRANSFER_ITEM, emptyCounts, fractionSegments, parseParticipants, percentagePointChange, validateCounts, type Choice, type RawCounts } from './lesson-core';
 import { DEFAULT_MINUTES, MINUTES_OPTIONS, MAX_PARTICIPANTS, TIMER_INTERVAL_MS, TIMER_EXTEND_SECONDS, DENOMINATOR_MIN, DENOMINATOR_MAX } from './constants';
 import './lesson.css';
 
@@ -8,6 +8,11 @@ type Phase = 'concept' | 'preview' | 'first' | 'reason' | 'inquiry' | 'summary' 
 
 // ─── 상수 ────────────────────────────────────────────────────────
 const order: Phase[] = ['concept', 'preview', 'first', 'reason', 'inquiry', 'summary', 'again', 'transfer', 'memory', 'end'];
+const phaseLabels: Record<Phase, string> = {
+  concept: '개념', preview: '미리보기', first: '첫 선택', reason: '이유',
+  inquiry: '탐구', summary: '정리', again: '재선택', transfer: '새 문제',
+  memory: '요약', end: '종료',
+};
 const reasonCards = ['분모가 클수록 조각이 크다고 생각함', '전체가 같은지 확인이 필요함', '아직 이유를 말하기 어려움'] as const;
 
 // ─── DOM ─────────────────────────────────────────────────────────
@@ -44,7 +49,7 @@ function resetSession() {
 
 // ─── 렌더링 컴포넌트 ────────────────────────────────────────────
 
-/** 분수 막대 SVG를 생성합니다. */
+/** 분수 막대 SVG. */
 function bar(denominator: number): string {
   const segments = fractionSegments(denominator);
   const segmentWidth = 600 / denominator;
@@ -63,7 +68,7 @@ function bar(denominator: number): string {
   </figure>`;
 }
 
-/** 투표(선택) 템플릿을 생성합니다. */
+/** 투표 템플릿. */
 function pollTemplate(poll: Poll, denominatorA: number, denominatorB: number): string {
   const item = poll === 'transfer' ? TRANSFER_ITEM : FIRST_ITEM;
   const labels = [`A. 1/${denominatorA}이 더 크다`, `B. 1/${denominatorB}이 더 크다`, 'C. 두 조각이 같다', 'D. 모르겠다'];
@@ -97,7 +102,7 @@ function pollTemplate(poll: Poll, denominatorA: number, denominatorB: number): s
     </div>`;
 }
 
-/** 탐구 단계 템플릿을 생성합니다. */
+/** 탐구 단계 템플릿. */
 function inquiryTemplate(): string {
   const data = [
     { title: '탐구 1 · 같은 전체', prompt: '같은 길이의 전체를 3등분, 5등분하면 한 조각은 어떻게 달라질까요?', a: 3, b: 5, answer: '전체 길이가 같다면 3등분한 한 조각이 5등분한 한 조각보다 깁니다.' },
@@ -125,7 +130,74 @@ function inquiryTemplate(): string {
     </div>`;
 }
 
-/** 메모리 요약 텍스트를 생성합니다. */
+// ─── 집계 차트 (#10 교사 대시보드) ───────────────────────────────
+
+function renderPollChart(title: string, data: Record<Choice, number>, n: number, dA: number, dB: number): string {
+  const labels = [`A. 1/${dA}`, `B. 1/${dB}`, 'C. 같다', 'D. 모름'];
+  return `<div class="poll-chart">
+    <h4>${title}</h4>
+    ${CHOICES.map((choice, i) => {
+      const count = data[choice];
+      const pct = n > 0 ? (count / n * 100) : 0;
+      return `<div class="chart-row">
+        <span class="chart-label">${labels[i]}</span>
+        <div class="chart-track"><div class="chart-fill" style="width: ${pct.toFixed(0)}%"></div></div>
+        <span class="chart-count">${count}명 (${pct.toFixed(0)}%)</span>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderPollComparison(): string {
+  const n = parseParticipants(participantsRaw);
+  if (!n) return '';
+  const first = pollData.first && validateCounts(pollData.first, n);
+  const again = pollData.again && validateCounts(pollData.again, n);
+  if (!first && !again) return '';
+
+  let html = '<div class="poll-comparison">';
+  if (first) html += renderPollChart('첫 선택', first.counts, n, 3, 5);
+  if (again) html += renderPollChart('재선택', again.counts, n, 3, 5);
+  html += '</div>';
+  return html;
+}
+
+// ─── JSON 내보내기 (#10) ─────────────────────────────────────────
+
+function buildExportData() {
+  const n = parseParticipants(participantsRaw)!;
+  const first = pollData.first && validateCounts(pollData.first, n);
+  const again = pollData.again && validateCounts(pollData.again, n);
+  const transfer = pollData.transfer && validateCounts(pollData.transfer, n);
+
+  return {
+    unit: 'M01',
+    date: new Date().toISOString().slice(0, 10),
+    participants: n,
+    mode,
+    firstPoll: first ? { ...first.counts, noResponse: first.noResponse } : null,
+    againPoll: again ? { ...again.counts, noResponse: again.noResponse } : null,
+    transferPoll: transfer ? { ...transfer.counts, noResponse: transfer.noResponse } : null,
+    reasonCard: reasonSelected ? reasonCards[Number(reasonSelected)] : null,
+    changeA_pp: first && again ? Number(percentagePointChange(first.counts.A, again.counts.A, n).toFixed(1)) : null,
+  };
+}
+
+function downloadJSON() {
+  const data = buildExportData();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `lesson-${data.unit}-${data.date}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ─── 메모리 요약 ─────────────────────────────────────────────────
+
 function memoryText(): string {
   const n = parseParticipants(participantsRaw)!;
   const first = pollData.first && validateCounts(pollData.first, n);
@@ -154,7 +226,7 @@ function memoryText(): string {
   return parts.join(' ');
 }
 
-/** 현재 phase에 맞는 본문을 생성합니다. */
+/** 현재 phase에 맞는 본문. */
 function body(): string {
   switch (phase) {
     case 'concept':
@@ -228,7 +300,13 @@ function body(): string {
       return `<h2 tabindex="-1">메모리 요약</h2>
         <p>선택한 이유 카드와 집단 집계만 요약하며 학생별 변화는 추론하지 않습니다.</p>
         <button data-action="memory-generate">요약 만들기</button>
-        ${memoryVisible ? `<p class="memory">${memoryText()}</p>` : ''}
+        ${memoryVisible ? `
+          <p class="memory">${memoryText()}</p>
+          ${renderPollComparison()}
+          <div class="actions">
+            <button data-action="export-json">집계 JSON 다운로드</button>
+          </div>
+        ` : ''}
         <button data-action="finish">종료하고 입력 지우기</button>`;
 
     case 'end':
@@ -238,12 +316,25 @@ function body(): string {
   }
 }
 
-/** 타이머 표시 텍스트. */
+/** 타이머 표시. */
 function timerText(): string {
   const seconds = Math.ceil(remainingSeconds);
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+// ─── 스텝 인디케이터 (#5) ────────────────────────────────────────
+
+function renderStepIndicator(): string {
+  const currentIndex = order.indexOf(phase);
+  return `<div class="step-indicator" aria-label="수업 진행 단계">
+    ${order.map((p, i) => {
+      const cls = i < currentIndex ? 'step-dot done' : i === currentIndex ? 'step-dot current' : 'step-dot';
+      const label = phaseLabels[p];
+      return `<span class="${cls}" aria-label="${label} ${i < currentIndex ? '완료' : i === currentIndex ? '진행 중' : ''}" title="${label}">${i + 1}</span>`;
+    }).join('')}
+  </div>`;
 }
 
 // ─── 레이아웃 렌더링 ─────────────────────────────────────────────
@@ -271,14 +362,16 @@ function renderProgressNav(): string {
     ? '<button data-action="back">이전 단계</button>'
     : '';
   return `<nav aria-label="수업 진행">
-    <span>단계 ${order.indexOf(phase) + 1}/${order.length} · ${mode === 'example' ? '가상 연습' : '실제 수업 입력'}</span>
+    ${renderStepIndicator()}
+    <span>${mode === 'example' ? '가상 연습' : '실제 수업 입력'}</span>
     ${backButton}
   </nav>`;
 }
 
 function renderTimer(): string {
   if (phase === 'concept' || phase === 'end') return '';
-  return `<section class="timer">
+  const isLow = remainingSeconds <= 60 && remainingSeconds > 0;
+  return `<section class="timer ${isLow ? 'timer-warning' : ''}">
     <strong>수업 타이머 <output id="timer-output">${timerText()}</output></strong>
     <button data-action="timer-toggle">${timerRunning ? '정지' : '시작'}</button>
     <button data-action="timer-extend">5분 연장</button>
@@ -387,7 +480,6 @@ app.addEventListener('click', event => {
 
   const action = button.dataset.action;
 
-  // 이유 카드 선택
   if (button.dataset.reason !== undefined) {
     if (reasonSelected !== button.dataset.reason) memoryVisible = false;
     reasonSelected = button.dataset.reason;
@@ -395,7 +487,6 @@ app.addEventListener('click', event => {
     return;
   }
 
-  // 단계 전환
   if (action === 'next') {
     if (phase === 'preview' && parseParticipants(participantsRaw) === null) {
       error = '참여 인원은 1~60의 정수로 입력하세요.';
@@ -435,6 +526,8 @@ app.addEventListener('click', event => {
   } else if (action === 'memory-generate') {
     memoryVisible = true;
     render();
+  } else if (action === 'export-json') {
+    downloadJSON();
   } else if (action === 'timer-toggle') {
     timerRunning = !timerRunning;
     lastTick = Date.now();
@@ -461,13 +554,29 @@ setInterval(() => {
   const output = app.querySelector('#timer-output');
   if (output) output.textContent = timerText();
 
+  // 타이머 경고 (#5)
+  const timerSection = app.querySelector('.timer');
+  if (timerSection) {
+    if (remainingSeconds <= 60 && remainingSeconds > 0) {
+      timerSection.classList.add('timer-warning');
+    } else {
+      timerSection.classList.remove('timer-warning');
+    }
+  }
+
   if (remainingSeconds === 0) {
     timerRunning = false;
     app.querySelector<HTMLButtonElement>('[data-action="timer-toggle"]')!.textContent = '시작';
   }
 }, TIMER_INTERVAL_MS);
 
-// ─── 페이지 이동/복귀 ────────────────────────────────────────────
+// ─── 세션 보호 (#6) ──────────────────────────────────────────────
+window.addEventListener('beforeunload', (e: BeforeUnloadEvent) => {
+  if (phase !== 'concept' && phase !== 'end') {
+    e.preventDefault();
+  }
+});
+
 window.addEventListener('pagehide', resetSession);
 window.addEventListener('pageshow', event => { if (event.persisted) resetSession(); });
 

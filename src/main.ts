@@ -15,6 +15,8 @@ type WorkerMessage = {
   initMs?: number;
   indexedMs?: number;
   inferMs?: number;
+  percent?: number;
+  file?: string;
   result?: {
     hold: boolean;
     reason: string;
@@ -64,6 +66,28 @@ function nextRevision() {
   clearTimer();
 }
 
+// ─── 진행률 업데이트 (#7) ────────────────────────────────────────
+function updateProgress(percent: number, file: string) {
+  const container = $('progress');
+  const fill = $('progress-fill');
+  const text = $('progress-text');
+  if (!container || !fill || !text) return;
+
+  container.hidden = false;
+  fill.style.width = `${percent}%`;
+  fill.setAttribute('aria-valuenow', String(percent));
+
+  const fileName = file ? file.split('/').pop() || '' : '';
+  text.textContent = fileName
+    ? `${fileName} · ${percent}%`
+    : `${percent}%`;
+}
+
+function hideProgress() {
+  const container = document.getElementById('progress');
+  if (container) container.hidden = true;
+}
+
 // ─── 렌더링 컴포넌트 ────────────────────────────────────────────
 function renderHeader(): string {
   return `<header>
@@ -99,6 +123,13 @@ function renderInputSection(): string {
       <button id="close">종료</button>
     </div>
     <p id="state" role="status">모델 상태: 미준비</p>
+    <div id="progress" class="progress-container" hidden>
+      <div class="progress-track">
+        <div id="progress-fill" class="progress-fill" role="progressbar"
+          aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="width: 0%"></div>
+      </div>
+      <p id="progress-text" class="progress-text"></p>
+    </div>
     <p id="timing"></p>
   </section>`;
 }
@@ -134,7 +165,7 @@ function renderApp() {
   ].join('');
 }
 
-// ─── 결과 렌더링 ─────────────────────────────────────────────────
+// ─── 결과 렌더링 (#5 유사도 시각화) ──────────────────────────────
 function renderRecommendation(
   outcome: NonNullable<WorkerMessage['result']>,
   queryText: string,
@@ -156,12 +187,32 @@ function renderRecommendation(
     : '가상 초안 카드의 의미 유사도 순서입니다. 교사 승인 전 자동 전환되지 않습니다.';
   result.append(detail);
 
+  // 유사도 시각화 (#5)
   const list = document.createElement('ol');
+  list.className = 'score-list';
   for (const score of outcome.scores) {
     const card = cards.find(c => c.id === score.id)!;
     const item = document.createElement('li');
     item.dataset.cardId = card.id;
-    item.textContent = `${card.title} · 유사도 ${score.similarity.toFixed(3)}`;
+
+    const label = document.createElement('span');
+    label.className = 'score-label';
+    label.textContent = card.title;
+    item.append(label);
+
+    const barTrack = document.createElement('div');
+    barTrack.className = 'similarity-track';
+    const barFill = document.createElement('div');
+    barFill.className = 'similarity-fill';
+    barFill.style.width = `${Math.max(0, Math.min(100, score.similarity * 100))}%`;
+    barTrack.append(barFill);
+    item.append(barTrack);
+
+    const value = document.createElement('span');
+    value.className = 'score-value';
+    value.textContent = score.similarity.toFixed(3);
+    item.append(value);
+
     list.append(item);
   }
   result.append(list);
@@ -197,10 +248,17 @@ function createWorker() {
   worker.onmessage = ({ data }: MessageEvent<WorkerMessage>) => {
     if (data.requestId !== requestId || data.sessionRevision !== sessionRevision) return;
 
+    // 진행률 업데이트 (#7)
+    if (data.type === 'progress' && typeof data.percent === 'number') {
+      updateProgress(data.percent, data.file || '');
+      return;
+    }
+
     // 계약 불일치 검사
     if ((data.type === 'ready' || data.type === 'result') && data.contract !== modelContract) {
       nextRevision();
       stopWorker();
+      hideProgress();
       setState('실패');
       setResult('모델과 카드 색인의 버전이 일치하지 않습니다. 기본 카드로 계속해 주세요.');
       return;
@@ -210,6 +268,7 @@ function createWorker() {
       ready = true;
       $<HTMLButtonElement>('infer').disabled = false;
       $<HTMLButtonElement>('cancel').disabled = true;
+      hideProgress();
       setState('준비됨');
       $('timing').textContent = [
         `모델 준비 전체 ${Math.round(data.prepareMs || 0)}ms`,
@@ -226,6 +285,7 @@ function createWorker() {
       renderRecommendation(data.result, $<HTMLTextAreaElement>('query').value, data.inferMs || 0);
     } else if (data.type === 'error') {
       stopWorker();
+      hideProgress();
       setState('실패');
       setResult('모델 파일 또는 실행 환경을 확인해 주세요. 기본 카드로 계속할 수 있습니다.');
     }
@@ -233,6 +293,7 @@ function createWorker() {
 
   worker.onerror = () => {
     stopWorker();
+    hideProgress();
     setState('실패');
     setResult('모델을 실행하지 못했습니다. 기본 카드로 계속할 수 있습니다.');
   };
@@ -279,6 +340,7 @@ function handleInfer() {
 function handleCancel() {
   nextRevision();
   stopWorker();
+  hideProgress();
   setState('취소');
   setResult('요청을 취소했습니다. 기본 카드로 계속할 수 있습니다.');
 }
@@ -286,6 +348,7 @@ function handleCancel() {
 function handleReset() {
   nextRevision();
   stopWorker();
+  hideProgress();
   $<HTMLTextAreaElement>('query').value = '';
   $('count').textContent = `0/${MAX_QUERY_LENGTH}자`;
   $('timing').textContent = '';
@@ -296,6 +359,7 @@ function handleReset() {
 function handleClose() {
   nextRevision();
   stopWorker();
+  hideProgress();
   $<HTMLTextAreaElement>('query').value = '';
   $('count').textContent = `0/${MAX_QUERY_LENGTH}자`;
   $('timing').textContent = '';
@@ -325,6 +389,7 @@ function handleQueryInput() {
 function clearNavigationSession() {
   nextRevision();
   stopWorker();
+  hideProgress();
   $<HTMLTextAreaElement>('query').value = '';
   $('count').textContent = `0/${MAX_QUERY_LENGTH}자`;
   $('timing').textContent = '';

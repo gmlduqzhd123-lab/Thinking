@@ -47,6 +47,42 @@ nav, .timer, .actions, .bar-pair {
 nav { justify-content: space-between; }
 .bar-pair { align-items: flex-start; }
 
+/* ─── Step indicator (#5) ────────────────────────────────────── */
+.step-indicator {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.step-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border: 2px solid #ced9e5;
+  color: #637c99;
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.step-dot.done {
+  background: #194f87;
+  border-color: #194f87;
+  color: white;
+}
+
+.step-dot.current {
+  border-color: #ec9f25;
+  color: #ec9f25;
+  background: #fff8eb;
+  transform: scale(1.15);
+}
+
 /* ─── Fraction bars ──────────────────────────────────────────── */
 .fraction {
   flex: 1 1 300px;
@@ -154,7 +190,7 @@ footer { color: #46586d; padding: 12px; }
   line-height: 1.6;
 }
 
-/* ─── Timer warning ──────────────────────────────────────────── */
+/* ─── Timer warning (#5) ─────────────────────────────────────── */
 .timer-warning {
   animation: pulse 1s ease-in-out infinite;
   background: #fef2f2 !important;
@@ -164,6 +200,65 @@ footer { color: #46586d; padding: 12px; }
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.7; }
+}
+
+/* ─── Poll chart (#10) ───────────────────────────────────────── */
+.poll-comparison {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin: 16px 0;
+}
+
+.poll-chart {
+  flex: 1 1 300px;
+  background: #f7f9fc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.poll-chart h4 {
+  margin: 0 0 12px;
+  font-size: 0.95rem;
+  color: #315d8e;
+}
+
+.chart-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.chart-label {
+  flex: 0 0 65px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.chart-track {
+  flex: 1;
+  height: 18px;
+  background: #e2e8f0;
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.chart-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ffca62, #ec9f25);
+  border-radius: 9px;
+  transition: width 0.3s ease;
+  min-width: 2px;
+}
+
+.chart-count {
+  flex: 0 0 80px;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  color: #46586d;
+  text-align: right;
 }
 
 /* ─── Responsive: Tablet ─────────────────────────────────────── */
@@ -176,6 +271,12 @@ footer { color: #46586d; padding: 12px; }
   }
 
   .fraction { flex: 1 1 250px; }
+
+  .step-dot {
+    width: 24px;
+    height: 24px;
+    font-size: 0.6rem;
+  }
 }
 
 /* ─── Responsive: Mobile ─────────────────────────────────────── */
@@ -201,6 +302,16 @@ footer { color: #46586d; padding: 12px; }
   }
 
   fieldset { padding: 12px; }
+
+  .step-dot {
+    width: 22px;
+    height: 22px;
+    font-size: 0.55rem;
+  }
+
+  .poll-comparison { flex-direction: column; }
+  .chart-label { flex: 0 0 50px; font-size: 0.75rem; }
+  .chart-count { flex: 0 0 65px; font-size: 0.7rem; }
 }
 
 /* ─── Print ──────────────────────────────────────────────────── */
@@ -213,4 +324,5 @@ footer { color: #46586d; padding: 12px; }
     border-left: 3px solid #666;
     background: #f5f5f5;
   }
+  .chart-fill { background: #999; }
 }
