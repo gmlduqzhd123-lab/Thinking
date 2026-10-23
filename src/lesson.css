@@ -30,10 +30,26 @@
   --lesson-chart-bg: #f7f9fc;
   --lesson-chart-border: #e2e8f0;
   --lesson-track-bg: #e2e8f0;
+  --lesson-bar-bg: #ffffff;
+  --lesson-bar-stroke: #153a69;
+  --lesson-bar-fill: #ffca62;
+  --lesson-correct-fill: #1b6ca8;
+  --lesson-correct-fill-end: #2b8cd6;
+  --lesson-secondary-bg: #e6eef7;
+  --lesson-secondary-text: #153a69;
+  --lesson-secondary-hover: #d5e3f2;
 
   font-family: system-ui, 'Malgun Gothic', sans-serif;
   color: var(--lesson-text);
   background: var(--lesson-bg);
+}
+
+/* ─── 스마트보드 큰 글씨 모드 (#8) ──────────────────────────── */
+:root[data-scale="large"] {
+  font-size: 118%;
+}
+:root[data-scale="large"] main {
+  max-width: 1220px;
 }
 
 /* ─── 다크 모드 ──────────────────────────────────────────────── */
@@ -69,10 +85,18 @@
     --lesson-chart-bg: #1a2836;
     --lesson-chart-border: #2d3d52;
     --lesson-track-bg: #2d3d52;
+    --lesson-bar-bg: #243447;
+    --lesson-bar-stroke: #8bb8e8;
+    --lesson-bar-fill: #f0b429;
+    --lesson-correct-fill: #3488ce;
+    --lesson-correct-fill-end: #5aa7e8;
+    --lesson-secondary-bg: #25384c;
+    --lesson-secondary-text: #d6e4f2;
+    --lesson-secondary-hover: #304760;
   }
 }
 
-/* ─── 수동 다크 모드 토글 ─────────────────────────────────────── */
+/* ─── 수동 다크/라이트 모드 토글 ─────────────────────────────── */
 [data-theme="dark"] {
   --lesson-bg: #0f1923;
   --lesson-surface: #1a2836;
@@ -104,6 +128,55 @@
   --lesson-chart-bg: #1a2836;
   --lesson-chart-border: #2d3d52;
   --lesson-track-bg: #2d3d52;
+  --lesson-bar-bg: #243447;
+  --lesson-bar-stroke: #8bb8e8;
+  --lesson-bar-fill: #f0b429;
+  --lesson-correct-fill: #3488ce;
+  --lesson-correct-fill-end: #5aa7e8;
+  --lesson-secondary-bg: #25384c;
+  --lesson-secondary-text: #d6e4f2;
+  --lesson-secondary-hover: #304760;
+}
+
+[data-theme="light"] {
+  --lesson-bg: #f3f6fa;
+  --lesson-surface: #ffffff;
+  --lesson-text: #16283d;
+  --lesson-text-muted: #46586d;
+  --lesson-accent-blue: #153a69;
+  --lesson-accent-blue-hover: #1a5e9e;
+  --lesson-accent-gold: #ffca62;
+  --lesson-accent-gold-dark: #ec9f25;
+  --lesson-border: #ced9e5;
+  --lesson-notice-bg: #fff3d7;
+  --lesson-notice-border: #d99b37;
+  --lesson-btn-bg: #194f87;
+  --lesson-btn-disabled: #a2aebd;
+  --lesson-input-border: #637c99;
+  --lesson-fieldset-border: #acbdce;
+  --lesson-answer-bg: #edf4fb;
+  --lesson-answer-border: #315d8e;
+  --lesson-error: #a3241d;
+  --lesson-step-border: #ced9e5;
+  --lesson-step-text: #637c99;
+  --lesson-step-done-bg: #194f87;
+  --lesson-step-current-border: #ec9f25;
+  --lesson-step-current-bg: #fff8eb;
+  --lesson-ai-border: #694188;
+  --lesson-ai-bg: #f8f4fc;
+  --lesson-ai-result-border: #694188;
+  --lesson-focus-ring: #ec9f25;
+  --lesson-chart-bg: #f7f9fc;
+  --lesson-chart-border: #e2e8f0;
+  --lesson-track-bg: #e2e8f0;
+  --lesson-bar-bg: #ffffff;
+  --lesson-bar-stroke: #153a69;
+  --lesson-bar-fill: #ffca62;
+  --lesson-correct-fill: #1b6ca8;
+  --lesson-correct-fill-end: #2b8cd6;
+  --lesson-secondary-bg: #e6eef7;
+  --lesson-secondary-text: #153a69;
+  --lesson-secondary-hover: #d5e3f2;
 }
 
 * { box-sizing: border-box; }
@@ -125,27 +198,39 @@ h1 {
 
 .eyebrow { font-weight: 700; }
 
-/* ─── Theme toggle ───────────────────────────────────────────── */
-.theme-toggle {
+/* ─── Header controls (#1, #8) ───────────────────────────────── */
+.header-controls {
   position: absolute;
   top: 16px;
   right: 16px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.theme-toggle,
+.scale-toggle {
   background: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  min-height: 40px;
-  padding: 0;
-  font-size: 1.2rem;
+  border-radius: 22px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  font-size: 0.9rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: background-color 0.2s;
 }
-.theme-toggle:hover { background: rgba(255, 255, 255, 0.25); }
-header { position: relative; }
+.theme-toggle {
+  width: 44px;
+  padding: 0;
+  font-size: 1.2rem;
+}
+.theme-toggle:hover,
+.scale-toggle:hover { background: rgba(255, 255, 255, 0.25); }
+header { position: relative; padding-right: 150px; }
 
 /* ─── Sections / Layout ──────────────────────────────────────── */
 section, aside, nav {
@@ -198,6 +283,22 @@ nav { justify-content: space-between; }
   background: var(--lesson-step-done-bg);
   border-color: var(--lesson-step-done-bg);
   color: white;
+  cursor: pointer;
+}
+
+.step-dot.done:hover {
+  filter: brightness(1.15);
+  transform: scale(1.08);
+}
+
+.step-dot.done:focus-visible {
+  outline: 3px solid var(--lesson-focus-ring);
+  outline-offset: 2px;
+}
+
+.phase-badge {
+  font-weight: 700;
+  color: var(--lesson-accent-blue);
 }
 
 .step-dot.current {
@@ -240,6 +341,19 @@ button {
 
 button:hover:not(:disabled) { background: var(--lesson-accent-blue-hover); }
 button:disabled { background: var(--lesson-btn-disabled); cursor: not-allowed; }
+
+.secondary-btn {
+  background: var(--lesson-secondary-bg);
+  color: var(--lesson-secondary-text);
+  border: 1px solid var(--lesson-border);
+}
+.secondary-btn:hover:not(:disabled) {
+  background: var(--lesson-secondary-hover);
+}
+
+.poll-helpers {
+  margin: 10px 0 4px;
+}
 
 button:focus-visible,
 input:focus-visible,
@@ -318,6 +432,43 @@ footer { color: var(--lesson-text-muted); padding: 12px; }
   line-height: 1.6;
 }
 
+.char-count {
+  font-size: 0.85rem;
+  color: var(--lesson-text-muted);
+  margin: 4px 0 8px;
+}
+
+.ai-similarity {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--lesson-ai-border);
+}
+
+.progress-container {
+  margin: 12px 0;
+}
+
+.progress-track {
+  width: 100%;
+  height: 12px;
+  background: var(--lesson-track-bg);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--lesson-btn-bg), var(--lesson-accent-blue-hover));
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 0.85rem;
+  color: var(--lesson-text-muted);
+  margin: 4px 0 0;
+}
+
 /* ─── Timer warning (#5) ─────────────────────────────────────── */
 .timer-warning {
   animation: pulse 1s ease-in-out infinite;
@@ -381,6 +532,14 @@ footer { color: var(--lesson-text-muted); padding: 12px; }
   min-width: 2px;
 }
 
+.chart-fill-correct {
+  background: linear-gradient(90deg, var(--lesson-correct-fill), var(--lesson-correct-fill-end));
+}
+
+.chart-row-correct .chart-label {
+  color: var(--lesson-answer-border);
+}
+
 .chart-count {
   flex: 0 0 80px;
   font-size: 0.8rem;
@@ -412,6 +571,7 @@ footer { color: var(--lesson-text-muted); padding: 12px; }
   main { padding: 10px; }
 
   header, section, aside, nav { padding: 16px; }
+  header { padding-top: 58px; }
 
   .bar-pair { display: block; }
 

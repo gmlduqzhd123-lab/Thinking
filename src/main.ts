@@ -93,11 +93,16 @@ function hideProgress() {
 
 // ─── 렌더링 컴포넌트 ────────────────────────────────────────────
 function renderHeader(): string {
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const large = document.documentElement.getAttribute('data-scale') === 'large';
   return `<header>
     <p class="eyebrow">M0 · 로컬 AI 기술 검증</p>
     <h1>생각의 갈림길 AI</h1>
     <p>정답을 알려 주는 AI가 아니라, 생각을 바꾸는 탐구를 돕는 AI</p>
-    <button id="theme-toggle" class="theme-toggle" aria-label="다크 모드 전환" type="button">🌙</button>
+    <div class="header-controls">
+      <button id="scale-toggle" class="scale-toggle" aria-label="큰 글씨 모드 전환" aria-pressed="${large}" type="button">${large ? '🔍 기본' : '🔍 큰글씨'}</button>
+      <button id="theme-toggle" class="theme-toggle" aria-label="다크 모드 전환" aria-pressed="${dark}" type="button">${dark ? '☀️' : '🌙'}</button>
+    </div>
   </header>`;
 }
 
@@ -424,6 +429,15 @@ $('theme-toggle').addEventListener('click', () => {
   const next = current === 'dark' ? 'light' : 'dark';
   html.setAttribute('data-theme', next);
   $('theme-toggle').textContent = next === 'dark' ? '☀️' : '🌙';
+  $('theme-toggle').setAttribute('aria-pressed', String(next === 'dark'));
+});
+$('scale-toggle').addEventListener('click', () => {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-scale');
+  const next = current === 'large' ? 'normal' : 'large';
+  html.setAttribute('data-scale', next);
+  $('scale-toggle').textContent = next === 'large' ? '🔍 기본' : '🔍 큰글씨';
+  $('scale-toggle').setAttribute('aria-pressed', String(next === 'large'));
 });
 
 // 가상 개발 질의 목록 렌더

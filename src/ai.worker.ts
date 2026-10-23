@@ -17,6 +17,7 @@ let extractor: any;
 let preparing: Promise<void> | undefined;
 let cardVectors: number[][] = [];
 let prepareMetrics = { downloadMs: 0, initMs: 0, indexedMs: 0 };
+let activeRequest = { requestId: 0, sessionRevision: 0 };
 
 function send(type: string, requestId: number, sessionRevision: number, extra: Record<string, unknown> = {}) {
   self.postMessage({ type, requestId, sessionRevision, ...extra });
@@ -34,6 +35,7 @@ async function embed(text: string): Promise<number[]> {
 }
 
 async function prepare(rid: number, rev: number) {
+  activeRequest = { requestId: rid, sessionRevision: rev };
   if (!preparing) preparing = (async () => {
     const start = performance.now();
     let firstTransfer = 0;
@@ -47,9 +49,9 @@ async function prepare(rid: number, rev: number) {
         if (progress.status === 'initiate' && !firstTransfer) firstTransfer = now;
         if (progress.status === 'done') lastTransfer = now;
 
-        // 다운로드 진행률을 메인 스레드에 전달
+        // 다운로드 진행률을 최신 요청 기준으로 메인 스레드에 전달
         if (typeof progress.progress === 'number') {
-          send('progress', rid, rev, {
+          send('progress', activeRequest.requestId, activeRequest.sessionRevision, {
             percent: Math.round(progress.progress),
             file: progress.file || '',
           });
@@ -65,7 +67,12 @@ async function prepare(rid: number, rev: number) {
       initMs: loaded - Math.max(lastTransfer, start),
       indexedMs: performance.now() - vectorStart,
     };
-  })().then(() => undefined).catch(e => { preparing = undefined; throw e; });
+  })().then(() => undefined).catch(e => {
+    preparing = undefined;
+    extractor = undefined;
+    cardVectors = [];
+    throw e;
+  });
   await preparing;
 }
 

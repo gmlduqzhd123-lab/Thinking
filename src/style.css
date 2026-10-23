@@ -202,27 +202,47 @@ textarea:focus-visible {
 #state { font-weight: 700; }
 footer { padding: 14px; color: var(--color-text-muted); }
 
-/* ─── Theme toggle ───────────────────────────────────────────── */
-.theme-toggle {
+/* ─── 스마트보드 큰 글씨 모드 (#8) ──────────────────────────── */
+:root[data-scale="large"] {
+  font-size: 118%;
+}
+:root[data-scale="large"] main {
+  max-width: 1080px;
+}
+
+/* ─── Header controls (#1, #8) ───────────────────────────────── */
+.header-controls {
   position: absolute;
   top: 16px;
   right: 16px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.theme-toggle,
+.scale-toggle {
   background: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  min-height: 40px;
-  padding: 0;
-  font-size: 1.2rem;
+  border-radius: 22px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  font-size: 0.9rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: background-color 0.2s;
 }
-.theme-toggle:hover { background: rgba(255, 255, 255, 0.25); }
-header { position: relative; }
+.theme-toggle {
+  width: 44px;
+  padding: 0;
+  font-size: 1.2rem;
+}
+.theme-toggle:hover,
+.scale-toggle:hover { background: rgba(255, 255, 255, 0.25); }
+header { position: relative; padding-right: 150px; }
 
 /* ─── Progress bar (#7) ──────────────────────────────────────── */
 .progress-container {
@@ -318,7 +338,7 @@ header { position: relative; }
   main { padding: 10px; }
 
   header {
-    padding: 18px;
+    padding: 58px 18px 18px;
     border-radius: 12px;
   }
 
