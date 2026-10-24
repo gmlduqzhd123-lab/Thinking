@@ -21,7 +21,7 @@
     "test:all": "node scripts/run-all-checks.mjs"
   },
   "dependencies": {
-    "@huggingface/transformers": "3.8.1"
+    "@huggingface/transformers": "4.3.1"
   },
   "devDependencies": {
     "playwright": "^1.64.1",
