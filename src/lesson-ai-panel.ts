@@ -17,7 +17,10 @@ type WorkerReply = {
 };
 type State = '미준비' | '준비 중' | '준비됨' | '추론 중' | '취소' | '실패';
 
-export function createLessonAiPanel(root: HTMLElement) {
+export function createLessonAiPanel(
+  root: HTMLElement,
+  onApplyCandidate?: (cardId: string, cardTitle: string) => void,
+) {
   let active = false;
   let worker: Worker | undefined;
   let requestId = 0;
@@ -29,6 +32,7 @@ export function createLessonAiPanel(root: HTMLElement) {
   let candidate: (typeof cards)[number] | undefined;
   let candidateSimilarity: number | undefined;
   let approved = false;
+  let appliedToLesson = false;
 
   function clearTimer() { if (timer) clearTimeout(timer); timer = undefined; }
   function invalidate() {
@@ -38,6 +42,7 @@ export function createLessonAiPanel(root: HTMLElement) {
     candidate = undefined;
     candidateSimilarity = undefined;
     approved = false;
+    appliedToLesson = false;
   }
   function stopWorker() { clearTimer(); worker?.terminate(); worker = undefined; }
   function reset() {
@@ -106,7 +111,7 @@ export function createLessonAiPanel(root: HTMLElement) {
       ? ` <span class="ai-similarity">(유사도 ${candidateSimilarity.toFixed(3)})</span>`
       : '';
     const content = approved
-      ? `<p>${candidate.text}</p>`
+      ? `<p>${candidate.text}</p><button type="button" data-ai="apply-reason" class="secondary-btn">${appliedToLesson ? '✓ 수업 탐구 주제로 연결됨' : '수업 탐구 주제로 연결'}</button>`
       : '<button type="button" data-ai="approve">교사가 후보 카드 확인</button>';
 
     return `<h3>${heading}</h3><p>${candidate.title}${simBadge}</p>${content}`;
@@ -195,6 +200,12 @@ export function createLessonAiPanel(root: HTMLElement) {
       if (action === 'approve' && candidate) {
         approved = true;
         message = '교사가 이 세션에서 후보를 확인했습니다. 교육 자료 검수 완료를 뜻하지 않습니다.';
+        syncView();
+      }
+      if (action === 'apply-reason' && candidate && approved) {
+        appliedToLesson = true;
+        onApplyCandidate?.(candidate.id, candidate.title);
+        message = '선택한 AI 후보를 위 수업 이유 카드에 연결했습니다.';
         syncView();
       }
     });

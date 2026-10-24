@@ -1,10 +1,16 @@
 import { env, pipeline } from '@huggingface/transformers';
-import { cards } from './cards';
-import { judge } from './judge';
+import { cards, examples } from './cards';
+import { judge, type ThresholdOptions } from './judge';
 import { embedding, modelContract } from './model-contract';
 import { requireUnitEmbedding } from './embedding-integrity';
 
-type Msg = { type: 'prepare' | 'infer'; requestId: number; sessionRevision: number; text?: string };
+type Msg = {
+  type: 'prepare' | 'infer' | 'batch-eval';
+  requestId: number;
+  sessionRevision: number;
+  text?: string;
+  thresholds?: ThresholdOptions;
+};
 const base = new URL(import.meta.env.BASE_URL, self.location.origin).href;
 env.allowLocalModels = true;
 env.allowRemoteModels = false;
@@ -77,7 +83,7 @@ async function prepare(rid: number, rev: number) {
 }
 
 self.onmessage = async (event: MessageEvent<Msg>) => {
-  const { type, requestId, sessionRevision, text } = event.data;
+  const { type, requestId, sessionRevision, text, thresholds } = event.data;
   try {
     if (type === 'prepare') {
       const start = performance.now();
@@ -94,8 +100,34 @@ self.onmessage = async (event: MessageEvent<Msg>) => {
       const scores = cards.map((c, i) => ({ id: c.id, similarity: cosine(v, cardVectors[i]) }));
       send('result', requestId, sessionRevision, {
         contract: modelContract,
-        result: judge(scores, text),
+        result: judge(scores, text, thresholds),
         inferMs: performance.now() - start,
+      });
+    } else if (type === 'batch-eval') {
+      await prepare(requestId, sessionRevision);
+      const start = performance.now();
+      const items = [];
+      for (const ex of examples) {
+        const v = await embed(ex.text);
+        const scores = cards.map((c, i) => ({ id: c.id, similarity: cosine(v, cardVectors[i]) }));
+        const outcome = judge(scores, ex.text, thresholds);
+        const predicted = outcome.hold ? 'hold' : (outcome.scores[0]?.id ?? 'hold');
+        items.push({
+          id: ex.id,
+          text: ex.text,
+          expected: ex.expected,
+          predicted,
+          pass: predicted === ex.expected,
+          topSimilarity: outcome.scores[0]?.similarity ?? 0,
+          margin: outcome.scores.length > 1 ? outcome.scores[0].similarity - outcome.scores[1].similarity : 0,
+          scores: outcome.scores,
+          reason: outcome.reason,
+        });
+      }
+      send('batch-result', requestId, sessionRevision, {
+        contract: modelContract,
+        items,
+        batchMs: performance.now() - start,
       });
     }
   } catch (err) {

@@ -1,10 +1,20 @@
 import { CHOICES, FIRST_ITEM, TRANSFER_ITEM, emptyCounts, fractionSegments, parseParticipants, percentagePointChange, validateCounts, type Choice, type RawCounts } from './lesson-core';
 import { DEFAULT_MINUTES, MINUTES_OPTIONS, MAX_PARTICIPANTS, TIMER_INTERVAL_MS, TIMER_EXTEND_SECONDS, DENOMINATOR_MIN, DENOMINATOR_MAX } from './constants';
+import { registerUnit, getUnit, listUnits } from './unit-registry';
+import m01 from './units/m01';
+import m02 from './units/m02';
 import './lesson.css';
+
+// ─── 단원 레지스트리 초기 등록 (#1) ─────────────────────────────
+if (listUnits().length === 0) {
+  registerUnit(m01);
+  registerUnit(m02);
+}
 
 // ─── 타입 ────────────────────────────────────────────────────────
 type Poll = 'first' | 'again' | 'transfer';
 type Phase = 'concept' | 'preview' | 'first' | 'reason' | 'inquiry' | 'summary' | 'again' | 'transfer' | 'memory' | 'end';
+type VisualModel = 'bar' | 'circle';
 
 // ─── 상수 ────────────────────────────────────────────────────────
 const order: Phase[] = ['concept', 'preview', 'first', 'reason', 'inquiry', 'summary', 'again', 'transfer', 'memory', 'end'];
@@ -15,12 +25,40 @@ const phaseLabels: Record<Phase, string> = {
 };
 const reasonCards = ['분모가 클수록 조각이 크다고 생각함', '전체가 같은지 확인이 필요함', '아직 이유를 말하기 어려움'] as const;
 
+/** 이유 카드별 교사 추천 발문 가이드 (#5). */
+const reasonScaffolds: Record<number, { focus: string; questions: readonly string[] }> = {
+  0: {
+    focus: '자연수의 크기(분모 숫자)와 단위분수 한 조각의 크기를 구분하도록 돕는 발문',
+    questions: [
+      '같은 리본을 3명이 똑같이 나누어 가질 때와 5명이 나누어 가질 때, 한 사람이 받는 길이는 언제 더 길까요?',
+      '분모의 숫자가 커진다는 것은 한 조각이 커진다는 뜻일까요, 나눈 조각의 개수가 많아진다는 뜻일까요?',
+    ],
+  },
+  1: {
+    focus: '단위분수 크기 비교의 전제 조건인 "같은 크기의 전체"를 확인하는 발문',
+    questions: [
+      '만약 처음 리본 두 개의 전체 길이가 서로 다르다면 한 조각끼리 바로 비교할 수 있을까요?',
+      '두 단위분수의 크기를 공정하게 비교하려면 먼저 무엇을 같게 맞추어야 할까요?',
+    ],
+  },
+  2: {
+    focus: '단위분수와 등분의 기본 의미(전체와 한 조각의 관계)를 되짚는 발문',
+    questions: [
+      '분수에서 가로선 아래 숫자(분모)와 위 숫자(분자 1)는 각각 무엇을 나타낼까요?',
+      '색칠된 한 조각을 몇 개 모으면 처음 리본 전체 길이와 똑같아질까요?',
+    ],
+  },
+};
+
 // ─── DOM ─────────────────────────────────────────────────────────
 const app = document.querySelector<HTMLElement>('#lesson-app')!;
 const aiEnabled = app.dataset.aiEnabled === 'true';
 
 // ─── 상태 ────────────────────────────────────────────────────────
 let aiPanel: { sync(active: boolean): void; dispose(): void } | undefined;
+let selectedUnitId = 'M01';
+let visualModel: VisualModel = 'bar';
+let showGuideLine = false;
 let phase: Phase = 'concept';
 let mode: 'example' | 'class' = 'example';
 let participantsRaw = '';
@@ -29,16 +67,23 @@ let remainingSeconds = DEFAULT_MINUTES * 60;
 let timerRunning = false;
 let lastTick = Date.now();
 let inquiryIndex = 0;
+let inquiryBaseDenominator = 3;
 let inquiryDenominator = 6;
 let inquiryAnswerVisible = false;
 let summaryVisible = false;
 let transferAnswerVisible = false;
 let memoryVisible = false;
+let summaryCopied = false;
 let pollData: Record<Poll, RawCounts | null> = { first: null, again: null, transfer: null };
 let reasonSelected = '';
+let aiLinkedCardTitle = '';
 let error = '';
 
-// ─── 테마·화면 배율 헬퍼 (#1, #8) ─────────────────────────────────
+// ─── 헬퍼 ────────────────────────────────────────────────────────
+function currentUnit() {
+  return getUnit(selectedUnitId);
+}
+
 function isDarkTheme(): boolean {
   return document.documentElement.getAttribute('data-theme') === 'dark';
 }
@@ -50,6 +95,9 @@ function isLargeScale(): boolean {
 // ─── 세션 초기화 ─────────────────────────────────────────────────
 function resetSession() {
   aiPanel?.dispose();
+  selectedUnitId = 'M01';
+  visualModel = 'bar';
+  showGuideLine = false;
   phase = 'concept';
   mode = 'example';
   participantsRaw = '';
@@ -57,26 +105,80 @@ function resetSession() {
   remainingSeconds = DEFAULT_MINUTES * 60;
   timerRunning = false;
   inquiryIndex = 0;
+  inquiryBaseDenominator = 3;
   inquiryDenominator = 6;
   inquiryAnswerVisible = false;
   summaryVisible = false;
   transferAnswerVisible = false;
   memoryVisible = false;
+  summaryCopied = false;
   pollData = { first: null, again: null, transfer: null };
   reasonSelected = '';
+  aiLinkedCardTitle = '';
   error = '';
   render();
 }
 
 // ─── 렌더링 컴포넌트 ────────────────────────────────────────────
 
-/** 분수 막대 SVG (#1 다크 모드 CSS 변수 연동). */
-function bar(denominator: number): string {
+/** 원형(피자/부채꼴) 분수 SVG (#2). */
+function circleFraction(denominator: number, refDenominator?: number): string {
+  const cx = 80;
+  const cy = 80;
+  const r = 60;
+  const angleStep = (2 * Math.PI) / denominator;
+  const startAngle = -Math.PI / 2;
+  const endAngle = startAngle + angleStep;
+
+  const x1 = cx + r * Math.cos(startAngle);
+  const y1 = cy + r * Math.sin(startAngle);
+  const x2 = cx + r * Math.cos(endAngle);
+  const y2 = cy + r * Math.sin(endAngle);
+  const largeArc = angleStep > Math.PI ? 1 : 0;
+  const sectorPath = `M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`;
+
+  const dividers = Array.from({ length: denominator }, (_, i) => {
+    const a = startAngle + i * angleStep;
+    const lx = cx + r * Math.cos(a);
+    const ly = cy + r * Math.sin(a);
+    return `<line x1="${cx}" y1="${cy}" x2="${lx.toFixed(2)}" y2="${ly.toFixed(2)}" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="1.8"/>`;
+  }).join('');
+
+  let guideLine = '';
+  if (showGuideLine && refDenominator) {
+    const refAngle = startAngle + (2 * Math.PI) / refDenominator;
+    const gx = cx + (r + 8) * Math.cos(refAngle);
+    const gy = cy + (r + 8) * Math.sin(refAngle);
+    guideLine = `<line class="guide-line" x1="${cx}" y1="${cy}" x2="${gx.toFixed(2)}" y2="${gy.toFixed(2)}" stroke="#d9381e" stroke-width="2.5" stroke-dasharray="4 3"/>`;
+  }
+
+  return `<figure class="fraction fraction-circle">
+    <svg viewBox="0 0 160 160" role="img"
+      aria-label="같은 크기의 전체를 ${denominator}등분하고 첫 한 조각을 칠한 분수 원형 모형, 1/${denominator}">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="var(--lesson-bar-bg, white)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3"/>
+      <path d="${sectorPath}" fill="var(--lesson-bar-fill, #ffca62)"/>
+      ${dividers}
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3"/>
+      ${guideLine}
+    </svg>
+    <figcaption>같은 전체의 1/${denominator} · ${denominator}등분 중 한 조각</figcaption>
+  </figure>`;
+}
+
+/** 분수 막대/원형 SVG (#1 다크 모드 CSS 변수 연동, #2 기준선 및 원형 전환). */
+function bar(denominator: number, refDenominator?: number): string {
+  if (visualModel === 'circle') {
+    return circleFraction(denominator, refDenominator);
+  }
   const segments = fractionSegments(denominator);
   const segmentWidth = 600 / denominator;
   const dividers = segments.slice(1).map(s =>
     `<line x1="${600 * s.start}" y1="10" x2="${600 * s.start}" y2="58" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>`
   ).join('');
+
+  const guideLine = showGuideLine && refDenominator
+    ? `<line class="guide-line" x1="${(600 / refDenominator).toFixed(2)}" y1="2" x2="${(600 / refDenominator).toFixed(2)}" y2="66" stroke="#d9381e" stroke-width="2.5" stroke-dasharray="5 3"/>`
+    : '';
 
   return `<figure class="fraction">
     <svg viewBox="0 0 600 70" role="img"
@@ -84,9 +186,19 @@ function bar(denominator: number): string {
       <rect x="0" y="10" width="600" height="48" fill="var(--lesson-bar-bg, white)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3"/>
       <rect x="0" y="10" width="${segmentWidth}" height="48" fill="var(--lesson-bar-fill, #ffca62)"/>
       ${dividers}
+      ${guideLine}
     </svg>
     <figcaption>같은 전체의 1/${denominator} · ${denominator}등분 중 한 조각</figcaption>
   </figure>`;
+}
+
+/** 분수 비교 시각화 도구 모음 및 쌍 렌더링 (#2). */
+function renderVisualPair(dA: number, dB: number): string {
+  return `<div class="visual-toolbar" role="group" aria-label="분수 시각화 도구">
+      <button type="button" data-action="toggle-model" class="secondary-btn visual-btn" aria-pressed="${visualModel === 'circle'}">${visualModel === 'circle' ? '📏 막대 모형 보기' : '🍕 원형 모형 보기'}</button>
+      <button type="button" data-action="toggle-guide" class="secondary-btn visual-btn" aria-pressed="${showGuideLine}">${showGuideLine ? '📐 비교 기준선 숨기기' : '📐 비교 기준선 보기'}</button>
+    </div>
+    <div class="bar-pair">${bar(dA, dA)}${bar(dB, dA)}</div>`;
 }
 
 /** 집계 입력 상태 안내 문구 생성 (#5). */
@@ -103,7 +215,6 @@ function formatPollNote(counts: RawCounts | null, participants: number | null): 
   const emptyChoices = CHOICES.filter(choice => counts[choice].trim() === '');
   const filledChoices = CHOICES.filter(choice => counts[choice].trim() !== '');
 
-  // 입력된 칸 중 음수·소수·비정상 문자열이 있는지 확인
   const hasInvalidFilled = filledChoices.some(choice => !/^(?:0|[1-9]\d*)$/.test(counts[choice]));
   if (hasInvalidFilled) {
     return '네 칸 모두 0 이상의 정수를 입력하고 합계가 참여 인원을 넘지 않게 해 주세요.';
@@ -121,9 +232,19 @@ function formatPollNote(counts: RawCounts | null, participants: number | null): 
   return '집계를 입력하려면 네 칸 모두 0 이상의 정수를 입력하세요. 미응답은 참여 인원에서 집계 합계를 뺀 값입니다.';
 }
 
-/** 투표 템플릿 (#5 빈 칸 0 채우기 포함). */
+function getPollItemMeta(poll: Poll) {
+  if (selectedUnitId === 'M01') {
+    return poll === 'transfer' ? TRANSFER_ITEM : FIRST_ITEM;
+  }
+  return {
+    id: poll === 'transfer' ? `${selectedUnitId}-UF-02` : `${selectedUnitId}-UF-01`,
+    version: 1,
+  };
+}
+
+/** 투표 템플릿 (#5 빈 칸 0 채우기, #8 가상 연습 샘플 채우기 포함). */
 function pollTemplate(poll: Poll, denominatorA: number, denominatorB: number): string {
-  const item = poll === 'transfer' ? TRANSFER_ITEM : FIRST_ITEM;
+  const item = getPollItemMeta(poll);
   const labels = [`A. 1/${denominatorA}이 더 크다`, `B. 1/${denominatorB}이 더 크다`, 'C. 두 조각이 같다', 'D. 모르겠다'];
   const counts = pollData[poll];
   const n = parseParticipants(participantsRaw);
@@ -133,11 +254,14 @@ function pollTemplate(poll: Poll, denominatorA: number, denominatorB: number): s
   ).join('');
 
   const noteText = formatPollNote(counts, n);
+  const sampleBtn = mode === 'example'
+    ? `<button type="button" data-action="fill-sample" class="secondary-btn">가상 샘플 집계 채우기</button>`
+    : '';
 
   return `
     <p class="item-id">문항 ID ${item.id} · 버전 ${item.version}</p>
     <p>길이가 같은 두 리본에서 한 조각의 길이를 비교합니다. 어느 쪽이 더 클까요?</p>
-    <div class="bar-pair">${bar(denominatorA)}${bar(denominatorB)}</div>
+    ${renderVisualPair(denominatorA, denominatorB)}
     <ol class="choices">${labels.map(label => `<li>${label}</li>`).join('')}</ol>
     <p>교사가 손들기·카드·말하기로 선택을 확인합니다. 개인별 응답은 입력하지 않습니다.</p>
     <fieldset>
@@ -145,6 +269,7 @@ function pollTemplate(poll: Poll, denominatorA: number, denominatorB: number): s
       ${choiceInputs}
       <div class="poll-helpers">
         <button type="button" data-action="fill-zeros" class="secondary-btn">빈 칸 0으로 채우기</button>
+        ${sampleBtn}
       </div>
       <p id="poll-note" role="status">${noteText}</p>
     </fieldset>
@@ -154,26 +279,63 @@ function pollTemplate(poll: Poll, denominatorA: number, denominatorB: number): s
     </div>`;
 }
 
-/** 탐구 단계 템플릿 (#3 설명 공개 상태 유지). */
+/** 이유 카드 추천 발문 가이드 렌더링 (#5). */
+function renderReasonScaffold(): string {
+  if (reasonSelected === '') return '';
+  const idx = Number(reasonSelected);
+  const scaffold = reasonScaffolds[idx];
+  if (!scaffold) return '';
+  const aiBadge = aiLinkedCardTitle
+    ? `<p class="ai-linked-badge">🔗 로컬 AI 후보 카드 연결됨: <strong>${aiLinkedCardTitle}</strong></p>`
+    : '';
+
+  return `<div class="scaffold-guide" role="region" aria-label="교사 추천 발문 가이드">
+    <h3>💡 교사 추천 발문 가이드</h3>
+    ${aiBadge}
+    <p class="scaffold-focus">${scaffold.focus}</p>
+    <ul>
+      ${scaffold.questions.map(q => `<li>"${q}"</li>`).join('')}
+    </ul>
+  </div>`;
+}
+
+/** 탐구 단계 템플릿 (#3 양방향 분모 조절 및 실시간 부등호 비교). */
 function inquiryTemplate(): string {
+  const [firstA, firstB] = currentUnit().denominators.first;
   const data = [
-    { title: '탐구 1 · 같은 전체', prompt: '같은 길이의 전체를 3등분, 5등분하면 한 조각은 어떻게 달라질까요?', a: 3, b: 5, answer: '전체 길이가 같다면 3등분한 한 조각이 5등분한 한 조각보다 깁니다.' },
+    { title: '탐구 1 · 같은 전체', prompt: `같은 길이의 전체를 ${firstA}등분, ${firstB}등분하면 한 조각은 어떻게 달라질까요?`, a: firstA, b: firstB, answer: `전체 길이가 같다면 ${firstA}등분한 한 조각이 ${firstB}등분한 한 조각보다 깁니다.` },
     { title: '탐구 2 · 더 많이 나누기', prompt: '한 전체를 4등분한 조각과 8등분한 조각을 살펴보세요.', a: 4, b: 8, answer: '같은 전체를 더 많이 나눌수록 한 조각은 작아집니다.' },
-    { title: '탐구 3 · 직접 조절', prompt: '버튼으로 두 번째 막대의 등분 수를 2~12 사이에서 바꿔 보세요.', a: 3, b: inquiryDenominator, answer: '두 막대의 전체 길이를 같게 둔 뒤 한 조각의 길이를 비교합니다.' },
+    { title: '탐구 3 · 직접 조절', prompt: '버튼으로 두 막대의 등분 수를 2~12 사이에서 바꿔 보세요.', a: inquiryBaseDenominator, b: inquiryDenominator, answer: '두 막대의 전체 길이를 같게 둔 뒤 한 조각의 길이를 비교합니다.' },
   ][inquiryIndex];
 
+  const cmpSymbol = data.a < data.b ? '>' : data.a > data.b ? '<' : '=';
+  const cmpDesc = data.a < data.b
+    ? `${data.a}등분 한 조각이 더 큽니다`
+    : data.a > data.b
+      ? `${data.b}등분 한 조각이 더 큽니다`
+      : '두 조각의 크기가 같습니다';
+  const cmpBadge = `<p class="comparison-badge" aria-live="polite">크기 비교: <strong>1/${data.a} ${cmpSymbol} 1/${data.b}</strong> (${cmpDesc})</p>`;
+
   const controls = inquiryIndex === 2
-    ? `<div class="actions">
-        <button data-action="less" ${inquiryDenominator <= DENOMINATOR_MIN ? 'disabled' : ''} aria-label="등분 수 줄이기">−</button>
-        <output aria-live="polite">${inquiryDenominator}등분</output>
-        <button data-action="more" ${inquiryDenominator >= DENOMINATOR_MAX ? 'disabled' : ''} aria-label="등분 수 늘리기">＋</button>
+    ? `<div class="actions inquiry-controls">
+        <span class="control-group">
+          <button type="button" data-action="base-less" class="secondary-btn" ${inquiryBaseDenominator <= DENOMINATOR_MIN ? 'disabled' : ''} aria-label="기준 분모 줄이기">기준 −</button>
+          <span class="base-denom-label">기준 ${inquiryBaseDenominator}등분</span>
+          <button type="button" data-action="base-more" class="secondary-btn" ${inquiryBaseDenominator >= DENOMINATOR_MAX ? 'disabled' : ''} aria-label="기준 분모 늘리기">기준 ＋</button>
+        </span>
+        <span class="control-group">
+          <button data-action="less" ${inquiryDenominator <= DENOMINATOR_MIN ? 'disabled' : ''} aria-label="등분 수 줄이기">−</button>
+          <output aria-live="polite">${inquiryDenominator}등분</output>
+          <button data-action="more" ${inquiryDenominator >= DENOMINATOR_MAX ? 'disabled' : ''} aria-label="등분 수 늘리기">＋</button>
+        </span>
       </div>`
     : '';
 
   return `
     <h2 tabindex="-1">${data.title}</h2>
     <p>${data.prompt}</p>
-    <div class="bar-pair">${bar(data.a)}${bar(data.b)}</div>
+    ${renderVisualPair(data.a, data.b)}
+    ${cmpBadge}
     ${controls}
     <button data-action="reveal-inquiry" ${inquiryAnswerVisible ? 'disabled' : ''}>교사가 설명 공개</button>
     <p id="answer" class="answer" ${inquiryAnswerVisible ? '' : 'hidden'}>${data.answer}</p>
@@ -182,7 +344,7 @@ function inquiryTemplate(): string {
     </div>`;
 }
 
-// ─── 집계 차트 (#6 전이 문항 차트 추가 및 정답 막대 강조) ─────────
+// ─── 집계 차트 및 오개념 이동 분석 (#6, #7) ─────────────────────
 
 function renderPollChart(title: string, data: Record<Choice, number>, n: number, dA: number, dB: number): string {
   const labels = [`A. 1/${dA}`, `B. 1/${dB}`, 'C. 같다', 'D. 모름'];
@@ -204,20 +366,66 @@ function renderPollChart(title: string, data: Record<Choice, number>, n: number,
 function renderPollComparison(): string {
   const n = parseParticipants(participantsRaw);
   if (!n) return '';
+  const [fA, fB] = currentUnit().denominators.first;
+  const [tA, tB] = currentUnit().denominators.transfer;
   const first = pollData.first && validateCounts(pollData.first, n);
   const again = pollData.again && validateCounts(pollData.again, n);
   const transfer = pollData.transfer && validateCounts(pollData.transfer, n);
   if (!first && !again && !transfer) return '';
 
   let html = '<div class="poll-comparison">';
-  if (first) html += renderPollChart('첫 선택 (1/3 vs 1/5)', first.counts, n, 3, 5);
-  if (again) html += renderPollChart('재선택 (1/3 vs 1/5)', again.counts, n, 3, 5);
-  if (transfer) html += renderPollChart('새로운 문제 (1/4 vs 1/6)', transfer.counts, n, 4, 6);
+  if (first) html += renderPollChart(`첫 선택 (1/${fA} vs 1/${fB})`, first.counts, n, fA, fB);
+  if (again) html += renderPollChart(`재선택 (1/${fA} vs 1/${fB})`, again.counts, n, fA, fB);
+  if (transfer) html += renderPollChart(`새로운 문제 (1/${tA} vs 1/${tB})`, transfer.counts, n, tA, tB);
   html += '</div>';
   return html;
 }
 
-// ─── JSON 내보내기 ───────────────────────────────────────────────
+/** 첫 선택 대비 재선택의 선택지별 증감(%p) 분석표 (#7). */
+function renderMisconceptionShift(): string {
+  const n = parseParticipants(participantsRaw);
+  if (!n) return '';
+  const first = pollData.first && validateCounts(pollData.first, n);
+  const again = pollData.again && validateCounts(pollData.again, n);
+  if (!first || !again) return '';
+
+  const [fA, fB] = currentUnit().denominators.first;
+  const rows = [
+    { label: `A. 1/${fA}이 더 크다 (정답)`, before: first.counts.A, after: again.counts.A },
+    { label: `B. 1/${fB}이 더 크다 (분모 비례 오개념)`, before: first.counts.B, after: again.counts.B },
+    { label: 'C. 두 조각이 같다', before: first.counts.C, after: again.counts.C },
+    { label: 'D. 모르겠다', before: first.counts.D, after: again.counts.D },
+    { label: '미응답', before: first.noResponse, after: again.noResponse },
+  ];
+
+  return `<div class="shift-analysis" role="region" aria-label="집단 응답 변화 분석표">
+    <h4>집단 응답 이동 분석 (첫 선택 → 재선택)</h4>
+    <table class="shift-table">
+      <thead>
+        <tr>
+          <th>항목</th>
+          <th>첫 선택</th>
+          <th>재선택</th>
+          <th>변화폭 (%p)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(r => {
+          const delta = percentagePointChange(r.before, r.after, n);
+          const sign = delta > 0 ? '+' : '';
+          return `<tr>
+            <td>${r.label}</td>
+            <td>${r.before}명</td>
+            <td>${r.after}명</td>
+            <td><strong>${sign}${delta.toFixed(1)}%p</strong></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+// ─── JSON / CSV 내보내기 및 요약 복사 (#7) ──────────────────────
 
 function buildExportData() {
   const n = parseParticipants(participantsRaw)!;
@@ -226,7 +434,7 @@ function buildExportData() {
   const transfer = pollData.transfer && validateCounts(pollData.transfer, n);
 
   return {
-    unit: 'M01',
+    unit: selectedUnitId,
     date: new Date().toISOString().slice(0, 10),
     participants: n,
     mode,
@@ -234,7 +442,9 @@ function buildExportData() {
     againPoll: again ? { ...again.counts, noResponse: again.noResponse } : null,
     transferPoll: transfer ? { ...transfer.counts, noResponse: transfer.noResponse } : null,
     reasonCard: reasonSelected ? reasonCards[Number(reasonSelected)] : null,
+    aiLinkedCard: aiLinkedCardTitle || null,
     changeA_pp: first && again ? Number(percentagePointChange(first.counts.A, again.counts.A, n).toFixed(1)) : null,
+    changeB_pp: first && again ? Number(percentagePointChange(first.counts.B, again.counts.B, n).toFixed(1)) : null,
   };
 }
 
@@ -251,31 +461,67 @@ function downloadJSON() {
   URL.revokeObjectURL(url);
 }
 
+function buildCSVContent(): string {
+  const data = buildExportData();
+  const lines = [
+    '단원,날짜,모드,참여인원,단계,A(정답),B(오개념),C(같다),D(모름),미응답',
+  ];
+  const addPollRow = (label: string, poll: { A: number; B: number; C: number; D: number; noResponse: number } | null) => {
+    if (!poll) {
+      lines.push(`${data.unit},${data.date},${data.mode},${data.participants},${label},생략,생략,생략,생략,생략`);
+    } else {
+      lines.push(`${data.unit},${data.date},${data.mode},${data.participants},${label},${poll.A},${poll.B},${poll.C},${poll.D},${poll.noResponse}`);
+    }
+  };
+  addPollRow('첫선택', data.firstPoll);
+  addPollRow('재선택', data.againPoll);
+  addPollRow('새로운문제', data.transferPoll);
+  return '\uFEFF' + lines.join('\r\n');
+}
+
+function downloadCSV() {
+  const data = buildExportData();
+  const blob = new Blob([buildCSVContent()], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `lesson-${data.unit}-${data.date}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 // ─── 메모리 요약 ─────────────────────────────────────────────────
 
 function memoryText(): string {
   const n = parseParticipants(participantsRaw)!;
+  const [fA] = currentUnit().denominators.first;
+  const [tA] = currentUnit().denominators.transfer;
+  const firstItem = getPollItemMeta('first');
+  const transferItem = getPollItemMeta('transfer');
   const first = pollData.first && validateCounts(pollData.first, n);
   const again = pollData.again && validateCounts(pollData.again, n);
   const transfer = pollData.transfer && validateCounts(pollData.transfer, n);
 
   const parts = ['같은 전체의 단위분수는 더 많이 나눌수록 한 조각이 작아진다는 점을 탐구했습니다.'];
 
+  const aiNote = aiLinkedCardTitle ? ` (AI 후보 카드 '${aiLinkedCardTitle}' 검토 연결)` : '';
   parts.push(reasonSelected
-    ? `교사가 선택해 탐구한 이유 카드: ${reasonCards[Number(reasonSelected)]}. 이는 수업에서 고른 탐구 주제이며 학생 개개인의 생각으로 확정하지 않습니다.`
+    ? `교사가 선택해 탐구한 이유 카드: ${reasonCards[Number(reasonSelected)]}${aiNote}. 이는 수업에서 고른 탐구 주제이며 학생 개개인의 생각으로 확정하지 않습니다.`
     : '교사가 선택한 이유 카드는 없습니다.');
 
   if (first && again) {
     const change = percentagePointChange(first.counts.A, again.counts.A, n);
-    parts.push(`같은 문항 ${FIRST_ITEM.id} v${FIRST_ITEM.version}에서 1/3을 고른 집계는 ${first.counts.A}/${n}명에서 ${again.counts.A}/${n}명으로 바뀌었습니다 (${change >= 0 ? '+' : ''}${change.toFixed(1)}%p). 이는 집단 집계의 차이이며 개인별 성장으로 해석하지 않습니다.`);
+    parts.push(`같은 문항 ${firstItem.id} v${firstItem.version}에서 1/${fA}을 고른 집계는 ${first.counts.A}/${n}명에서 ${again.counts.A}/${n}명으로 바뀌었습니다 (${change >= 0 ? '+' : ''}${change.toFixed(1)}%p). 이는 집단 집계의 차이이며 개인별 성장으로 해석하지 않습니다.`);
   } else {
     parts.push('첫 선택 또는 재선택의 집계를 생략해 변화 수치를 계산하지 않았습니다.');
   }
 
   if (transfer) {
-    parts.push(`새 문항 ${TRANSFER_ITEM.id} v${TRANSFER_ITEM.version}의 집계: 1/4 선택 ${transfer.counts.A}명, 모르겠다 ${transfer.counts.D}명, 미응답 ${transfer.noResponse}명.`);
+    parts.push(`새 문항 ${transferItem.id} v${transferItem.version}의 집계: 1/${tA} 선택 ${transfer.counts.A}명, 모르겠다 ${transfer.counts.D}명, 미응답 ${transfer.noResponse}명.`);
   } else {
-    parts.push(`새 문항 ${TRANSFER_ITEM.id} v${TRANSFER_ITEM.version}의 집계를 생략했습니다.`);
+    parts.push(`새 문항 ${transferItem.id} v${transferItem.version}의 집계를 생략했습니다.`);
   }
 
   return parts.join(' ');
@@ -283,11 +529,21 @@ function memoryText(): string {
 
 /** 현재 phase에 맞는 본문. */
 function body(): string {
+  const unit = currentUnit();
+  const [firstA, firstB] = unit.denominators.first;
+  const [transferA, transferB] = unit.denominators.transfer;
+
   switch (phase) {
     case 'concept':
       return `<h2 tabindex="-1">개념 선택</h2>
-        <p>M01 단위분수 비교 · 같은 전체에서 1/3과 1/5 한 조각을 비교합니다.</p>
-        <button data-action="next">M01 미리보기</button>`;
+        <fieldset class="unit-selector">
+          <legend>단원 선택</legend>
+          ${listUnits().map(u =>
+            `<label><input type="radio" name="unit" value="${u.id}" ${selectedUnitId === u.id ? 'checked' : ''}> ${u.id} · ${u.title}</label>`
+          ).join('')}
+        </fieldset>
+        <p>${unit.id} ${unit.title} · ${unit.description}</p>
+        <button data-action="next">${unit.id} 미리보기</button>`;
 
     case 'preview':
       return `<h2 tabindex="-1">수업 미리보기</h2>
@@ -308,7 +564,7 @@ function body(): string {
         <button data-action="next">첫 선택으로</button>`;
 
     case 'first':
-      return `<h2 tabindex="-1">첫 선택</h2>${pollTemplate('first', 3, 5)}`;
+      return `<h2 tabindex="-1">첫 선택</h2>${pollTemplate('first', firstA, firstB)}`;
 
     case 'reason':
       return `<h2 tabindex="-1">이유 카드</h2>
@@ -318,6 +574,7 @@ function body(): string {
             `<button data-reason="${i}" aria-pressed="${reasonSelected === String(i)}">${label}</button>`
           ).join('')}
         </div>
+        <div id="scaffold-container">${renderReasonScaffold()}</div>
         <p>선택한 이유 카드는 요약에만 반영되며 브라우저 저장소에는 남기지 않습니다.</p>
         <button data-action="next">기본 탐구 시작</button>`;
 
@@ -329,7 +586,7 @@ function body(): string {
         <p>학생 설명을 먼저 들은 뒤 교사가 정리를 공개합니다.</p>
         <button data-action="summary-reveal">교사가 개념 정리 공개</button>
         ${summaryVisible
-          ? `<p class="answer">같은 전체에서 1/3은 1/5보다 큽니다. 전체를 같은 크기로 더 많이 나누면 한 조각은 작아집니다.</p>
+          ? `<p class="answer">같은 전체에서 1/${firstA}은 1/${firstB}보다 큽니다. 전체를 같은 크기로 더 많이 나누면 한 조각은 작아집니다.</p>
              <button data-action="next">같은 문항 다시 선택</button>`
           : ''}`;
 
@@ -338,18 +595,18 @@ function body(): string {
       const first = pollData.first && validateCounts(pollData.first, n);
       const again = pollData.again && validateCounts(pollData.again, n);
       const comparison = first && again
-        ? `<p class="comparison">1/3 선택 집계 ${first.counts.A}/${n} → ${again.counts.A}/${n}, ${percentagePointChange(first.counts.A, again.counts.A, n).toFixed(1)}%p 차이. 개인별 성장으로 해석하지 않습니다.</p>`
+        ? `<p class="comparison">1/${firstA} 선택 집계 ${first.counts.A}/${n} → ${again.counts.A}/${n}, ${percentagePointChange(first.counts.A, again.counts.A, n).toFixed(1)}%p 차이. 개인별 성장으로 해석하지 않습니다.</p>`
         : '';
       return `<h2 tabindex="-1">다시 선택 · 첫 선택과 동일한 문항</h2>
-        ${pollTemplate('again', 3, 5)}${comparison}`;
+        ${pollTemplate('again', firstA, firstB)}${comparison}`;
     }
 
     case 'transfer':
       return `<h2 tabindex="-1">새로운 문제</h2>
         <p>이 문항은 첫 선택·재선택 문항과 별개입니다.</p>
-        ${pollTemplate('transfer', 4, 6)}
+        ${pollTemplate('transfer', transferA, transferB)}
         <button data-action="transfer-reveal">교사가 새 문제 설명 공개</button>
-        <p class="answer" ${transferAnswerVisible ? '' : 'hidden'}>같은 전체라면 1/4이 1/6보다 큽니다.</p>`;
+        <p class="answer" ${transferAnswerVisible ? '' : 'hidden'}>같은 전체라면 1/${transferA}이 1/${transferB}보다 큽니다.</p>`;
 
     case 'memory':
       return `<h2 tabindex="-1">메모리 요약</h2>
@@ -358,8 +615,11 @@ function body(): string {
         ${memoryVisible ? `
           <p class="memory">${memoryText()}</p>
           ${renderPollComparison()}
+          ${renderMisconceptionShift()}
           <div class="actions">
             <button data-action="export-json">집계 JSON 다운로드</button>
+            <button type="button" data-action="export-csv" class="secondary-btn">집계 CSV 다운로드</button>
+            <button type="button" data-action="copy-summary" class="secondary-btn">${summaryCopied ? '✓ 요약 복사 완료' : '요약 텍스트 복사'}</button>
           </div>
         ` : ''}
         <button data-action="finish">종료하고 입력 지우기</button>`;
@@ -457,7 +717,7 @@ function render(focus = false) {
     renderTimer(),
     `<section id="step" role="region" aria-label="${currentLabel}">${body()}<p id="error" role="alert">${error}</p></section>`,
     `<div id="step-announce" class="sr-only" aria-live="assertive" role="status"></div>`,
-    '<footer>수업 입력은 이 탭의 메모리에서만 사용합니다. 자동 저장·전송·인쇄하지 않습니다.</footer>',
+    '<footer>수업 입력은 이 탭의 메모리에서만 사용합니다. 자동 저장·전송·인쇄하지 않습니다. <span class="shortcut-hint">(단축키: Alt+←/→ 단계 이동 · Alt+T 타이머)</span></footer>',
   ].join('');
 
   // 값 복원
@@ -505,7 +765,35 @@ function continuePoll(record: boolean) {
     pollData[poll] = null;
   }
   memoryVisible = false;
+  summaryCopied = false;
   next();
+}
+
+/** 가상 연습 모드 전용 샘플 집계 생성 (#8). */
+function fillSampleCounts(poll: Poll) {
+  const n = parseParticipants(participantsRaw) ?? 20;
+  let a = 0, b = 0, c = 0, d = 0;
+  if (poll === 'first') {
+    a = Math.round(n * 0.4);
+    b = Math.round(n * 0.45);
+    c = Math.round(n * 0.1);
+    d = Math.max(0, n - a - b - c);
+  } else if (poll === 'again') {
+    a = Math.round(n * 0.75);
+    b = Math.round(n * 0.15);
+    c = Math.round(n * 0.05);
+    d = Math.max(0, n - a - b - c);
+  } else {
+    a = Math.round(n * 0.8);
+    b = Math.round(n * 0.1);
+    c = Math.round(n * 0.05);
+    d = Math.max(0, n - a - b - c);
+  }
+  pollData[poll] = { A: String(a), B: String(b), C: String(c), D: String(d) };
+  memoryVisible = false;
+  summaryCopied = false;
+  error = '';
+  render();
 }
 
 // ─── 이벤트 핸들러 ───────────────────────────────────────────────
@@ -522,6 +810,7 @@ app.addEventListener('input', event => {
     pollData[poll] ??= emptyCounts();
     pollData[poll]![target.dataset.count as keyof RawCounts] = target.value;
     memoryVisible = false;
+    summaryCopied = false;
 
     const n = parseParticipants(participantsRaw);
     app.querySelector('#poll-note')!.textContent = formatPollNote(pollData[poll], n);
@@ -531,11 +820,21 @@ app.addEventListener('input', event => {
 app.addEventListener('change', event => {
   const target = event.target as HTMLInputElement;
 
+  if (target.name === 'unit') {
+    selectedUnitId = target.value;
+    inquiryBaseDenominator = currentUnit().denominators.first[0];
+    pollData = { first: null, again: null, transfer: null };
+    memoryVisible = false;
+    error = '';
+    render();
+  }
+
   if (target.name === 'mode') {
     mode = target.value as 'example' | 'class';
     pollData = { first: null, again: null, transfer: null };
     participantsRaw = '';
     memoryVisible = false;
+    summaryCopied = false;
     error = '';
     render();
   }
@@ -560,6 +859,33 @@ app.addEventListener('keydown', event => {
       inquiryAnswerVisible = false;
       error = '';
       render(true);
+    }
+  }
+});
+
+// 전자칠판·프리젠터용 글로벌 단축키 지원 (#6: Alt+←, Alt+→, Alt+T)
+window.addEventListener('keydown', event => {
+  if (!event.altKey) return;
+  const activeTag = (document.activeElement as HTMLElement | null)?.tagName;
+  if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return;
+
+  if (event.key === 'ArrowRight') {
+    const forwardBtn = app.querySelector<HTMLButtonElement>('button[data-action="next"], button[data-action="inquiry-next"]');
+    if (forwardBtn && !forwardBtn.disabled) {
+      event.preventDefault();
+      forwardBtn.click();
+    }
+  } else if (event.key === 'ArrowLeft') {
+    const backBtn = app.querySelector<HTMLButtonElement>('button[data-action="back"]');
+    if (backBtn && !backBtn.disabled) {
+      event.preventDefault();
+      backBtn.click();
+    }
+  } else if (event.key.toLowerCase() === 't') {
+    const timerBtn = app.querySelector<HTMLButtonElement>('button[data-action="timer-toggle"]');
+    if (timerBtn && !timerBtn.disabled) {
+      event.preventDefault();
+      timerBtn.click();
     }
   }
 });
@@ -603,13 +929,28 @@ app.addEventListener('click', event => {
   const action = button.dataset.action;
 
   if (button.dataset.reason !== undefined) {
-    if (reasonSelected !== button.dataset.reason) memoryVisible = false;
+    if (reasonSelected !== button.dataset.reason) {
+      memoryVisible = false;
+      summaryCopied = false;
+      aiLinkedCardTitle = '';
+    }
     reasonSelected = button.dataset.reason;
-    render();
+    // AI 패널 상태를 유지하기 위해 부분 갱신
+    app.querySelectorAll<HTMLButtonElement>('button[data-reason]').forEach(btn => {
+      btn.setAttribute('aria-pressed', String(btn.dataset.reason === reasonSelected));
+    });
+    const scaffoldContainer = app.querySelector<HTMLElement>('#scaffold-container');
+    if (scaffoldContainer) scaffoldContainer.innerHTML = renderReasonScaffold();
     return;
   }
 
-  if (action === 'next') {
+  if (action === 'toggle-model') {
+    visualModel = visualModel === 'bar' ? 'circle' : 'bar';
+    render();
+  } else if (action === 'toggle-guide') {
+    showGuideLine = !showGuideLine;
+    render();
+  } else if (action === 'next') {
     if (phase === 'preview' && parseParticipants(participantsRaw) === null) {
       error = '참여 인원은 1~60의 정수로 입력하세요.';
       app.querySelector('#error')!.textContent = error;
@@ -626,8 +967,14 @@ app.addEventListener('click', event => {
         }
       }
       memoryVisible = false;
+      summaryCopied = false;
       error = '';
       render();
+    }
+  } else if (action === 'fill-sample') {
+    const poll = activePoll();
+    if (poll && mode === 'example') {
+      fillSampleCounts(poll);
     }
   } else if (action === 'record') {
     continuePoll(true);
@@ -648,6 +995,12 @@ app.addEventListener('click', event => {
     if (inquiryIndex < 2) inquiryIndex++;
     else phase = 'summary';
     render(true);
+  } else if (action === 'base-less' || action === 'base-more') {
+    inquiryBaseDenominator = Math.max(
+      DENOMINATOR_MIN,
+      Math.min(DENOMINATOR_MAX, inquiryBaseDenominator + (action === 'base-more' ? 1 : -1)),
+    );
+    render();
   } else if (action === 'less' || action === 'more') {
     inquiryDenominator = Math.max(DENOMINATOR_MIN, Math.min(DENOMINATOR_MAX, inquiryDenominator + (action === 'more' ? 1 : -1)));
     render();
@@ -663,9 +1016,17 @@ app.addEventListener('click', event => {
     render();
   } else if (action === 'memory-generate') {
     memoryVisible = true;
+    summaryCopied = false;
     render();
   } else if (action === 'export-json') {
     downloadJSON();
+  } else if (action === 'export-csv') {
+    downloadCSV();
+  } else if (action === 'copy-summary') {
+    const text = memoryText();
+    void navigator.clipboard?.writeText(text).catch(() => {});
+    summaryCopied = true;
+    render();
   } else if (action === 'timer-toggle') {
     timerRunning = !timerRunning;
     lastTick = Date.now();
@@ -727,7 +1088,18 @@ render();
 
 if (aiEnabled) {
   void import('./lesson-ai-panel').then(({ createLessonAiPanel }) => {
-    aiPanel = createLessonAiPanel(app);
+    aiPanel = createLessonAiPanel(app, (cardId, cardTitle) => {
+      const mapped = cardId === 'A' ? '0' : cardId === 'B' ? '1' : '2';
+      reasonSelected = mapped;
+      aiLinkedCardTitle = cardTitle;
+      memoryVisible = false;
+      summaryCopied = false;
+      app.querySelectorAll<HTMLButtonElement>('button[data-reason]').forEach(btn => {
+        btn.setAttribute('aria-pressed', String(btn.dataset.reason === reasonSelected));
+      });
+      const scaffoldContainer = app.querySelector<HTMLElement>('#scaffold-container');
+      if (scaffoldContainer) scaffoldContainer.innerHTML = renderReasonScaffold();
+    });
     aiPanel.sync(phase === 'reason');
   });
 }

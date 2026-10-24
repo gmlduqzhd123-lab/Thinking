@@ -38,10 +38,18 @@ export const thresholds = {
   minMargin: 0.045,
 } as const;
 
+export interface ThresholdOptions {
+  minSimilarity?: number;
+  minMargin?: number;
+}
+
 export function judge(
   scores: Score[],
   query = '',
+  customThresholds?: ThresholdOptions,
 ): { hold: boolean; reason: string; scores: Score[] } {
+  const minSimilarity = customThresholds?.minSimilarity ?? thresholds.minSimilarity;
+  const minMargin = customThresholds?.minMargin ?? thresholds.minMargin;
   const sorted = [...scores].sort((a, b) => b.similarity - a.similarity);
 
   // 패턴 기반 보류 검사
@@ -52,10 +60,10 @@ export function judge(
   }
 
   // 유사도 기반 보류 검사
-  if (!sorted.length || sorted[0].similarity < thresholds.minSimilarity) {
+  if (!sorted.length || sorted[0].similarity < minSimilarity) {
     return { hold: true, reason: '관련성이 낮습니다.', scores: sorted };
   }
-  if (sorted.length > 1 && sorted[0].similarity - sorted[1].similarity < thresholds.minMargin) {
+  if (sorted.length > 1 && sorted[0].similarity - sorted[1].similarity < minMargin) {
     return { hold: true, reason: '후보의 의미가 서로 가깝습니다.', scores: sorted };
   }
 

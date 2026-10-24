@@ -548,6 +548,127 @@ footer { color: var(--lesson-text-muted); padding: 12px; }
   text-align: right;
 }
 
+/* ─── 4차 고도화: 시각화 툴바, 원형 모델, 발문 가이드, 이동 분석 ── */
+.visual-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 4px;
+}
+
+.visual-btn {
+  font-size: 0.9rem;
+  padding: 6px 12px;
+  min-height: 38px;
+}
+
+.fraction-circle svg {
+  max-height: 155px;
+}
+
+.comparison-badge {
+  background: var(--lesson-answer-bg);
+  border: 1px solid var(--lesson-answer-border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  margin: 8px 0 12px;
+  display: inline-block;
+}
+
+.inquiry-controls {
+  justify-content: flex-start;
+  gap: 20px;
+  margin: 10px 0 14px;
+}
+
+.control-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.base-denom-label {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+button[data-reason][aria-pressed="true"] {
+  outline: 3px solid var(--lesson-accent-gold-dark);
+  outline-offset: 2px;
+}
+
+.scaffold-guide {
+  margin: 14px 0;
+  padding: 14px 18px;
+  background: var(--lesson-answer-bg);
+  border-left: 5px solid var(--lesson-accent-gold-dark);
+  border-radius: 8px;
+}
+
+.scaffold-guide h3 {
+  margin: 0 0 6px;
+  font-size: 1.02rem;
+}
+
+.scaffold-focus {
+  margin: 4px 0 8px;
+  font-weight: 600;
+  color: var(--lesson-text-muted);
+}
+
+.scaffold-guide ul {
+  margin: 6px 0 0;
+  padding-left: 20px;
+  line-height: 1.65;
+}
+
+.ai-linked-badge {
+  margin: 4px 0 8px;
+  color: var(--lesson-ai-border);
+}
+
+.shift-analysis {
+  margin: 16px 0;
+  background: var(--lesson-chart-bg);
+  border: 1px solid var(--lesson-chart-border);
+  border-radius: 10px;
+  padding: 16px;
+  overflow-x: auto;
+}
+
+.shift-analysis h4 {
+  margin: 0 0 10px;
+  color: var(--lesson-answer-border);
+}
+
+.shift-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.shift-table th,
+.shift-table td {
+  border: 1px solid var(--lesson-border);
+  padding: 8px 10px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.shift-table td:first-child {
+  text-align: left;
+}
+
+.shift-table th {
+  background: var(--lesson-surface);
+  font-weight: 700;
+}
+
+.shortcut-hint {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
 /* ─── Responsive: Tablet ─────────────────────────────────────── */
 @media (max-width: 768px) {
   main { padding: 14px; }

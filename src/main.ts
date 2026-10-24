@@ -1,4 +1,5 @@
 import { cards, examples, baseline } from './cards';
+import { judge, thresholds, type Score } from './judge';
 import { modelContract } from './model-contract';
 import { sensitive, detectSensitiveType } from './privacy';
 import { INFERENCE_TIMEOUT_MS, MAX_QUERY_LENGTH } from './constants';
@@ -6,6 +7,18 @@ import { checkWasmSupport, getUserMessage, type ErrorCode } from './errors';
 import './style.css';
 
 // ─── 타입 ────────────────────────────────────────────────────────
+type BatchItem = {
+  id: string;
+  text: string;
+  expected: string;
+  predicted: string;
+  pass: boolean;
+  topSimilarity: number;
+  margin: number;
+  scores: Score[];
+  reason: string;
+};
+
 type WorkerMessage = {
   type: string;
   requestId: number;
@@ -16,6 +29,7 @@ type WorkerMessage = {
   initMs?: number;
   indexedMs?: number;
   inferMs?: number;
+  batchMs?: number;
   percent?: number;
   file?: string;
   errorCode?: ErrorCode;
@@ -23,8 +37,9 @@ type WorkerMessage = {
   result?: {
     hold: boolean;
     reason: string;
-    scores: { id: string; similarity: number }[];
+    scores: Score[];
   };
+  items?: BatchItem[];
 };
 
 // ─── DOM 헬퍼 ────────────────────────────────────────────────────
@@ -37,6 +52,10 @@ let requestId = 0;
 let sessionRevision = 0;
 let ready = false;
 let timeout: ReturnType<typeof setTimeout> | undefined;
+let customMinSim: number = thresholds.minSimilarity;
+let customMinMargin: number = thresholds.minMargin;
+let lastInferData: { scores: Score[]; queryText: string; inferMs: number } | undefined;
+let lastBatchItems: BatchItem[] | undefined;
 
 // ─── 상태 업데이트 함수 ──────────────────────────────────────────
 function setState(label: string) {
@@ -44,6 +63,7 @@ function setState(label: string) {
 }
 
 function setResult(message: string) {
+  lastInferData = undefined;
   const result = $('result');
   result.removeAttribute('data-hold');
   result.textContent = message;
@@ -61,6 +81,8 @@ function stopWorker() {
   ready = false;
   $<HTMLButtonElement>('infer').disabled = true;
   $<HTMLButtonElement>('cancel').disabled = true;
+  const batchBtn = document.getElementById('batch-eval') as HTMLButtonElement | null;
+  if (batchBtn) batchBtn.disabled = true;
 }
 
 function nextRevision() {
@@ -155,6 +177,22 @@ function renderExamplesSection(): string {
     <h2>가상 개발 질의</h2>
     <p>개발자 작성 · 교사 검수 미완료. 시험 기대값은 진단 정답이 아닙니다.</p>
     <ul id="examples"></ul>
+    <div class="benchmark-panel" role="region" aria-label="임계값 시뮬레이터 및 일괄 검증">
+      <h3>임계값 시뮬레이터 &amp; 일괄 검증</h3>
+      <div class="slider-group">
+        <label for="threshold-sim">최소 유사도 (<output id="threshold-sim-val">${customMinSim.toFixed(2)}</output>)
+          <input id="threshold-sim" type="range" min="0.20" max="0.80" step="0.01" value="${customMinSim}">
+        </label>
+        <label for="threshold-margin">최소 격차 (<output id="threshold-margin-val">${customMinMargin.toFixed(3)}</output>)
+          <input id="threshold-margin" type="range" min="0.000" max="0.200" step="0.005" value="${customMinMargin}">
+        </label>
+      </div>
+      <div class="buttons">
+        <button id="threshold-reset" type="button" class="secondary-btn">임계값 초기화</button>
+        <button id="batch-eval" type="button" disabled>가상 질의 일괄 검증</button>
+      </div>
+      <div id="batch-table-container" aria-live="polite"></div>
+    </div>
   </section>`;
 }
 
@@ -232,6 +270,7 @@ function renderRecommendation(
 }
 
 function renderBasicCards() {
+  lastInferData = undefined;
   const result = $('result');
   result.removeAttribute('data-hold');
   result.replaceChildren();
@@ -249,6 +288,80 @@ function renderBasicCards() {
   result.append(list);
 }
 
+/** 가상 개발 질의 일괄 검증 결과 표 렌더링 (#9). */
+function renderBatchTable(items: BatchItem[], batchMs?: number) {
+  const container = document.getElementById('batch-table-container');
+  if (!container) return;
+  const passCount = items.filter(it => it.pass).length;
+  const timingNote = typeof batchMs === 'number' && batchMs > 0 ? ` · ${Math.round(batchMs)}ms` : '';
+
+  container.innerHTML = `
+    <p class="batch-summary">일괄 검증 결과: <strong>${passCount}/${items.length}건 기대값 일치</strong> (최소 유사도 ${customMinSim.toFixed(2)}, 최소 격차 ${customMinMargin.toFixed(3)}${timingNote})</p>
+    <div class="table-scroll">
+      <table class="batch-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>기대값</th>
+            <th>판정</th>
+            <th>일치</th>
+            <th>최고 유사도</th>
+            <th>1·2위 격차</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.map(it => `<tr class="${it.pass ? 'batch-row-pass' : 'batch-row-fail'}">
+            <td>${it.id}</td>
+            <td>${it.expected}</td>
+            <td>${it.predicted}</td>
+            <td>${it.pass ? '✅' : '⚠️'}</td>
+            <td>${it.topSimilarity.toFixed(3)}</td>
+            <td>${it.margin.toFixed(3)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+/** 임계값 슬라이더 변경 시 기존 추론 결과 및 일괄 검증 표를 즉시 재판정 (#9). */
+function reEvaluateWithThresholds() {
+  const currentThresholds = { minSimilarity: customMinSim, minMargin: customMinMargin };
+  if (lastInferData) {
+    const rejudged = judge(lastInferData.scores, lastInferData.queryText, currentThresholds);
+    renderRecommendation(rejudged, lastInferData.queryText, lastInferData.inferMs);
+  }
+  if (lastBatchItems) {
+    const updated = lastBatchItems.map(item => {
+      const outcome = judge(item.scores, item.text, currentThresholds);
+      const predicted = outcome.hold ? 'hold' : (outcome.scores[0]?.id ?? 'hold');
+      return {
+        ...item,
+        predicted,
+        pass: predicted === item.expected,
+        reason: outcome.reason,
+      };
+    });
+    lastBatchItems = updated;
+    renderBatchTable(updated);
+  }
+}
+
+function resetThresholdsAndBatch() {
+  customMinSim = thresholds.minSimilarity;
+  customMinMargin = thresholds.minMargin;
+  lastBatchItems = undefined;
+  const simInput = document.getElementById('threshold-sim') as HTMLInputElement | null;
+  const marginInput = document.getElementById('threshold-margin') as HTMLInputElement | null;
+  const simVal = document.getElementById('threshold-sim-val');
+  const marginVal = document.getElementById('threshold-margin-val');
+  const container = document.getElementById('batch-table-container');
+  if (simInput) simInput.value = String(customMinSim);
+  if (marginInput) marginInput.value = String(customMinMargin);
+  if (simVal) simVal.textContent = customMinSim.toFixed(2);
+  if (marginVal) marginVal.textContent = customMinMargin.toFixed(3);
+  if (container) container.replaceChildren();
+}
+
 // ─── Worker 관리 ─────────────────────────────────────────────────
 function createWorker() {
   stopWorker();
@@ -264,7 +377,7 @@ function createWorker() {
     }
 
     // 계약 불일치 검사
-    if ((data.type === 'ready' || data.type === 'result') && data.contract !== modelContract) {
+    if ((data.type === 'ready' || data.type === 'result' || data.type === 'batch-result') && data.contract !== modelContract) {
       nextRevision();
       stopWorker();
       hideProgress();
@@ -276,6 +389,7 @@ function createWorker() {
     if (data.type === 'ready') {
       ready = true;
       $<HTMLButtonElement>('infer').disabled = false;
+      $<HTMLButtonElement>('batch-eval').disabled = false;
       $<HTMLButtonElement>('cancel').disabled = true;
       hideProgress();
       setState('준비됨');
@@ -290,8 +404,20 @@ function createWorker() {
       clearTimer();
       $<HTMLButtonElement>('cancel').disabled = true;
       $<HTMLButtonElement>('infer').disabled = false;
+      $<HTMLButtonElement>('batch-eval').disabled = false;
       setState('준비됨');
-      renderRecommendation(data.result, $<HTMLTextAreaElement>('query').value, data.inferMs || 0);
+      const queryText = $<HTMLTextAreaElement>('query').value;
+      const inferMs = data.inferMs || 0;
+      lastInferData = { scores: data.result.scores, queryText, inferMs };
+      renderRecommendation(data.result, queryText, inferMs);
+    } else if (data.type === 'batch-result' && data.items) {
+      clearTimer();
+      $<HTMLButtonElement>('cancel').disabled = true;
+      $<HTMLButtonElement>('infer').disabled = false;
+      $<HTMLButtonElement>('batch-eval').disabled = false;
+      setState('준비됨');
+      lastBatchItems = data.items;
+      renderBatchTable(data.items, data.batchMs || 0);
     } else if (data.type === 'error') {
       stopWorker();
       hideProgress();
@@ -341,9 +467,16 @@ function handleInfer() {
   nextRevision();
   setState('추론 중');
   $<HTMLButtonElement>('infer').disabled = true;
+  $<HTMLButtonElement>('batch-eval').disabled = true;
   $<HTMLButtonElement>('cancel').disabled = false;
   setResult('의미를 비교하고 있습니다.');
-  worker!.postMessage({ type: 'infer', requestId, sessionRevision, text });
+  worker!.postMessage({
+    type: 'infer',
+    requestId,
+    sessionRevision,
+    text,
+    thresholds: { minSimilarity: customMinSim, minMargin: customMinMargin },
+  });
 
   timeout = setTimeout(() => {
     nextRevision();
@@ -351,6 +484,21 @@ function handleInfer() {
     setState('실패');
     setResult(getUserMessage('INFERENCE_TIMEOUT'));
   }, INFERENCE_TIMEOUT_MS);
+}
+
+function handleBatchEval() {
+  if (!ready || !worker) return;
+  nextRevision();
+  setState('추론 중');
+  $<HTMLButtonElement>('infer').disabled = true;
+  $<HTMLButtonElement>('batch-eval').disabled = true;
+  $<HTMLButtonElement>('cancel').disabled = false;
+  worker.postMessage({
+    type: 'batch-eval',
+    requestId,
+    sessionRevision,
+    thresholds: { minSimilarity: customMinSim, minMargin: customMinMargin },
+  });
 }
 
 function handleCancel() {
@@ -365,6 +513,7 @@ function handleReset() {
   nextRevision();
   stopWorker();
   hideProgress();
+  resetThresholdsAndBatch();
   $<HTMLTextAreaElement>('query').value = '';
   $('count').textContent = `0/${MAX_QUERY_LENGTH}자`;
   $('timing').textContent = '';
@@ -376,6 +525,7 @@ function handleClose() {
   nextRevision();
   stopWorker();
   hideProgress();
+  resetThresholdsAndBatch();
   $<HTMLTextAreaElement>('query').value = '';
   $('count').textContent = `0/${MAX_QUERY_LENGTH}자`;
   $('timing').textContent = '';
@@ -406,6 +556,7 @@ function clearNavigationSession() {
   nextRevision();
   stopWorker();
   hideProgress();
+  resetThresholdsAndBatch();
   $<HTMLTextAreaElement>('query').value = '';
   $('count').textContent = `0/${MAX_QUERY_LENGTH}자`;
   $('timing').textContent = '';
@@ -418,11 +569,31 @@ renderApp();
 
 $('prepare').addEventListener('click', handlePrepare);
 $('infer').addEventListener('click', handleInfer);
+$('batch-eval').addEventListener('click', handleBatchEval);
 $('cancel').addEventListener('click', handleCancel);
 $('reset').addEventListener('click', handleReset);
 $('close').addEventListener('click', handleClose);
 $('basic').addEventListener('click', renderBasicCards);
 $<HTMLTextAreaElement>('query').addEventListener('input', handleQueryInput);
+$<HTMLInputElement>('threshold-sim').addEventListener('input', event => {
+  customMinSim = Number((event.target as HTMLInputElement).value);
+  $('threshold-sim-val').textContent = customMinSim.toFixed(2);
+  reEvaluateWithThresholds();
+});
+$<HTMLInputElement>('threshold-margin').addEventListener('input', event => {
+  customMinMargin = Number((event.target as HTMLInputElement).value);
+  $('threshold-margin-val').textContent = customMinMargin.toFixed(3);
+  reEvaluateWithThresholds();
+});
+$('threshold-reset').addEventListener('click', () => {
+  customMinSim = thresholds.minSimilarity;
+  customMinMargin = thresholds.minMargin;
+  $<HTMLInputElement>('threshold-sim').value = String(customMinSim);
+  $<HTMLInputElement>('threshold-margin').value = String(customMinMargin);
+  $('threshold-sim-val').textContent = customMinSim.toFixed(2);
+  $('threshold-margin-val').textContent = customMinMargin.toFixed(3);
+  reEvaluateWithThresholds();
+});
 $('theme-toggle').addEventListener('click', () => {
   const html = document.documentElement;
   const current = html.getAttribute('data-theme');
