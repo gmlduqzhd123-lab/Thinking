@@ -267,6 +267,36 @@ async function testLessonFeatures(browser) {
   const puzzleStatus = await page.locator('.puzzle-status').textContent();
   log('초등 재구성 #7 단위분수 모아 전체 1 채우기 퍼즐 작동', puzzleStatus?.includes('2/5') ?? false, `"${puzzleStatus}"`);
 
+  // 11. 혼자 해보기(스스로 탐구) 모드 전체 흐름 검증
+  await page.locator('.step-dot.done[data-step-index="0"]').click();
+  await page.click('button[data-action="start-solo"]');
+  const soloPhaseBadge = await page.locator('.phase-badge').textContent();
+  log('혼자 해보기 모드 즉시 진입 작동', soloPhaseBadge?.includes('혼자 해보기') ?? false, `"${soloPhaseBadge}"`);
+
+  await page.click('button[data-solo-choice="B"]');
+  const soloFirstNote = await page.locator('#poll-note').textContent();
+  log('혼자 해보기 1클릭 보기 선택 및 안내 표시', soloFirstNote?.includes('내 처음 생각으로') ?? false);
+  await page.click('button[data-action="record"]');
+
+  await page.click('button[data-action="next"]');
+  await page.click('button[data-action="inquiry-next"]');
+  await page.click('button[data-action="inquiry-next"]');
+  await page.click('button[data-action="inquiry-next"]');
+  await page.click('button[data-action="summary-reveal"]');
+  await page.click('button[data-action="next"]');
+
+  // 재선택에서 정답(A) 클릭 시 즉시 정답 피드백 확인
+  await page.click('button[data-solo-choice="A"]');
+  const soloAgainNote = await page.locator('#poll-note').textContent();
+  log('혼자 해보기 재선택 정답 즉시 피드백 표시', soloAgainNote?.includes('정답이에요') ?? false);
+  await page.click('button[data-action="record"]');
+
+  // 응용 문제에서 정답(A) 클릭 후 결과표 확인
+  await page.click('button[data-solo-choice="A"]');
+  await page.click('button[data-action="record"]');
+  const soloReportVisible = await page.locator('.solo-report-card').isVisible();
+  log('혼자 해보기 최종 개인 탐구 결과표 표시', soloReportVisible);
+
   log('수업 JS 에러 없음', errors.length === 0, errors.length > 0 ? errors.join('; ') : '');
 
   await page.close();

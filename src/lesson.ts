@@ -71,7 +71,8 @@ let warmupChoice: '' | 'unequal' | 'equal' = '';
 let puzzlePieces = 1;
 let notebookBlankRevealed = false;
 let phase: Phase = 'concept';
-let mode: 'example' | 'class' = 'example';
+let mode: 'example' | 'class' | 'solo' = 'example';
+let soloChoices: Record<Poll, Choice | null> = { first: null, again: null, transfer: null };
 let participantsRaw = '';
 let minutes: 10 | 20 | 40 = DEFAULT_MINUTES as 10 | 20 | 40;
 let remainingSeconds = DEFAULT_MINUTES * 60;
@@ -119,6 +120,7 @@ function resetSession() {
   notebookBlankRevealed = false;
   phase = 'concept';
   mode = 'example';
+  soloChoices = { first: null, again: null, transfer: null };
   participantsRaw = '';
   minutes = DEFAULT_MINUTES as 10 | 20 | 40;
   remainingSeconds = DEFAULT_MINUTES * 60;
@@ -428,10 +430,50 @@ function getPollItemLabel(poll: Poll, denominatorA: number, denominatorB: number
     : `기본 비교 문항 · 1/${denominatorA}과 1/${denominatorB}`;
 }
 
-/** 투표 템플릿 (#5 빈 칸 0 채우기, #8 가상 연습 샘플 채우기 포함). */
+/** 투표 템플릿 (#5 빈 칸 0 채우기, #8 가상 연습 샘플 채우기, 혼자 해보기 1클릭 선택 포함). */
 function pollTemplate(poll: Poll, denominatorA: number, denominatorB: number): string {
   const itemLabel = getPollItemLabel(poll, denominatorA, denominatorB);
   const labels = [`A. 1/${denominatorA}이 더 크다`, `B. 1/${denominatorB}이 더 크다`, 'C. 두 조각이 같다', 'D. 모르겠다'];
+
+  if (mode === 'solo') {
+    const selected = soloChoices[poll];
+    const soloButtons = CHOICES.map((choice, i) =>
+      `<button type="button" data-solo-choice="${choice}" class="solo-choice-btn ${selected === choice ? 'solo-choice-selected' : ''}" aria-pressed="${selected === choice}">${labels[i]}</button>`
+    ).join('');
+
+    let soloFeedback = '위 네 가지 보기 중에서 내 생각을 하나 골라 눌러 보세요.';
+    if (selected) {
+      if (poll === 'first') {
+        const idx = CHOICES.indexOf(selected);
+        soloFeedback = `✅ 내 처음 생각으로 "${labels[idx]}"을(를) 골랐어요! 아래 버튼을 눌러 다음 단계로 이동해 보세요.`;
+      } else if (selected === 'A') {
+        soloFeedback = `🎉 정답이에요! 같은 전체를 더 적게 나눈 1/${denominatorA} 한 조각이 1/${denominatorB} 한 조각보다 더 큽니다.`;
+      } else if (selected === 'B') {
+        soloFeedback = `💡 다시 생각해 볼까요? 분모 숫자 ${denominatorB}이 ${denominatorA}보다 크지만, 같은 전체를 더 많이 나눌수록 한 조각의 크기는 작아져요.`;
+      } else if (selected === 'C') {
+        soloFeedback = `💡 다시 생각해 볼까요? 나눈 조각 수가 ${denominatorA}등분과 ${denominatorB}등분으로 다르기 때문에 한 조각의 크기도 서로 달라요.`;
+      } else {
+        soloFeedback = `🌱 괜찮아요! 위 시각화 도구에서 '✂️ 조각 겹쳐 비교하기'나 '📐 비교 기준선 보기'를 눌러 눈으로 직접 확인해 보세요.`;
+      }
+    }
+
+    return `
+      <p class="item-id">${itemLabel} · 🙋 혼자 해보기 모드</p>
+      <p>길이가 같은 두 리본에서 한 조각의 길이를 비교합니다. 어느 쪽이 더 클까요?</p>
+      ${renderVisualPair(denominatorA, denominatorB)}
+      <fieldset class="solo-fieldset">
+        <legend>🙋 내 생각 고르기 (클릭하여 선택)</legend>
+        <div class="solo-choice-grid" role="group" aria-label="내 생각 선택 보기">
+          ${soloButtons}
+        </div>
+        <p id="poll-note" class="solo-feedback-box" role="status">${soloFeedback}</p>
+      </fieldset>
+      <div class="actions">
+        <button data-action="record">선택 완료하고 다음으로</button>
+        <button data-action="skip" class="secondary-btn">건너뛰고 다음으로</button>
+      </div>`;
+  }
+
   const counts = pollData[poll];
   const n = parseParticipants(participantsRaw);
 
@@ -712,6 +754,35 @@ function memoryText(): string {
   return parts.join(' ');
 }
 
+/** 혼자 해보기(스스로 탐구) 모드 전용 개인 학습 결과표. */
+function formatSoloChoiceLabel(ch: Choice | null, dA: number, dB: number): string {
+  if (!ch) return '선택 생략';
+  if (ch === 'A') return `A. 1/${dA}이 더 크다 (정답 ⭐)`;
+  if (ch === 'B') return `B. 1/${dB}이 더 크다`;
+  if (ch === 'C') return 'C. 두 조각이 같다';
+  return 'D. 모르겠다';
+}
+
+function renderSoloReportCard(): string {
+  if (mode !== 'solo') return '';
+  const [fA, fB] = currentUnit().denominators.first;
+  const [tA, tB] = currentUnit().denominators.transfer;
+  const isAllCorrect = soloChoices.again === 'A' && soloChoices.transfer === 'A';
+  const praiseMsg = isAllCorrect
+    ? '🏆 완벽해요! 스스로 탐구를 통해 단위분수의 크기 비교 원리를 정확히 깨달았어요!'
+    : '🌱 끝까지 포기하지 않고 스스로 탐구를 마쳤어요! 헷갈린 문제는 모형과 퍼즐로 한 번 더 확인해 보세요.';
+
+  return `<div class="solo-report-card" role="region" aria-label="나의 스스로 탐구 결과표">
+    <h3>🙋 나의 스스로 탐구 결과표</h3>
+    <ul class="solo-report-list">
+      <li><strong>처음 내 생각 (1/${fA} vs 1/${fB})</strong>: ${formatSoloChoiceLabel(soloChoices.first, fA, fB)}</li>
+      <li><strong>탐구 후 다시 고른 생각 (1/${fA} vs 1/${fB})</strong>: ${formatSoloChoiceLabel(soloChoices.again, fA, fB)}</li>
+      <li><strong>한 걸음 더! 응용 문제 (1/${tA} vs 1/${tB})</strong>: ${formatSoloChoiceLabel(soloChoices.transfer, tA, tB)}</li>
+    </ul>
+    <p class="solo-report-praise">${praiseMsg}</p>
+  </div>`;
+}
+
 /** 현재 phase에 맞는 본문. */
 function body(): string {
   const unit = currentUnit();
@@ -729,7 +800,10 @@ function body(): string {
         </fieldset>
         <p>${unit.title} · ${unit.description}</p>
         ${renderEqualPartsWarmup()}
-        <button data-action="next">수업 미리보기</button>`;
+        <div class="actions">
+          <button data-action="next">수업 미리보기</button>
+          <button type="button" data-action="start-solo" class="secondary-btn solo-start-btn">🙋 혼자서 스스로 탐구 시작하기</button>
+        </div>`;
 
     case 'preview':
       return `<h2 tabindex="-1">수업 미리보기 · 우리 반 수업 준비</h2>
@@ -738,6 +812,7 @@ function body(): string {
           <legend>진행 모드</legend>
           <label><input type="radio" name="mode" value="example" ${mode === 'example' ? 'checked' : ''}> 가상 연습</label>
           <label><input type="radio" name="mode" value="class" ${mode === 'class' ? 'checked' : ''}> 실제 수업 입력</label>
+          <label><input type="radio" name="mode" value="solo" ${mode === 'solo' ? 'checked' : ''}> 🙋 혼자 해보기 (스스로 탐구)</label>
         </fieldset>
         <label>참여 인원 1~${MAX_PARTICIPANTS}명 <input id="participants" type="text" inputmode="numeric" autocomplete="off"></label>
         <fieldset>
@@ -802,6 +877,7 @@ function body(): string {
       return `<h2 tabindex="-1">우리 반 생각 변화 돌아보기 · 메모리 요약</h2>
         <p>선택한 이유 카드와 집단 집계만 요약하며 학생별 변화는 추론하지 않습니다.</p>
         ${renderPraiseAndNotebook(firstA, firstB)}
+        ${renderSoloReportCard()}
         <button data-action="memory-generate">요약 만들기</button>
         ${memoryVisible ? `
           <p class="memory">${memoryText()}</p>
@@ -884,9 +960,10 @@ function renderProgressNav(): string {
   const currentPhaseLabel = phase === 'inquiry'
     ? `${phaseLabels[phase]} (${inquiryIndex + 1}/3)`
     : phaseLabels[phase];
+  const modeLabel = mode === 'example' ? '가상 연습' : mode === 'solo' ? '혼자 해보기' : '실제 수업 입력';
   return `<nav aria-label="수업 진행">
     ${renderStepIndicator()}
-    <span class="phase-badge" aria-live="polite">현재: ${currentPhaseLabel} · ${mode === 'example' ? '가상 연습' : '실제 수업 입력'}</span>
+    <span class="phase-badge" aria-live="polite">현재: ${currentPhaseLabel} · ${modeLabel}</span>
     ${backButton}
   </nav>`;
 }
@@ -919,9 +996,10 @@ function render(focus = false) {
   if (p) p.value = participantsRaw;
 
   const poll: Poll | null = phase === 'first' ? 'first' : phase === 'again' ? 'again' : phase === 'transfer' ? 'transfer' : null;
-  if (poll && pollData[poll]) {
+  if (poll && pollData[poll] && mode !== 'solo') {
     for (const choice of CHOICES) {
-      app.querySelector<HTMLInputElement>(`[data-count="${choice}"]`)!.value = pollData[poll]![choice];
+      const inputEl = app.querySelector<HTMLInputElement>(`[data-count="${choice}"]`);
+      if (inputEl) inputEl.value = pollData[poll]![choice];
     }
   }
 
@@ -948,6 +1026,11 @@ function next() {
 function continuePoll(record: boolean) {
   const poll = activePoll()!;
   if (record) {
+    if (mode === 'solo' && !soloChoices[poll]) {
+      error = '네 가지 보기 중 내 생각을 하나 선택한 뒤 다음으로 이동해 주세요.';
+      app.querySelector('#error')!.textContent = error;
+      return;
+    }
     const n = parseParticipants(participantsRaw)!;
     const raw = pollData[poll] ?? emptyCounts();
     if (!validateCounts(raw, n)) {
@@ -957,6 +1040,7 @@ function continuePoll(record: boolean) {
     }
   } else {
     pollData[poll] = null;
+    soloChoices[poll] = null;
   }
   memoryVisible = false;
   summaryCopied = false;
@@ -1018,15 +1102,17 @@ app.addEventListener('change', event => {
     selectedUnitId = target.value;
     inquiryBaseDenominator = currentUnit().denominators.first[0];
     pollData = { first: null, again: null, transfer: null };
+    soloChoices = { first: null, again: null, transfer: null };
     memoryVisible = false;
     error = '';
     render();
   }
 
   if (target.name === 'mode') {
-    mode = target.value as 'example' | 'class';
+    mode = target.value as 'example' | 'class' | 'solo';
     pollData = { first: null, again: null, transfer: null };
-    participantsRaw = '';
+    soloChoices = { first: null, again: null, transfer: null };
+    participantsRaw = mode === 'solo' ? '1' : '';
     memoryVisible = false;
     summaryCopied = false;
     error = '';
@@ -1131,6 +1217,26 @@ app.addEventListener('click', event => {
 
   const action = button.dataset.action;
 
+  if (button.dataset.soloChoice) {
+    const poll = activePoll();
+    if (poll) {
+      const ch = button.dataset.soloChoice as Choice;
+      soloChoices[poll] = ch;
+      participantsRaw = '1';
+      pollData[poll] = {
+        A: ch === 'A' ? '1' : '0',
+        B: ch === 'B' ? '1' : '0',
+        C: ch === 'C' ? '1' : '0',
+        D: ch === 'D' ? '1' : '0',
+      };
+      memoryVisible = false;
+      summaryCopied = false;
+      error = '';
+      render();
+    }
+    return;
+  }
+
   if (button.dataset.reason !== undefined) {
     if (reasonSelected !== button.dataset.reason) {
       memoryVisible = false;
@@ -1176,6 +1282,20 @@ app.addEventListener('click', event => {
   } else if (action === 'toggle-notebook-blank') {
     notebookBlankRevealed = !notebookBlankRevealed;
     render();
+  } else if (action === 'start-solo') {
+    mode = 'solo';
+    participantsRaw = '1';
+    pollData = { first: null, again: null, transfer: null };
+    soloChoices = { first: null, again: null, transfer: null };
+    inquiryIndex = 0;
+    inquiryAnswerVisible = false;
+    summaryVisible = false;
+    transferAnswerVisible = false;
+    memoryVisible = false;
+    summaryCopied = false;
+    error = '';
+    phase = 'first';
+    render(true);
   } else if (action === 'next') {
     if (phase === 'preview' && parseParticipants(participantsRaw) === null) {
       error = '참여 인원은 1~60의 정수로 입력하세요.';
