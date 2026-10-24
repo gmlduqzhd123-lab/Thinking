@@ -3,11 +3,12 @@
  * 1. TypeScript 타입 검사 (tsc --noEmit)
  * 2. 단위 테스트 (node --test)
  * 3. 빌드 산출물(dist/assets) 용량 가드 및 중복 WASM 부재 검증
- * 4. 로컬 프리뷰 서버 자동 기동 → E2E 검증 (lesson-check, e2e-features) → 서버 자동 종료 (데몬 잔류 원천 방지)
+ * 4. 공유 도메인(gmlduqzhd123-lab.github.io) 다른 앱 보호 규칙(CLAUDE.md) 정적 검사
+ * 5. 로컬 프리뷰 서버 자동 기동 → E2E 검증 (lesson-check, e2e-features) → 서버 자동 종료 (데몬 잔류 원천 방지)
  */
 
 import { spawn, execFileSync } from 'node:child_process';
-import { readdirSync, statSync, existsSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const ROOT = resolve(import.meta.dirname, '..');
@@ -55,6 +56,34 @@ function checkBundleSizes() {
   console.log(`✅ 번들 용량 정상: ${lessonJs} (${jsSizeKb.toFixed(1)}KB), ${lessonCss} (${cssSizeKb.toFixed(1)}KB)`);
 }
 
+function checkSharedOriginSafety() {
+  console.log('\n▶ [검증] 공유 도메인(gmlduqzhd123-lab.github.io) 다른 앱 보호 규칙 검사...');
+  const srcDir = join(ROOT, 'src');
+  const collectFiles = dir => {
+    const out = [];
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) out.push(...collectFiles(full));
+      else if (entry.name.endsWith('.ts')) out.push(full);
+    }
+    return out;
+  };
+  const forbiddenPatterns = [
+    { regex: /localStorage\.clear\s*\(/, desc: 'localStorage.clear() 사용 금지' },
+    { regex: /sessionStorage\.clear\s*\(/, desc: 'sessionStorage.clear() 사용 금지' },
+    { regex: /caches\.keys\s*\(\)\.then\([^)]*caches\.delete/, desc: '이름 필터 없는 caches 전체 삭제 금지' },
+  ];
+  for (const file of collectFiles(srcDir)) {
+    const content = readFileSync(file, 'utf8');
+    for (const rule of forbiddenPatterns) {
+      if (rule.regex.test(content)) {
+        throw new Error(`${file}: ${rule.desc}`);
+      }
+    }
+  }
+  console.log('✅ 공유 도메인 보호 규칙(localStorage.clear 등 미사용) 통과');
+}
+
 async function waitForServer(url, timeoutMs = 15000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -88,8 +117,9 @@ runStep('TypeScript 타입 검사', 'npx', ['tsc', '--noEmit']);
 // 2. 단위 테스트
 runStep('단위 테스트 (node --test)', 'node', ['--test', 'tests/embedding-integrity.test.mjs', 'tests/errors.test.mjs', 'tests/judge.test.mjs', 'tests/lesson-core.test.mjs', 'tests/privacy.test.mjs', 'tests/unit-registry.test.mjs']);
 
-// 3. 번들 용량 가드
+// 3. 번들 용량 가드 및 공유 도메인 보호 규칙 검사
 checkBundleSizes();
+checkSharedOriginSafety();
 
 // 4. 프리뷰 서버 기동 후 E2E 실행 및 즉시 정리
 console.log(`\n▶ [검증] 프리뷰 서버(${BASE_URL}) 임시 기동 중...`);
