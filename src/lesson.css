@@ -209,7 +209,8 @@ h1 {
 }
 
 .theme-toggle,
-.scale-toggle {
+.scale-toggle,
+.board-toggle {
   background: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 22px;
@@ -229,8 +230,9 @@ h1 {
   font-size: 1.2rem;
 }
 .theme-toggle:hover,
-.scale-toggle:hover { background: rgba(255, 255, 255, 0.25); }
-header { position: relative; padding-right: 150px; }
+.scale-toggle:hover,
+.board-toggle:hover { background: rgba(255, 255, 255, 0.25); }
+header { position: relative; padding-right: 260px; }
 
 /* ─── Sections / Layout ──────────────────────────────────────── */
 section, aside, nav {
@@ -695,7 +697,7 @@ button[data-reason][aria-pressed="true"] {
   main { padding: 10px; }
 
   header, section, aside, nav { padding: 16px; }
-  header { padding-top: 58px; }
+  header { padding-top: 64px; padding-right: 16px; }
 
   .bar-pair { display: block; }
 
@@ -751,6 +753,191 @@ button[data-reason][aria-pressed="true"] {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border-width: 0;
+}
+
+/* ─── 초등 수학 눈높이 재구성 (10대 기능 스타일) ─────────────── */
+
+/* #3 똑같이 나누기(등분할) 워밍업 */
+.equal-parts-warmup {
+  margin: 16px 0;
+  padding: 16px;
+  background: var(--lesson-chart-bg);
+  border: 1px solid var(--lesson-chart-border);
+  border-radius: 12px;
+}
+
+.equal-parts-warmup h3 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+}
+
+.warmup-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.warmup-btn {
+  flex: 1 1 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+}
+
+.warmup-btn svg {
+  width: 100%;
+  max-width: 220px;
+  height: auto;
+}
+
+.warmup-feedback {
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.warmup-correct {
+  background: var(--lesson-answer-bg);
+  border-left: 4px solid var(--lesson-answer-border);
+}
+
+.warmup-retry {
+  background: var(--lesson-notice-bg);
+  border-left: 4px solid var(--lesson-notice-border);
+}
+
+/* #4 조각 포개어 겹쳐 비교하기 */
+.overlap-comparison {
+  margin: 10px 0 14px;
+  padding: 14px;
+  background: var(--lesson-chart-bg);
+  border: 2px dashed var(--lesson-answer-border);
+  border-radius: 12px;
+}
+
+.overlap-title {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+}
+
+.overlap-comparison svg {
+  width: 100%;
+  height: auto;
+}
+
+/* #5 이유 카드 말풍선 대화체 */
+.reason-bubble-list {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.reason-bubble-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+  padding: 12px 16px;
+  border-radius: 14px;
+}
+
+.student-bubble {
+  font-size: 1.02rem;
+  font-weight: 700;
+}
+
+.reason-summary-tag {
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+/* #6 수직선 & #8 주스 컵 모형 */
+.fraction-cup svg {
+  max-height: 155px;
+}
+
+/* #7 단위분수 모아 '전체 1' 채우기 퍼즐 */
+.unit-puzzle {
+  margin: 14px 0;
+  padding: 14px 16px;
+  background: var(--lesson-chart-bg);
+  border: 1px solid var(--lesson-chart-border);
+  border-radius: 12px;
+}
+
+.unit-puzzle h3 {
+  margin: 0 0 6px;
+  font-size: 1.02rem;
+}
+
+.puzzle-status {
+  margin: 4px 0 10px;
+  font-weight: 600;
+}
+
+.unit-puzzle svg {
+  width: 100%;
+  height: auto;
+  margin-bottom: 8px;
+}
+
+/* #9 칠판 화면 모드 (학생 발표용 깔끔 보기) */
+html[data-board="true"] main {
+  max-width: 1200px;
+}
+
+html[data-board="true"] #step h2 {
+  font-size: 1.7rem;
+}
+
+html[data-board="true"] .choices {
+  font-size: 1.2rem;
+  line-height: 1.8;
+}
+
+html[data-board="true"] .scaffold-guide,
+html[data-board="true"] .poll-helpers {
+  display: none;
+}
+
+/* #10 학급 칭찬 배지 & 배움 공책 한 줄 정리 */
+.notebook-summary-card {
+  margin: 14px 0;
+  padding: 16px;
+  background: var(--lesson-notice-bg);
+  border: 2px solid var(--lesson-notice-border);
+  border-radius: 12px;
+}
+
+.praise-badge {
+  margin: 0 0 10px;
+  font-size: 1.05rem;
+}
+
+.notebook-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--lesson-notice-border);
+}
+
+.notebook-line p {
+  margin: 0;
+}
+
+.notebook-blank {
+  color: var(--lesson-answer-border);
+  background: var(--lesson-answer-bg);
+  padding: 2px 8px;
+  border-radius: 6px;
 }
 
 /* ─── Print ──────────────────────────────────────────────────── */

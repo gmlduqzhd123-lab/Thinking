@@ -8,8 +8,8 @@ import type { UnitConfig } from '../unit-types';
 
 const m01: UnitConfig = {
   id: 'M01',
-  title: '단위분수 기초 비교 (1/3과 1/5)',
-  description: '같은 전체에서 1/3과 1/5 한 조각의 크기를 비교합니다.',
+  title: '🥖 초코바 나누기 · 단위분수 기초 비교 (1/3과 1/5)',
+  description: '길이가 같은 초코바와 리본을 똑같이 나누어 1/3과 1/5 한 조각의 크기를 비교합니다.',
 
   cards: [
     {

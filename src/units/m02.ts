@@ -8,8 +8,8 @@ import type { UnitConfig } from '../unit-types';
 
 const m02: UnitConfig = {
   id: 'M02',
-  title: '단위분수 심화 비교 (1/4과 1/7)',
-  description: '같은 전체에서 1/4과 1/7 한 조각을 비교합니다.',
+  title: '🍕 피자 조각 고르기 · 단위분수 심화 비교 (1/4과 1/7)',
+  description: '크기가 같은 피자와 리본을 똑같이 나누어 1/4과 1/7 한 조각의 크기를 비교합니다.',
 
   cards: [
     {

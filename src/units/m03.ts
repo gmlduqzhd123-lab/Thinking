@@ -8,8 +8,8 @@ import type { UnitConfig } from '../unit-types';
 
 const m03: UnitConfig = {
   id: 'M03',
-  title: '단위분수 응용 비교 (1/2과 1/6)',
-  description: '같은 전체에서 1/2과 1/6 한 조각을 비교합니다.',
+  title: '🎀 색테이프 자르기 · 단위분수 응용 비교 (1/2과 1/6)',
+  description: '길이가 같은 색테이프와 리본을 똑같이 나누어 1/2과 1/6 한 조각의 크기를 비교합니다.',
 
   cards: [
     {

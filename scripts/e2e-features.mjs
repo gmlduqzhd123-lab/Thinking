@@ -236,6 +236,37 @@ async function testLessonFeatures(browser) {
   const copyBtnCount = await page.locator('button[data-action="copy-summary"]').count();
   log('수업 요약 3단계 차트 및 오개념 이동 분석표·내보내기 렌더링', chartCount === 3 && shiftTableCount === 1 && csvBtnCount === 1 && copyBtnCount === 1);
 
+  // 10. 초등 눈높이 재구성 10대 기능 검증 (#1~#10)
+  await page.click('button[data-action="toggle-notebook-blank"]');
+  const blankText = await page.locator('.notebook-blank').textContent();
+  log('초등 재구성 #10 학급 칭찬 배지 및 배움 공책 빈칸 채우기', blankText?.includes('작아집니다') ?? false, `"${blankText}"`);
+
+  await page.click('#board-toggle');
+  const boardAttr = await page.evaluate(() => document.documentElement.getAttribute('data-board'));
+  log('초등 재구성 #9 칠판 화면 모드 토글 작동', boardAttr === 'true', `data-board="${boardAttr}"`);
+  await page.click('#board-toggle');
+
+  // 처음 개념 단계로 돌아가서 등분할 워밍업(#3), 수직선(#6), 주스컵(#8), 조각 겹침(#4), 퍼즐(#7) 확인
+  await page.locator('.step-dot.done[data-step-index="0"]').click();
+  await page.click('button[data-action="warmup-equal"]');
+  const warmupFeedback = await page.locator('#warmup-feedback').textContent();
+  log('초등 재구성 #3 등분할(똑같이 나누기) 워밍업 피드백 작동', warmupFeedback?.includes('정답이에요') ?? false);
+
+  await page.click('button[data-action="next"]');
+  await page.click('button[data-action="next"]');
+  await page.click('button[data-action="toggle-numberline"]');
+  log('초등 재구성 #6 수직선(0~1) 분수 모형 전환', (await page.locator('.fraction-numberline').count()) === 2);
+  await page.click('button[data-action="toggle-cup"]');
+  log('초등 재구성 #8 실생활 주스 컵 들이 모형 전환', (await page.locator('.fraction-cup').count()) === 2);
+  await page.click('button[data-action="toggle-overlap"]');
+  log('초등 재구성 #4 가위로 잘라 조각 겹쳐 비교하기 표시', (await page.locator('.overlap-comparison').count()) === 1);
+  await page.click('button[data-action="skip"]');
+  log('초등 재구성 #5 학생 말풍선 이유 카드 표시', (await page.locator('.student-bubble').count()) === 3);
+  await page.click('button[data-action="next"]');
+  await page.click('button[data-action="puzzle-add"]');
+  const puzzleStatus = await page.locator('.puzzle-status').textContent();
+  log('초등 재구성 #7 단위분수 모아 전체 1 채우기 퍼즐 작동', puzzleStatus?.includes('2/5') ?? false, `"${puzzleStatus}"`);
+
   log('수업 JS 에러 없음', errors.length === 0, errors.length > 0 ? errors.join('; ') : '');
 
   await page.close();

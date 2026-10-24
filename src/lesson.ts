@@ -16,7 +16,7 @@ if (listUnits().length === 0) {
 // ─── 타입 ────────────────────────────────────────────────────────
 type Poll = 'first' | 'again' | 'transfer';
 type Phase = 'concept' | 'preview' | 'first' | 'reason' | 'inquiry' | 'summary' | 'again' | 'transfer' | 'memory' | 'end';
-type VisualModel = 'bar' | 'circle';
+type VisualModel = 'bar' | 'circle' | 'numberline' | 'cup';
 
 // ─── 상수 ────────────────────────────────────────────────────────
 const order: Phase[] = ['concept', 'preview', 'first', 'reason', 'inquiry', 'summary', 'again', 'transfer', 'memory', 'end'];
@@ -26,6 +26,11 @@ const phaseLabels: Record<Phase, string> = {
   memory: '요약', end: '종료',
 };
 const reasonCards = ['분모가 클수록 조각이 크다고 생각함', '전체가 같은지 확인이 필요함', '아직 이유를 말하기 어려움'] as const;
+const reasonStudentBubbles = [
+  '💬 "분모 숫자가 더 크니까 한 조각도 더 클 것 같아요!"',
+  '💬 "두 리본의 원래 전체 길이가 똑같은지 먼저 확인해야 해요!"',
+  '💬 "어느 쪽이 더 큰지 느낌은 오는데 이유를 말하기 어려워요."',
+] as const;
 
 /** 이유 카드별 교사 추천 발문 가이드 (#5). */
 const reasonScaffolds: Record<number, { focus: string; questions: readonly string[] }> = {
@@ -61,6 +66,10 @@ let aiPanel: { sync(active: boolean): void; dispose(): void } | undefined;
 let selectedUnitId = 'M01';
 let visualModel: VisualModel = 'bar';
 let showGuideLine = false;
+let showOverlap = false;
+let warmupChoice: '' | 'unequal' | 'equal' = '';
+let puzzlePieces = 1;
+let notebookBlankRevealed = false;
 let phase: Phase = 'concept';
 let mode: 'example' | 'class' = 'example';
 let participantsRaw = '';
@@ -94,12 +103,20 @@ function isLargeScale(): boolean {
   return document.documentElement.getAttribute('data-scale') === 'large';
 }
 
+function isBoardMode(): boolean {
+  return document.documentElement.getAttribute('data-board') === 'true';
+}
+
 // ─── 세션 초기화 ─────────────────────────────────────────────────
 function resetSession() {
   aiPanel?.dispose();
   selectedUnitId = 'M01';
   visualModel = 'bar';
   showGuideLine = false;
+  showOverlap = false;
+  warmupChoice = '';
+  puzzlePieces = 1;
+  notebookBlankRevealed = false;
   phase = 'concept';
   mode = 'example';
   participantsRaw = '';
@@ -167,10 +184,83 @@ function circleFraction(denominator: number, refDenominator?: number): string {
   </figure>`;
 }
 
-/** 분수 막대/원형 SVG (#1 다크 모드 CSS 변수 연동, #2 기준선 및 원형 전환). */
+/** 수직선(0~1 눈금) 분수 모형 SVG (초등 재구성 #6). */
+function numberLineFraction(denominator: number, refDenominator?: number): string {
+  const startX = 36;
+  const endX = 564;
+  const width = endX - startX;
+  const stepX = width / denominator;
+  const firstX = startX + stepX;
+
+  const ticks = Array.from({ length: denominator + 1 }, (_, i) => {
+    const x = (startX + i * stepX).toFixed(2);
+    const isEnd = i === 0 || i === denominator;
+    const y1 = isEnd ? 22 : 28;
+    const y2 = isEnd ? 54 : 48;
+    return `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="${isEnd ? 3 : 2}"/>`;
+  }).join('');
+
+  const guideLine = showGuideLine && refDenominator
+    ? `<line class="guide-line" x1="${(startX + width / refDenominator).toFixed(2)}" y1="8" x2="${(startX + width / refDenominator).toFixed(2)}" y2="66" stroke="#d9381e" stroke-width="2.5" stroke-dasharray="5 3"/>`
+    : '';
+
+  return `<figure class="fraction fraction-numberline">
+    <svg viewBox="0 0 600 78" role="img"
+      aria-label="0에서 1까지를 ${denominator}등분하고 첫 눈금을 표시한 수직선 모형, 1/${denominator}">
+      <rect x="${startX}" y="31" width="${stepX.toFixed(2)}" height="14" rx="4" fill="var(--lesson-bar-fill, #ffca62)"/>
+      <line x1="${startX}" y1="38" x2="${endX}" y2="38" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3"/>
+      ${ticks}
+      <circle cx="${firstX.toFixed(2)}" cy="38" r="6" fill="#d9381e"/>
+      <text x="${startX}" y="70" text-anchor="middle" font-size="14" font-weight="700" fill="var(--lesson-bar-stroke, #153a69)">0</text>
+      <text x="${firstX.toFixed(2)}" y="18" text-anchor="middle" font-size="14" font-weight="700" fill="#d9381e">1/${denominator}</text>
+      <text x="${endX}" y="70" text-anchor="middle" font-size="14" font-weight="700" fill="var(--lesson-bar-stroke, #153a69)">1</text>
+      ${guideLine}
+    </svg>
+    <figcaption>수직선 0~1을 ${denominator}등분한 눈금 · 1/${denominator}</figcaption>
+  </figure>`;
+}
+
+/** 실생활 양감(주스 컵 들이 눈금) 분수 모형 SVG (초등 재구성 #8). */
+function cupFraction(denominator: number, refDenominator?: number): string {
+  const cupX = 40;
+  const cupY = 16;
+  const cupW = 80;
+  const cupH = 120;
+  const fillH = cupH / denominator;
+  const fillY = cupY + cupH - fillH;
+
+  const ticks = Array.from({ length: denominator - 1 }, (_, i) => {
+    const y = (cupY + ((i + 1) * cupH) / denominator).toFixed(2);
+    return `<line x1="${cupX + 8}" y1="${y}" x2="${cupX + cupW - 8}" y2="${y}" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="1.5" stroke-dasharray="3 3"/>`;
+  }).join('');
+
+  const guideLine = showGuideLine && refDenominator
+    ? `<line class="guide-line" x1="${cupX - 10}" y1="${(cupY + cupH - cupH / refDenominator).toFixed(2)}" x2="${cupX + cupW + 10}" y2="${(cupY + cupH - cupH / refDenominator).toFixed(2)}" stroke="#d9381e" stroke-width="2.5" stroke-dasharray="4 3"/>`
+    : '';
+
+  return `<figure class="fraction fraction-cup">
+    <svg viewBox="0 0 160 156" role="img"
+      aria-label="같은 크기의 컵을 ${denominator}등분하고 한 눈금만큼 주스를 채운 들이 모형, 1/${denominator}">
+      <rect x="${cupX}" y="${cupY}" width="${cupW}" height="${cupH}" rx="6" fill="var(--lesson-bar-bg, white)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3"/>
+      <rect x="${cupX + 2}" y="${fillY.toFixed(2)}" width="${cupW - 4}" height="${fillH.toFixed(2)}" rx="4" fill="var(--lesson-bar-fill, #ffca62)"/>
+      ${ticks}
+      <rect x="${cupX}" y="${cupY}" width="${cupW}" height="${cupH}" rx="6" fill="none" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3"/>
+      ${guideLine}
+    </svg>
+    <figcaption>같은 컵의 1/${denominator}컵 · ${denominator}등분 눈금 중 한 칸</figcaption>
+  </figure>`;
+}
+
+/** 분수 막대/원형/수직선/주스컵 SVG (#1, #2, 초등 재구성 #6, #8). */
 function bar(denominator: number, refDenominator?: number): string {
   if (visualModel === 'circle') {
     return circleFraction(denominator, refDenominator);
+  }
+  if (visualModel === 'numberline') {
+    return numberLineFraction(denominator, refDenominator);
+  }
+  if (visualModel === 'cup') {
+    return cupFraction(denominator, refDenominator);
   }
   const segments = fractionSegments(denominator);
   const segmentWidth = 600 / denominator;
@@ -194,13 +284,111 @@ function bar(denominator: number, refDenominator?: number): string {
   </figure>`;
 }
 
-/** 분수 비교 시각화 도구 모음 및 쌍 렌더링 (#2). */
+/** 가위로 잘라 두 단위분수 조각을 왼쪽 끝을 맞추어 포개어 비교하는 모형 (초등 재구성 #4). */
+function renderOverlapComparison(dA: number, dB: number): string {
+  if (!showOverlap) return '';
+  const wA = 600 / dA;
+  const wB = 600 / dB;
+  const longerDenom = dA < dB ? dA : dB;
+  const shorterDenom = dA < dB ? dB : dA;
+  return `<div class="overlap-comparison" role="region" aria-label="조각 포개어 겹쳐 비교하기">
+    <p class="overlap-title">✂️ <strong>가위로 한 조각씩 잘라 왼쪽 끝을 맞추어 겹쳐 본 모습</strong>: 1/${longerDenom} 조각이 1/${shorterDenom} 조각보다 더 깁니다!</p>
+    <svg viewBox="0 0 600 82" role="img" aria-label="1/${dA} 조각과 1/${dB} 조각을 겹쳐 길이를 비교한 그림">
+      <rect x="0" y="8" width="600" height="66" rx="6" fill="var(--lesson-bar-bg, white)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="1.5" stroke-dasharray="4 4"/>
+      <rect x="0" y="12" width="${wA.toFixed(2)}" height="26" rx="4" fill="var(--lesson-bar-fill, #ffca62)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+      <text x="${Math.min(545, wA + 8).toFixed(2)}" y="30" font-size="14" font-weight="700" fill="var(--lesson-bar-stroke, #153a69)">✂️ 1/${dA} 한 조각</text>
+      <rect x="0" y="44" width="${wB.toFixed(2)}" height="26" rx="4" fill="#7cc6fe" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+      <text x="${Math.min(545, wB + 8).toFixed(2)}" y="62" font-size="14" font-weight="700" fill="var(--lesson-bar-stroke, #153a69)">✂️ 1/${dB} 한 조각</text>
+      <line x1="${wB.toFixed(2)}" y1="8" x2="${wB.toFixed(2)}" y2="74" stroke="#d9381e" stroke-width="2" stroke-dasharray="4 3"/>
+    </svg>
+  </div>`;
+}
+
+/** 분수 비교 시각화 도구 모음 및 쌍 렌더링 (#2, 초등 재구성 #4, #6, #8). */
 function renderVisualPair(dA: number, dB: number): string {
   return `<div class="visual-toolbar" role="group" aria-label="분수 시각화 도구">
       <button type="button" data-action="toggle-model" class="secondary-btn visual-btn" aria-pressed="${visualModel === 'circle'}">${visualModel === 'circle' ? '📏 막대 모형 보기' : '🍕 원형 모형 보기'}</button>
+      <button type="button" data-action="toggle-numberline" class="secondary-btn visual-btn" aria-pressed="${visualModel === 'numberline'}">📐 수직선 모형 (0~1)</button>
+      <button type="button" data-action="toggle-cup" class="secondary-btn visual-btn" aria-pressed="${visualModel === 'cup'}">🥤 주스 컵 모형</button>
       <button type="button" data-action="toggle-guide" class="secondary-btn visual-btn" aria-pressed="${showGuideLine}">${showGuideLine ? '📐 비교 기준선 숨기기' : '📐 비교 기준선 보기'}</button>
+      <button type="button" data-action="toggle-overlap" class="secondary-btn visual-btn" aria-pressed="${showOverlap}">${showOverlap ? '✂️ 겹쳐 보기 닫기' : '✂️ 조각 겹쳐 비교하기'}</button>
     </div>
-    <div class="bar-pair">${bar(dA, dA)}${bar(dB, dA)}</div>`;
+    <div class="bar-pair">${bar(dA, dA)}${bar(dB, dA)}</div>
+    ${renderOverlapComparison(dA, dB)}`;
+}
+
+/** '똑같이 나누기(등분할)' 사전 확인 워밍업 미니 활동 (초등 재구성 #3). */
+function renderEqualPartsWarmup(): string {
+  const feedback = warmupChoice === 'equal'
+    ? '<p id="warmup-feedback" class="warmup-feedback warmup-correct" role="status">🎉 정답이에요! 전체를 똑같은 크기로 나눈 조각만 단위분수(1/3)라고 부를 수 있어요.</p>'
+    : warmupChoice === 'unequal'
+      ? '<p id="warmup-feedback" class="warmup-feedback warmup-retry" role="status">💡 다시 살펴볼까요? 조각의 크기가 서로 다르면 1/3이라고 할 수 없어요. 똑같이 나눈 그림 나를 눌러 보세요!</p>'
+      : '';
+  return `<div class="equal-parts-warmup" role="region" aria-label="똑같이 나누기 사전 확인">
+    <h3>🔍 워밍업 · 똑같이 나누기(등분할) 확인</h3>
+    <p>단위분수를 비교하기 전에 확인해 볼까요? 세 조각으로 나눈 두 그림 중 진짜 <strong>1/3</strong>은 어느 것일까요?</p>
+    <div class="warmup-options">
+      <button type="button" data-action="warmup-unequal" class="secondary-btn warmup-btn" aria-pressed="${warmupChoice === 'unequal'}">
+        <svg viewBox="0 0 180 32" aria-hidden="true">
+          <rect x="2" y="4" width="176" height="24" fill="var(--lesson-bar-bg, white)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+          <rect x="2" y="4" width="28" height="24" fill="var(--lesson-bar-fill, #ffca62)"/>
+          <line x1="30" y1="4" x2="30" y2="28" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+          <line x1="75" y1="4" x2="75" y2="28" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+        </svg>
+        <span>그림 가: 크기가 다른 세 조각</span>
+      </button>
+      <button type="button" data-action="warmup-equal" class="secondary-btn warmup-btn" aria-pressed="${warmupChoice === 'equal'}">
+        <svg viewBox="0 0 180 32" aria-hidden="true">
+          <rect x="2" y="4" width="176" height="24" fill="var(--lesson-bar-bg, white)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+          <rect x="2" y="4" width="58.6" height="24" fill="var(--lesson-bar-fill, #ffca62)"/>
+          <line x1="60.6" y1="4" x2="60.6" y2="28" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+          <line x1="119.3" y1="4" x2="119.3" y2="28" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+        </svg>
+        <span>그림 나: 똑같이 나눈 세 조각</span>
+      </button>
+    </div>
+    ${feedback}
+  </div>`;
+}
+
+/** 단위분수를 모아 '1(전체)'을 채우는 퍼즐형 탐구 위젯 (초등 재구성 #7). */
+function renderUnitPuzzle(denom: number): string {
+  const clamped = Math.max(1, Math.min(denom, puzzlePieces));
+  const fillWidth = ((600 * clamped) / denom).toFixed(2);
+  const dividers = Array.from({ length: denom - 1 }, (_, i) => {
+    const x = ((600 * (i + 1)) / denom).toFixed(2);
+    return `<line x1="${x}" y1="6" x2="${x}" y2="42" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="1.8" stroke-dasharray="3 2"/>`;
+  }).join('');
+  const statusMsg = clamped >= denom
+    ? `🎉 1/${denom} 조각 ${denom}개를 모두 모아 전체 1을 완성했어요!`
+    : `현재 1/${denom} 조각 ${clamped}개 (${clamped}/${denom}) · 전체 1이 되려면 ${denom - clamped}조각 더 필요해요.`;
+
+  return `<div class="unit-puzzle" role="region" aria-label="단위분수 모아 전체 채우기 퍼즐">
+    <h3>🧩 단위분수 모아 '전체 1' 채우기 퍼즐</h3>
+    <p class="puzzle-status">${statusMsg}</p>
+    <svg viewBox="0 0 600 48" role="img" aria-label="1/${denom} 조각을 ${clamped}개 채운 전체 퍼즐 막대">
+      <rect x="0" y="6" width="600" height="36" rx="6" fill="var(--lesson-bar-bg, white)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2.5"/>
+      <rect x="0" y="6" width="${fillWidth}" height="36" rx="5" fill="#7be0ad"/>
+      ${dividers}
+      <rect x="0" y="6" width="600" height="36" rx="6" fill="none" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2.5"/>
+    </svg>
+    <div class="actions puzzle-actions">
+      <button type="button" data-action="puzzle-add" class="secondary-btn" ${clamped >= denom ? 'disabled' : ''}>＋ 1/${denom} 조각 붙이기</button>
+      <button type="button" data-action="puzzle-reset" class="secondary-btn">🔄 처음부터 다시 채우기</button>
+    </div>
+  </div>`;
+}
+
+/** 학급 칭찬 배지 및 한 줄 배움 공책 빈칸 채우기 카드 (초등 재구성 #10). */
+function renderPraiseAndNotebook(firstA: number, firstB: number): string {
+  const blankText = notebookBlankRevealed ? '작아집니다!' : '______';
+  return `<div class="notebook-summary-card" role="region" aria-label="우리 반 생각 성장 배지 및 한 줄 배움 일기">
+    <p class="praise-badge">🌟 <strong>우리 반 탐구 칭찬 배지</strong>: 오늘 우리 반은 함께 탐구하며 <strong>1/${firstA} &gt; 1/${firstB}</strong>의 비밀을 밝혀냈어요!</p>
+    <div class="notebook-line">
+      <p>📝 <strong>오늘의 배움 공책 한 줄 정리</strong>: "같은 크기의 전체를 똑같이 더 많이 나눌수록, 한 조각의 크기는 <strong class="notebook-blank">[ ${blankText} ]</strong>"</p>
+      <button type="button" data-action="toggle-notebook-blank" class="secondary-btn" aria-pressed="${notebookBlankRevealed}">${notebookBlankRevealed ? '빈칸 다시 가리기' : '정답 빈칸 채우기'}</button>
+    </div>
+  </div>`;
 }
 
 /** 집계 입력 상태 안내 문구 생성 (#5). */
@@ -330,11 +518,12 @@ function inquiryTemplate(): string {
     : '';
 
   return `
-    <h2 tabindex="-1">${data.title}</h2>
+    <h2 tabindex="-1">${data.title} · 눈으로 직접 확인하기</h2>
     <p>${data.prompt}</p>
     ${renderVisualPair(data.a, data.b)}
     ${cmpBadge}
     ${controls}
+    ${renderUnitPuzzle(data.b)}
     <button data-action="reveal-inquiry" ${inquiryAnswerVisible ? 'disabled' : ''}>교사가 설명 공개</button>
     <p id="answer" class="answer" ${inquiryAnswerVisible ? '' : 'hidden'}>${data.answer}</p>
     <div class="actions">
@@ -531,7 +720,7 @@ function body(): string {
 
   switch (phase) {
     case 'concept':
-      return `<h2 tabindex="-1">개념 선택</h2>
+      return `<h2 tabindex="-1">개념 선택 · 오늘의 분수 이야기</h2>
         <fieldset class="unit-selector">
           <legend>단원 선택</legend>
           ${listUnits().map(u =>
@@ -539,11 +728,12 @@ function body(): string {
           ).join('')}
         </fieldset>
         <p>${unit.title} · ${unit.description}</p>
+        ${renderEqualPartsWarmup()}
         <button data-action="next">수업 미리보기</button>`;
 
     case 'preview':
-      return `<h2 tabindex="-1">수업 미리보기</h2>
-        <p>첫 선택 → 이유 카드 → 기본 탐구 3개 → 개념 정리 → 같은 문항 재선택 → 새로운 문제 → 메모리 요약 → 종료</p>
+      return `<h2 tabindex="-1">수업 미리보기 · 우리 반 수업 준비</h2>
+        <p>처음 생각 고르기(첫 선택) → 생각 이유 말풍선(이유 카드) → 눈으로 직접 확인하기(기본 탐구 3개) → 핵심 약속(개념 정리) → 다시 생각 고르기(재선택) → 한 걸음 더!(새로운 문제) → 우리 반 생각 변화 돌아보기(메모리 요약) → 수업 마침(종료)</p>
         <fieldset>
           <legend>진행 모드</legend>
           <label><input type="radio" name="mode" value="example" ${mode === 'example' ? 'checked' : ''}> 가상 연습</label>
@@ -560,14 +750,17 @@ function body(): string {
         <button data-action="next">첫 선택으로</button>`;
 
     case 'first':
-      return `<h2 tabindex="-1">첫 선택</h2>${pollTemplate('first', firstA, firstB)}`;
+      return `<h2 tabindex="-1">첫 선택 · 처음 생각 고르기</h2>${pollTemplate('first', firstA, firstB)}`;
 
     case 'reason':
-      return `<h2 tabindex="-1">이유 카드</h2>
-        <p>학생의 말을 듣고 다음 중 탐구할 이유를 교사가 고릅니다. 이름이나 발언 원문은 기록하지 않습니다.</p>
-        <div class="actions">
+      return `<h2 tabindex="-1">이유 카드 · 왜 그렇게 생각했을까?</h2>
+        <p>친구들의 생각 말풍선을 함께 읽어 보고, 우리 반이 함께 탐구해 볼 이유를 골라 보세요. 이름이나 발언 원문은 기록하지 않습니다.</p>
+        <div class="actions reason-bubble-list">
           ${reasonCards.map((label, i) =>
-            `<button data-reason="${i}" aria-pressed="${reasonSelected === String(i)}">${label}</button>`
+            `<button data-reason="${i}" class="reason-bubble-btn" aria-label="${label}" aria-pressed="${reasonSelected === String(i)}">
+              <span class="student-bubble">${reasonStudentBubbles[i]}</span>
+              <span class="reason-summary-tag">${label}</span>
+            </button>`
           ).join('')}
         </div>
         <div id="scaffold-container">${renderReasonScaffold()}</div>
@@ -578,11 +771,12 @@ function body(): string {
       return inquiryTemplate();
 
     case 'summary':
-      return `<h2 tabindex="-1">개념 정리</h2>
+      return `<h2 tabindex="-1">개념 정리 · 오늘 배운 핵심 약속</h2>
         <p>학생 설명을 먼저 들은 뒤 교사가 정리를 공개합니다.</p>
         <button data-action="summary-reveal">교사가 개념 정리 공개</button>
         ${summaryVisible
           ? `<p class="answer">같은 전체에서 1/${firstA}은 1/${firstB}보다 큽니다. 전체를 같은 크기로 더 많이 나누면 한 조각은 작아집니다.</p>
+             ${renderPraiseAndNotebook(firstA, firstB)}
              <button data-action="next">같은 문항 다시 선택</button>`
           : ''}`;
 
@@ -598,15 +792,16 @@ function body(): string {
     }
 
     case 'transfer':
-      return `<h2 tabindex="-1">새로운 문제</h2>
-        <p>이 문항은 첫 선택·재선택 문항과 별개입니다.</p>
+      return `<h2 tabindex="-1">새로운 문제 · 한 걸음 더! 실생활 응용</h2>
+        <p>🥤 <strong>실생활 양감 넓히기</strong>: 같은 크기의 리본이나 주스 컵에서 <strong>1/${transferA}</strong>과 <strong>1/${transferB}</strong>을 비교해 볼까요? (이 문항은 첫 선택·재선택 문항과 별개입니다.)</p>
         ${pollTemplate('transfer', transferA, transferB)}
         <button data-action="transfer-reveal">교사가 새 문제 설명 공개</button>
         <p class="answer" ${transferAnswerVisible ? '' : 'hidden'}>같은 전체라면 1/${transferA}이 1/${transferB}보다 큽니다.</p>`;
 
     case 'memory':
-      return `<h2 tabindex="-1">메모리 요약</h2>
+      return `<h2 tabindex="-1">우리 반 생각 변화 돌아보기 · 메모리 요약</h2>
         <p>선택한 이유 카드와 집단 집계만 요약하며 학생별 변화는 추론하지 않습니다.</p>
+        ${renderPraiseAndNotebook(firstA, firstB)}
         <button data-action="memory-generate">요약 만들기</button>
         ${memoryVisible ? `
           <p class="memory">${memoryText()}</p>
@@ -622,7 +817,7 @@ function body(): string {
         <button data-action="finish">종료하고 입력 지우기</button>`;
 
     case 'end':
-      return `<h2 tabindex="-1">종료</h2>
+      return `<h2 tabindex="-1">종료 · 오늘 수업 마침</h2>
         <p>이 수업의 입력과 집계는 메모리에서 지웠습니다.</p>
         <button data-action="restart">새 수업 시작</button>`;
   }
@@ -654,16 +849,18 @@ function renderStepIndicator(): string {
   </div>`;
 }
 
-// ─── 레이아웃 렌더링 (#1 다크모드 아이콘 유지, #8 큰 글씨 모드) ──
+// ─── 레이아웃 렌더링 (#1 다크모드 아이콘 유지, #8 큰 글씨 모드, 초등 재구성 #9 칠판 모드) ──
 
 function renderPageHeader(): string {
   const dark = isDarkTheme();
   const large = isLargeScale();
+  const board = isBoardMode();
   return `<header>
     <p class="eyebrow">${aiEnabled ? '로컬 AI 보조 수업' : '초등 수학 탐구 수업'} · 단위분수 크기 비교</p>
     <h1>생각의 갈림길 AI</h1>
     <p>정답을 알려 주는 AI가 아니라, 생각을 바꾸는 탐구를 돕는 AI</p>
     <div class="header-controls">
+      <button id="board-toggle" class="board-toggle" aria-label="칠판 화면 모드 전환" aria-pressed="${board}" type="button">${board ? '📺 교사화면' : '📺 칠판모드'}</button>
       <button id="scale-toggle" class="scale-toggle" aria-label="큰 글씨 모드 전환" aria-pressed="${large}" type="button">${large ? '🔍 기본' : '🔍 큰글씨'}</button>
       <button id="theme-toggle" class="theme-toggle" aria-label="다크 모드 전환" aria-pressed="${dark}" type="button">${dark ? '☀️' : '🌙'}</button>
     </div>
@@ -923,6 +1120,15 @@ app.addEventListener('click', event => {
     return;
   }
 
+  // 칠판 화면 모드 토글 (초등 재구성 #9)
+  if (button.id === 'board-toggle') {
+    const nextBoard = isBoardMode() ? 'false' : 'true';
+    document.documentElement.setAttribute('data-board', nextBoard);
+    button.textContent = nextBoard === 'true' ? '📺 교사화면' : '📺 칠판모드';
+    button.setAttribute('aria-pressed', String(nextBoard === 'true'));
+    return;
+  }
+
   const action = button.dataset.action;
 
   if (button.dataset.reason !== undefined) {
@@ -941,10 +1147,34 @@ app.addEventListener('click', event => {
   }
 
   if (action === 'toggle-model') {
-    visualModel = visualModel === 'bar' ? 'circle' : 'bar';
+    visualModel = visualModel === 'circle' ? 'bar' : 'circle';
+    render();
+  } else if (action === 'toggle-numberline') {
+    visualModel = visualModel === 'numberline' ? 'bar' : 'numberline';
+    render();
+  } else if (action === 'toggle-cup') {
+    visualModel = visualModel === 'cup' ? 'bar' : 'cup';
     render();
   } else if (action === 'toggle-guide') {
     showGuideLine = !showGuideLine;
+    render();
+  } else if (action === 'toggle-overlap') {
+    showOverlap = !showOverlap;
+    render();
+  } else if (action === 'warmup-unequal') {
+    warmupChoice = 'unequal';
+    render();
+  } else if (action === 'warmup-equal') {
+    warmupChoice = 'equal';
+    render();
+  } else if (action === 'puzzle-add') {
+    puzzlePieces++;
+    render();
+  } else if (action === 'puzzle-reset') {
+    puzzlePieces = 1;
+    render();
+  } else if (action === 'toggle-notebook-blank') {
+    notebookBlankRevealed = !notebookBlankRevealed;
     render();
   } else if (action === 'next') {
     if (phase === 'preview' && parseParticipants(participantsRaw) === null) {
@@ -978,6 +1208,7 @@ app.addEventListener('click', event => {
     continuePoll(false);
   } else if (action === 'back') {
     inquiryAnswerVisible = false;
+    puzzlePieces = 1;
     if (phase === 'inquiry' && inquiryIndex > 0) {
       inquiryIndex--;
     } else {
@@ -988,6 +1219,7 @@ app.addEventListener('click', event => {
     render(true);
   } else if (action === 'inquiry-next') {
     inquiryAnswerVisible = false;
+    puzzlePieces = 1;
     if (inquiryIndex < 2) inquiryIndex++;
     else phase = 'summary';
     render(true);
