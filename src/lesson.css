@@ -352,6 +352,9 @@ button:disabled { background: var(--lesson-btn-disabled); cursor: not-allowed; }
 }
 
 .poll-helpers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin: 10px 0 4px;
 }
 
@@ -558,8 +561,8 @@ footer { color: var(--lesson-text-muted); padding: 12px; }
 
 .visual-btn {
   font-size: 0.9rem;
-  padding: 6px 12px;
-  min-height: 38px;
+  padding: 8px 14px;
+  min-height: 44px;
 }
 
 .fraction-circle svg {
@@ -703,6 +706,20 @@ button[data-reason][aria-pressed="true"] {
   .actions button {
     width: 100%;
     text-align: center;
+  }
+
+  .control-group {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .control-group button {
+    width: auto;
+    min-width: 72px;
+  }
+
+  .poll-helpers button {
+    flex: 1 1 140px;
   }
 
   input[type=text] {
