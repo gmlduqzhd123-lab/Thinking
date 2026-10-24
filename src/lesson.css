@@ -1013,6 +1013,219 @@ html[data-board="true"] .poll-helpers {
   color: var(--lesson-answer-border);
 }
 
+/* ─── 4단계 단순화 · 핵심 활동 중심 레이아웃 ─────────────────── */
+.step-pill {
+  flex: 1 1 140px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  background: var(--lesson-secondary-bg);
+  color: var(--lesson-secondary-text);
+  border: 2px solid var(--lesson-step-border);
+  text-align: center;
+}
+
+.step-pill.current {
+  background: var(--lesson-step-current-bg);
+  color: var(--lesson-text);
+  border-color: var(--lesson-step-current-border);
+  box-shadow: 0 0 0 2px var(--lesson-step-current-border);
+}
+
+.step-pill.done {
+  background: var(--lesson-step-done-bg);
+  color: #fff;
+  border-color: var(--lesson-step-done-bg);
+}
+
+.unit-card-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.unit-card-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--lesson-secondary-bg);
+  color: var(--lesson-secondary-text);
+  border: 2px solid transparent;
+}
+
+.unit-card-btn strong {
+  font-size: 0.98rem;
+}
+
+.unit-card-btn span {
+  font-size: 0.84rem;
+  opacity: 0.9;
+  font-weight: 500;
+}
+
+.unit-card-active {
+  background: var(--lesson-answer-bg);
+  border-color: var(--lesson-accent-gold-dark);
+  outline: 2px solid var(--lesson-accent-gold);
+}
+
+.question-lead {
+  font-size: 1.08rem;
+  font-weight: 600;
+  margin: 8px 0 12px;
+}
+
+.reason-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--lesson-border);
+}
+
+.reason-section h3 {
+  margin: 0 0 10px;
+  font-size: 1.02rem;
+}
+
+.hypothesis-banner {
+  margin: 10px 0 16px;
+  padding: 12px 16px;
+  background: var(--lesson-notice-bg);
+  border-left: 5px solid var(--lesson-notice-border);
+  border-radius: 10px;
+}
+
+.hypothesis-banner p {
+  margin: 2px 0;
+}
+
+.hypothesis-sub {
+  font-size: 0.92rem;
+  color: var(--lesson-text-muted);
+}
+
+.experiment-box,
+.check-subcard {
+  margin: 14px 0;
+  padding: 16px;
+  background: var(--lesson-chart-bg);
+  border: 1px solid var(--lesson-chart-border);
+  border-radius: 12px;
+}
+
+.experiment-box h3,
+.check-subcard h3 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+
+.overlap-trigger-btn {
+  margin: 6px 0 10px;
+}
+
+.slider-experiment-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.slider-experiment-controls input[type="range"] {
+  flex: 1 1 180px;
+  accent-color: var(--lesson-accent-blue);
+  cursor: pointer;
+}
+
+#explore-denom-output {
+  font-weight: 700;
+  min-width: 110px;
+  text-align: center;
+}
+
+.next-step-bar {
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--lesson-border);
+  justify-content: flex-end;
+}
+
+.primary-next-btn {
+  font-size: 1.02rem;
+  padding: 12px 22px;
+}
+
+.growth-journey-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.journey-step {
+  flex: 1 1 180px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--lesson-surface);
+  border: 1px solid var(--lesson-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.journey-correct {
+  border-color: var(--lesson-answer-border);
+  background: var(--lesson-answer-bg);
+}
+
+.journey-label {
+  font-size: 0.84rem;
+  color: var(--lesson-text-muted);
+}
+
+.journey-arrow {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--lesson-text-muted);
+}
+
+.class-poll-details {
+  margin: 14px 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--lesson-chart-bg);
+  border: 1px dashed var(--lesson-border);
+}
+
+.class-poll-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--lesson-text-muted);
+}
+
+.class-poll-body {
+  margin-top: 10px;
+}
+
+.class-poll-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 8px 0;
+}
+
+@media (max-width: 550px) {
+  .journey-arrow { display: none; }
+}
+
 /* ─── Print ──────────────────────────────────────────────────── */
 @media print {
   body { color: #000; background: #fff; }

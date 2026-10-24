@@ -1,8 +1,5 @@
 /**
- * E2E 기능 테스트 · 1~4차 고도화 기능 종합 검증.
- * 진행률 바, 유사도 바, 임계값 시뮬레이터, 멀티 단원(M01/M02),
- * 원형 모형·기준선 토글, 양방향 분모 조절·부등호 배지, 교사 발문 가이드,
- * 가상 연습 샘플 채우기, 단축키(Alt+→), 오개념 이동 분석표·CSV/요약 복사.
+ * E2E 기능 테스트 · 4단계 단순화 및 핵심 탐구 경험 종합 검증.
  */
 
 import { existsSync } from 'node:fs';
@@ -69,7 +66,7 @@ async function testM0Features(browser) {
   });
   log('M0 유사도 CSS 클래스 존재', hasSimilarityStyles);
 
-  // 5. 임계값 시뮬레이터 및 일괄 검증 UI 확인 (4차 #9)
+  // 5. 임계값 시뮬레이터 및 일괄 검증 UI 확인
   const simSlider = page.locator('#threshold-sim');
   const batchBtn = page.locator('#batch-eval');
   log('M0 임계값 슬라이더 및 일괄 검증 버튼 존재', (await simSlider.count()) === 1 && (await batchBtn.count()) === 1);
@@ -102,7 +99,6 @@ async function testM0Features(browser) {
     };
   });
   log('M0 CSS 변수 정의됨', cssVars.bg !== '' && cssVars.text !== '', `bg="${cssVars.bg}"`);
-
   log('M0 JS 에러 없음', errors.length === 0, errors.length > 0 ? errors.join('; ') : '');
 
   await page.close();
@@ -115,187 +111,77 @@ async function testLessonFeatures(browser) {
 
   await page.goto(`${BASE}lesson.html`, { waitUntil: 'domcontentloaded' });
 
-  // 1. 스텝 인디케이터 10개
-  const stepDots = page.locator('.step-dot');
-  const dotCount = await stepDots.count();
-  log('수업 스텝 인디케이터 10개', dotCount === 10, `${dotCount}개`);
+  // #1. 4단계 핵심 흐름 압축 확인
+  const stepPills = page.locator('.step-pill');
+  const pillCount = await stepPills.count();
+  log('개선 #1: 10단계를 4단계 핵심 흐름으로 압축', pillCount === 4, `${pillCount}단계`);
 
-  // 2. 멀티 단원 선택기 (M01 / M02) 전환 확인 (4차 #1)
-  const m02Radio = page.locator('input[name="unit"][value="M02"]');
-  await m02Radio.check();
-  const stepTextM02 = await page.locator('#step').innerText();
-  log('수업 심화 단원 선택 전환 및 M코드 제거 확인', stepTextM02.includes('단위분수 심화 비교 (1/4과 1/7)') && !/M01|M02|M03/.test(stepTextM02));
-  await page.locator('input[name="unit"][value="M01"]').check();
+  // #3. 첫 화면 단원 카드 1클릭 전환 및 즉시 1번 문제 시작 확인
+  const unitCards = page.locator('.unit-card-btn');
+  log('개선 #3: 첫 화면 3개 단원 카드 1클릭 전환 제공', (await unitCards.count()) === 3);
+  await page.click('button[data-unit-id="M02"]');
+  const h2M02 = await page.locator('#step h2').textContent();
+  log('개선 #3: 단원 카드 클릭 즉시 해당 분수 문제(1/4 vs 1/7) 시작', h2M02?.includes('1/4과 1/7') ?? false, `"${h2M02}"`);
+  await page.click('button[data-unit-id="M01"]');
 
-  // 3. 다크 모드 전환 후 단계 이동 시 아이콘(☀️) 유지 검증
-  const toggle = page.locator('#theme-toggle');
-  await toggle.click();
-  await page.click('button[data-action="next"]');
-  const iconAfterNext = await page.locator('#theme-toggle').textContent();
-  log('수업 단계 이동 후 다크 모드 아이콘 유지', iconAfterNext === '☀️', `icon="${iconAfterNext}"`);
-  await page.locator('#theme-toggle').click();
+  // #5 & #9. 불필요한 상단 노란 경고 박스 및 타이머 박스 제거 확인
+  const timerCount = await page.locator('.timer').count();
+  const noticeCount = await page.locator('aside.notice').count();
+  log('개선 #5·#9: 상단 경고 박스 및 타이머 제거로 깔끔한 첫 화면', timerCount === 0 && noticeCount === 0);
 
-  // 4. 미리보기 확인 및 참여 인원 입력
-  const previewH2 = await page.locator('#step h2').first().textContent();
-  log('수업 미리보기 진행', previewH2?.includes('미리보기') ?? false, `h2="${previewH2}"`);
-
-  await page.locator('#participants').fill('20');
-  await page.click('button[data-action="next"]');
-  const firstH2 = await page.locator('#step h2').first().textContent();
-  log('수업 첫 선택 진행', firstH2?.includes('첫 선택') ?? false);
-
-  // 5. 원형 모형 보기 & 비교 기준선 보기 토글 검증 (4차 #2)
-  await page.click('button[data-action="toggle-guide"]');
-  const guideCount = await page.locator('svg .guide-line').count();
-  log('수업 분수 비교 기준선 표시', guideCount === 2, `guide-line ${guideCount}개`);
+  // #2. 1단계에서는 핵심 모양 전환 버튼 1개만 노출 (시각적 과부하 제거)
+  const step1ToolbarBtns = await page.locator('.visual-toolbar button').count();
+  log('개선 #2: 1단계 시각화 버튼 1개로 단순화', step1ToolbarBtns === 1, `${step1ToolbarBtns}개`);
 
   await page.click('button[data-action="toggle-model"]');
-  const circleCount = await page.locator('.fraction-circle').count();
-  log('수업 원형(피자) 분수 모형 전환', circleCount === 2, `circle ${circleCount}개`);
+  log('둥근 피자(원형) 모형 전환 작동', (await page.locator('.fraction-circle').count()) === 2);
   await page.click('button[data-action="toggle-model"]');
 
-  // 6. 가상 연습 모드 샘플 집계 채우기 & 빈 칸 0으로 채우기 검증 (4차 #8)
-  await page.click('button[data-action="fill-sample"]');
-  const sampleA = Number(await page.locator('[data-count="A"]').inputValue());
-  const sampleB = Number(await page.locator('[data-count="B"]').inputValue());
-  const sampleC = Number(await page.locator('[data-count="C"]').inputValue());
-  const sampleD = Number(await page.locator('[data-count="D"]').inputValue());
-  log('수업 가상 샘플 집계 자동 채우기 작동', sampleA + sampleB + sampleC + sampleD === 20, `합계=${sampleA + sampleB + sampleC + sampleD}`);
+  // #4. 기본 방식을 1클릭 보기 선택으로 통일 (교사용 인원 집계는 접기 메뉴로 분리)
+  await page.click('button[data-pick-poll="first"][data-pick-choice="B"]');
+  const pollNote = await page.locator('#poll-note').textContent();
+  log('개선 #4: 1클릭 보기 선택 및 즉시 확인 메시지', pollNote?.includes('1/5이 더 크다') ?? false);
 
-  await page.locator('[data-count="A"]').fill('12');
-  await page.locator('[data-count="B"]').fill('');
-  await page.locator('[data-count="C"]').fill('');
-  await page.locator('[data-count="D"]').fill('');
-  const partialNote = await page.locator('#poll-note').textContent();
-  log('수업 부분 입력 시 실시간 합계 안내', partialNote?.includes('입력 중: 현재 합계 12/20명') ?? false, `"${partialNote}"`);
+  await page.click('button[data-reason="0"]');
 
-  await page.click('button[data-action="fill-zeros"]');
-  const valB = await page.locator('[data-count="B"]').inputValue();
-  log('수업 빈 칸 0으로 채우기 작동', valB === '0');
-
-  await page.click('button[data-action="record"]');
-
-  // 7. 이유 카드 선택 시 교사 추천 발문 가이드 표시 (4차 #5) 및 단축키 이동 (4차 #6)
-  await page.locator('button[data-reason="0"]').click();
-  const scaffoldVisible = await page.locator('.scaffold-guide').isVisible();
-  log('수업 이유 카드 교사 추천 발문 가이드 표시', scaffoldVisible);
-
-  // Alt+ArrowRight 단축키로 다음 단계(탐구) 이동 검증 (4차 #6)
-  await page.keyboard.press('Alt+ArrowRight');
-  const inquiryH2 = await page.locator('#step h2').first().textContent();
-  log('수업 Alt+→ 단축키 단계 이동 작동', inquiryH2?.includes('탐구 1') ?? false, `h2="${inquiryH2}"`);
-
-  await page.click('button[data-action="reveal-inquiry"]');
-  log('수업 탐구 설명 공개 표시', await page.locator('#answer').isVisible());
-
-  await page.click('button[data-action="timer-extend"]');
-  log('수업 리렌더 후에도 탐구 설명 공개 유지', await page.locator('#answer').isVisible());
-
-  await page.click('button[data-action="timer-reset"]');
-  const resetTimerText = await page.locator('#timer-output').textContent();
-  log('수업 타이머 시간 초기화 작동', resetTimerText === '20:00', `"${resetTimerText}"`);
-
-  // 탐구 3단계로 이동하여 양방향 분모 조절 및 부등호 배지 확인 (4차 #3)
-  await page.click('button[data-action="inquiry-next"]');
-  await page.click('button[data-action="inquiry-next"]');
-  const cmpBadgeText = await page.locator('.comparison-badge').textContent();
-  log('수업 탐구 3 실시간 크기 비교 부등호 배지 표시', cmpBadgeText?.includes('1/3 > 1/6') ?? false, `"${cmpBadgeText}"`);
-  await page.click('button[data-action="base-more"]');
-  const updatedBaseLabel = await page.locator('.base-denom-label').textContent();
-  log('수업 탐구 3 기준 막대 분모 조절 작동', updatedBaseLabel === '기준 4등분', `"${updatedBaseLabel}"`);
-
-  // 8. 완료된 스텝 인디케이터 클릭 이동 검증
-  await page.locator('.step-dot.done[data-step-index="2"]').click();
-  const jumpedH2 = await page.locator('#step h2').first().textContent();
-  log('수업 완료 스텝 클릭 즉시 이동', jumpedH2?.includes('첫 선택') ?? false, `h2="${jumpedH2}"`);
-
-  // 9. 끝까지 진행하여 3단계 차트 + 오개념 이동 분석표 + CSV/복사 버튼 확인 (4차 #7)
-  await page.click('button[data-action="record"]');
+  // #6. 2단계 이동 시 내가 고른 처음 생각과 이유 말풍선이 상단 배너로 연결됨
   await page.click('button[data-action="next"]');
-  await page.click('button[data-action="inquiry-next"]');
-  await page.click('button[data-action="inquiry-next"]');
-  await page.click('button[data-action="inquiry-next"]');
-  await page.click('button[data-action="summary-reveal"]');
+  const hypothesisText = await page.locator('.hypothesis-banner').textContent();
+  log('개선 #6: 내가 고른 처음 생각·이유가 실험 화면 상단에 연결됨', hypothesisText?.includes('1/5이 더 크다') ?? false);
+
+  // #7 & #8. 2가지 직관적 실험(조각 포개어 보기 + 등분 슬라이더) 및 설명 공개 버튼 없이 즉시 원리 표시
+  await page.click('button[data-action="toggle-overlap"]');
+  const overlapText = await page.locator('.overlap-comparison').textContent();
+  log('개선 #7·#8: 실험 1 조각 포개어 비교 클릭 즉시 원리(발견 1) 표시', overlapText?.includes('발견 1') ?? false);
+
+  const slider = page.locator('#explore-slider');
+  await slider.fill('8');
+  await slider.dispatchEvent('input');
+  const expText = await page.locator('#step').textContent();
+  log('개선 #7·#8: 실험 2 등분 슬라이더 조작 즉시 원리(발견 2) 표시', expText?.includes('발견 2') ?? false);
+
+  // #8. 3단계 다시 점검하기: 보기 클릭 즉시 정답/힌트 피드백 표시
   await page.click('button[data-action="next"]');
+  await page.click('button[data-pick-poll="again"][data-pick-choice="A"]');
+  const checkText = await page.locator('#step').textContent();
+  log('개선 #8: 3단계 재선택 클릭 즉시 정답 피드백 표시', checkText?.includes('정답이에요') ?? false);
 
-  // 재선택 집계 입력
-  await page.locator('[data-count="A"]').fill('16');
-  await page.click('button[data-action="fill-zeros"]');
-  await page.click('button[data-action="record"]');
+  // 응용 문제에서 수직선·주스컵 모형 전환 및 선택 확인
+  await page.click('button[data-action="toggle-numberline"]');
+  log('응용 문제 수직선 모형 전환 작동', (await page.locator('.fraction-numberline').count()) === 2);
+  await page.click('button[data-action="toggle-cup"]');
+  log('응용 문제 주스 컵 모형 전환 작동', (await page.locator('.fraction-cup').count()) === 2);
+  await page.click('button[data-pick-poll="transfer"][data-pick-choice="A"]');
 
-  // 새로운 문제 집계 입력
-  await page.locator('[data-count="A"]').fill('18');
-  await page.click('button[data-action="fill-zeros"]');
-  await page.click('button[data-action="record"]');
+  // #10. 4단계 오늘의 발견: 도착 즉시 열리는 '내 생각의 성장 카드' 및 한 줄 규칙 완성
+  await page.click('button[data-action="next"]');
+  const reportVisible = await page.locator('.solo-report-card').isVisible();
+  const journeySteps = await page.locator('.journey-step').count();
+  log('개선 #10: 4단계 도착 즉시 내 생각의 성장 카드(3단계 여정) 표시', reportVisible && journeySteps === 3);
 
-  // 요약 생성 및 차트 3개 + 오개념 이동 분석표 확인
-  await page.click('button[data-action="memory-generate"]');
-  const chartCount = await page.locator('.poll-chart').count();
-  const shiftTableCount = await page.locator('.shift-table').count();
-  const csvBtnCount = await page.locator('button[data-action="export-csv"]').count();
-  const copyBtnCount = await page.locator('button[data-action="copy-summary"]').count();
-  log('수업 요약 3단계 차트 및 오개념 이동 분석표·내보내기 렌더링', chartCount === 3 && shiftTableCount === 1 && csvBtnCount === 1 && copyBtnCount === 1);
-
-  // 10. 초등 눈높이 재구성 10대 기능 검증 (#1~#10)
   await page.click('button[data-action="toggle-notebook-blank"]');
   const blankText = await page.locator('.notebook-blank').textContent();
-  log('초등 재구성 #10 학급 칭찬 배지 및 배움 공책 빈칸 채우기', blankText?.includes('작아집니다') ?? false, `"${blankText}"`);
-
-  await page.click('#board-toggle');
-  const boardAttr = await page.evaluate(() => document.documentElement.getAttribute('data-board'));
-  log('초등 재구성 #9 칠판 화면 모드 토글 작동', boardAttr === 'true', `data-board="${boardAttr}"`);
-  await page.click('#board-toggle');
-
-  // 처음 개념 단계로 돌아가서 등분할 워밍업(#3), 수직선(#6), 주스컵(#8), 조각 겹침(#4), 퍼즐(#7) 확인
-  await page.locator('.step-dot.done[data-step-index="0"]').click();
-  await page.click('button[data-action="warmup-equal"]');
-  const warmupFeedback = await page.locator('#warmup-feedback').textContent();
-  log('초등 재구성 #3 등분할(똑같이 나누기) 워밍업 피드백 작동', warmupFeedback?.includes('정답이에요') ?? false);
-
-  await page.click('button[data-action="next"]');
-  await page.click('button[data-action="next"]');
-  await page.click('button[data-action="toggle-numberline"]');
-  log('초등 재구성 #6 수직선(0~1) 분수 모형 전환', (await page.locator('.fraction-numberline').count()) === 2);
-  await page.click('button[data-action="toggle-cup"]');
-  log('초등 재구성 #8 실생활 주스 컵 들이 모형 전환', (await page.locator('.fraction-cup').count()) === 2);
-  await page.click('button[data-action="toggle-overlap"]');
-  log('초등 재구성 #4 가위로 잘라 조각 겹쳐 비교하기 표시', (await page.locator('.overlap-comparison').count()) === 1);
-  await page.click('button[data-action="skip"]');
-  log('초등 재구성 #5 학생 말풍선 이유 카드 표시', (await page.locator('.student-bubble').count()) === 3);
-  await page.click('button[data-action="next"]');
-  await page.click('button[data-action="puzzle-add"]');
-  const puzzleStatus = await page.locator('.puzzle-status').textContent();
-  log('초등 재구성 #7 단위분수 모아 전체 1 채우기 퍼즐 작동', puzzleStatus?.includes('2/5') ?? false, `"${puzzleStatus}"`);
-
-  // 11. 혼자 해보기(스스로 탐구) 모드 전체 흐름 검증
-  await page.locator('.step-dot.done[data-step-index="0"]').click();
-  await page.click('button[data-action="start-solo"]');
-  const soloPhaseBadge = await page.locator('.phase-badge').textContent();
-  log('혼자 해보기 모드 즉시 진입 작동', soloPhaseBadge?.includes('혼자 해보기') ?? false, `"${soloPhaseBadge}"`);
-
-  await page.click('button[data-solo-choice="B"]');
-  const soloFirstNote = await page.locator('#poll-note').textContent();
-  log('혼자 해보기 1클릭 보기 선택 및 안내 표시', soloFirstNote?.includes('내 처음 생각으로') ?? false);
-  await page.click('button[data-action="record"]');
-
-  await page.click('button[data-action="next"]');
-  await page.click('button[data-action="inquiry-next"]');
-  await page.click('button[data-action="inquiry-next"]');
-  await page.click('button[data-action="inquiry-next"]');
-  await page.click('button[data-action="summary-reveal"]');
-  await page.click('button[data-action="next"]');
-
-  // 재선택에서 정답(A) 클릭 시 즉시 정답 피드백 확인
-  await page.click('button[data-solo-choice="A"]');
-  const soloAgainNote = await page.locator('#poll-note').textContent();
-  log('혼자 해보기 재선택 정답 즉시 피드백 표시', soloAgainNote?.includes('정답이에요') ?? false);
-  await page.click('button[data-action="record"]');
-
-  // 응용 문제에서 정답(A) 클릭 후 결과표 확인
-  await page.click('button[data-solo-choice="A"]');
-  await page.click('button[data-action="record"]');
-  const soloReportVisible = await page.locator('.solo-report-card').isVisible();
-  log('혼자 해보기 최종 개인 탐구 결과표 표시', soloReportVisible);
+  log('개선 #10: 오늘 내가 발견한 규칙 빈칸 채우기 작동', blankText?.includes('작아집니다') ?? false);
 
   log('수업 JS 에러 없음', errors.length === 0, errors.length > 0 ? errors.join('; ') : '');
 
@@ -307,24 +193,21 @@ async function testLessonAiPanelFeatures(browser) {
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
 
+  // 1단계(think)에서 바로 로컬 AI 패널이 활성화됨
   await page.goto(`${BASE}lesson-ai.html`, { waitUntil: 'domcontentloaded' });
-  await page.click('button[data-action="next"]');
-  await page.locator('#participants').fill('20');
-  await page.click('button[data-action="next"]');
-  await page.click('button[data-action="skip"]');
-
   await page.locator('#lesson-ai-panel').waitFor();
+
   const countText = await page.locator('#lesson-ai-count').textContent();
-  log('M2 AI 패널 글자 수 카운터 표시', countText === '0/160자', `"${countText}"`);
+  log('AI 보조 수업 패널 글자 수 카운터 표시', countText === '0/160자', `"${countText}"`);
 
   await page.locator('#lesson-ai-query').fill('분모가 크면 조각도 크다고 생각해요');
   const updatedCount = await page.locator('#lesson-ai-count').textContent();
-  log('M2 AI 패널 글자 수 실시간 갱신', updatedCount === '19/160자', `"${updatedCount}"`);
+  log('AI 보조 수업 패널 글자 수 실시간 갱신', updatedCount === '19/160자', `"${updatedCount}"`);
 
   const progressExists = await page.locator('#lesson-ai-progress').count() > 0;
-  log('M2 AI 패널 진행률 바 DOM 존재', progressExists);
+  log('AI 보조 수업 패널 진행률 바 DOM 존재', progressExists);
 
-  log('M2 JS 에러 없음', errors.length === 0, errors.length > 0 ? errors.join('; ') : '');
+  log('AI 보조 수업 JS 에러 없음', errors.length === 0, errors.length > 0 ? errors.join('; ') : '');
 
   await page.close();
 }

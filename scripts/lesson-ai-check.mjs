@@ -15,12 +15,8 @@ page.on('request', request => requests.push({ url: request.url(), method: reques
 page.on('pageerror', error => errors.push(error.message));
 try {
   await page.goto(new URL('lesson-ai.html', base).href);
-  await page.getByRole('button', { name: '수업 미리보기' }).click();
-  await page.locator('#participants').fill('20');
-  await page.getByRole('button', { name: '첫 선택으로' }).click();
-  await page.getByRole('button', { name: '집계 생략하고 계속' }).click();
   await page.locator('#lesson-ai-panel').waitFor();
-  assert.match(await page.locator('#step').innerText(), /기본 탐구 시작/);
+  assert.match(await page.locator('#step').innerText(), /직접 실험하러 가기/);
   await page.getByRole('button', { name: '모델 준비' }).click();
   await page.locator('#lesson-ai-query').fill('5가 3보다 크니까 1/5 한 조각이 더 길다고 생각해요.');
   await page.locator('#lesson-ai-state').filter({ hasText: '준비됨' }).waitFor({ timeout: 120000 });
@@ -59,13 +55,13 @@ try {
   await page.clock.fastForward(10_100);
   assert.match(await page.locator('#lesson-ai-result').innerText(), /10초/);
   assert.equal(await page.getByRole('button', { name: '교사가 후보 카드 확인' }).count(), 0);
-  await page.getByRole('button', { name: '기본 탐구 시작' }).click();
+  await page.click('button[data-action="next"]');
   assert.equal(await page.locator('#lesson-ai-panel').count(), 0);
-  await page.getByRole('button', { name: '이전 단계' }).click();
+  await page.click('button[data-action="back"]');
   assert.equal(await page.locator('#lesson-ai-query').inputValue(), '');
   await page.goto('about:blank');
   await page.goBack();
-  assert.match(await page.locator('#step h2').innerText(), /개념 선택/);
+  assert.match(await page.locator('#step h2').innerText(), /처음 생각 고르기/);
   assert.deepEqual(errors, []);
   assert.ok(requests.every(request => request.method === 'GET' && new URL(request.url).origin === new URL(base).origin && !request.body));
   assert.ok(requests.every(request => !request.url.includes('example%40example.com') && !request.url.includes('5%EA%B0%80')));
