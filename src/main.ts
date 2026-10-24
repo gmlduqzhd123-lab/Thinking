@@ -91,7 +91,7 @@ function nextRevision() {
   clearTimer();
 }
 
-// ─── 진행률 업데이트 (#7) ────────────────────────────────────────
+// ─── 진행률 업데이트 ─────────────────────────────────────────────
 function updateProgress(percent: number, file: string) {
   const container = $('progress');
   const fill = $('progress-fill');
@@ -118,7 +118,7 @@ function renderHeader(): string {
   const dark = document.documentElement.getAttribute('data-theme') === 'dark';
   const large = document.documentElement.getAttribute('data-scale') === 'large';
   return `<header>
-    <p class="eyebrow">M0 · 로컬 AI 기술 검증</p>
+    <p class="eyebrow">초등 수학 탐구 · 로컬 AI 카드 추천</p>
     <h1>생각의 갈림길 AI</h1>
     <p>정답을 알려 주는 AI가 아니라, 생각을 바꾸는 탐구를 돕는 AI</p>
     <div class="header-controls">
@@ -130,10 +130,9 @@ function renderHeader(): string {
 
 function renderNotice(): string {
   return `<section class="notice">
-    <strong>개발판 · 가상 예시</strong>
+    <strong>단위분수 크기 비교 · 로컬 AI 탐구 지원</strong>
     <p>M01: 길이가 같은 두 리본에서 1/3과 1/5 한 조각을 비교합니다.
-       아래 자료는 개발자가 쓴 초안이며 교사 검수를 받지 않았습니다.
-       실제 수업용으로 사용하지 마세요.</p>
+       학생 개인정보 없이 수학 개념 설명을 입력하면 알맞은 탐구 카드를 추천합니다.</p>
   </section>`;
 }
 
@@ -174,8 +173,8 @@ function renderResultSection(): string {
 
 function renderExamplesSection(): string {
   return `<section>
-    <h2>가상 개발 질의</h2>
-    <p>개발자 작성 · 교사 검수 미완료. 시험 기대값은 진단 정답이 아닙니다.</p>
+    <h2>예시 질문 모음</h2>
+    <p>자주 나오는 학생 생각 예시를 눌러 바로 테스트해 볼 수 있습니다.</p>
     <ul id="examples"></ul>
     <div class="benchmark-panel" role="region" aria-label="임계값 시뮬레이터 및 일괄 검증">
       <h3>임계값 시뮬레이터 &amp; 일괄 검증</h3>
@@ -212,7 +211,7 @@ function renderApp() {
   ].join('');
 }
 
-// ─── 결과 렌더링 (#5 유사도 시각화) ──────────────────────────────
+// ─── 결과 렌더링 ─────────────────────────────────────────────────
 function renderRecommendation(
   outcome: NonNullable<WorkerMessage['result']>,
   queryText: string,
@@ -225,16 +224,15 @@ function renderRecommendation(
   const title = document.createElement('h2');
   title.textContent = outcome.hold
     ? '이유를 더 확인해야 합니다'
-    : 'AI 의미 비교 후보 · 교사 검토 필요';
+    : 'AI 의미 비교 후보 · 교사 검토';
   result.append(title);
 
   const detail = document.createElement('p');
   detail.textContent = outcome.hold
     ? outcome.reason
-    : '가상 초안 카드의 의미 유사도 순서입니다. 교사 승인 전 자동 전환되지 않습니다.';
+    : '탐구 카드의 의미 유사도 순서입니다. 교사 확인 후 수업에 활용합니다.';
   result.append(detail);
 
-  // 유사도 시각화 (#5)
   const list = document.createElement('ol');
   list.className = 'score-list';
   for (const score of outcome.scores) {
@@ -276,7 +274,7 @@ function renderBasicCards() {
   result.replaceChildren();
 
   const h = document.createElement('h2');
-  h.textContent = '기본 탐구 카드 · 개발자 초안';
+  h.textContent = '기본 탐구 카드';
   result.append(h);
 
   const list = document.createElement('ul');
@@ -288,7 +286,7 @@ function renderBasicCards() {
   result.append(list);
 }
 
-/** 가상 개발 질의 일괄 검증 결과 표 렌더링 (#9). */
+/** 예시 질의 일괄 검증 결과 표 렌더링. */
 function renderBatchTable(items: BatchItem[], batchMs?: number) {
   const container = document.getElementById('batch-table-container');
   if (!container) return;
@@ -323,7 +321,7 @@ function renderBatchTable(items: BatchItem[], batchMs?: number) {
     </div>`;
 }
 
-/** 임계값 슬라이더 변경 시 기존 추론 결과 및 일괄 검증 표를 즉시 재판정 (#9). */
+/** 임계값 슬라이더 변경 시 기존 추론 결과 및 일괄 검증 표를 즉시 재판정. */
 function reEvaluateWithThresholds() {
   const currentThresholds = { minSimilarity: customMinSim, minMargin: customMinMargin };
   if (lastInferData) {
@@ -370,13 +368,11 @@ function createWorker() {
   worker.onmessage = ({ data }: MessageEvent<WorkerMessage>) => {
     if (data.requestId !== requestId || data.sessionRevision !== sessionRevision) return;
 
-    // 진행률 업데이트 (#7)
     if (data.type === 'progress' && typeof data.percent === 'number') {
       updateProgress(data.percent, data.file || '');
       return;
     }
 
-    // 계약 불일치 검사
     if ((data.type === 'ready' || data.type === 'result' || data.type === 'batch-result') && data.contract !== modelContract) {
       nextRevision();
       stopWorker();
@@ -611,7 +607,6 @@ $('scale-toggle').addEventListener('click', () => {
   $('scale-toggle').setAttribute('aria-pressed', String(next === 'large'));
 });
 
-// 가상 개발 질의 목록 렌더
 const exList = $('examples');
 examples.forEach(e => {
   const li = document.createElement('li');
@@ -626,7 +621,6 @@ examples.forEach(e => {
   exList.append(li);
 });
 
-// 페이지 이동/복귀 시 세션 초기화
 window.addEventListener('pagehide', clearNavigationSession);
 window.addEventListener('pageshow', event => {
   if (event.persisted) clearNavigationSession();

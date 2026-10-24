@@ -16,7 +16,7 @@ page.on('pageerror', error => errors.push(error.message));
 try {
   await page.clock.install();
   await page.goto(new URL('lesson.html', base).href);
-  assert.match(await page.locator('body').innerText(), /개발 전용 초안/);
+  assert.match(await page.locator('body').innerText(), /수업 안내 · 개인정보 보호/);
   await page.getByRole('button', { name: 'M01 미리보기' }).click();
   await page.locator('#participants').fill('18');
   await page.getByLabel('실제 수업 입력').check();

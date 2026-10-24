@@ -1,9 +1,9 @@
 /**
- * 통합 무결성 검증 러너 (4차 고도화 #10).
+ * 통합 무결성 검증 러너 (v1.0.0).
  * 1. TypeScript 타입 검사 (tsc --noEmit)
  * 2. 단위 테스트 (node --test)
  * 3. 빌드 산출물(dist/assets) 용량 가드 및 중복 WASM 부재 검증
- * 4. 공유 도메인(gmlduqzhd123-lab.github.io) 다른 앱 보호 규칙(CLAUDE.md) 정적 검사
+ * 4. 공유 도메인(gmlduqzhd123-lab.github.io) 다른 앱 보호 규칙(CLAUDE.md) 및 개발용 문구 제거 정적 검사
  * 5. 로컬 프리뷰 서버 자동 기동 → E2E 검증 (lesson-check, e2e-features) → 서버 자동 종료 (데몬 잔류 원천 방지)
  */
 
@@ -56,8 +56,8 @@ function checkBundleSizes() {
   console.log(`✅ 번들 용량 정상: ${lessonJs} (${jsSizeKb.toFixed(1)}KB), ${lessonCss} (${cssSizeKb.toFixed(1)}KB)`);
 }
 
-function checkSharedOriginSafety() {
-  console.log('\n▶ [검증] 공유 도메인(gmlduqzhd123-lab.github.io) 다른 앱 보호 규칙 검사...');
+function checkSharedOriginAndProductionCopy() {
+  console.log('\n▶ [검증] 공유 도메인 보호 규칙(CLAUDE.md) 및 정식 출시 문구 검사...');
   const srcDir = join(ROOT, 'src');
   const collectFiles = dir => {
     const out = [];
@@ -81,7 +81,23 @@ function checkSharedOriginSafety() {
       }
     }
   }
-  console.log('✅ 공유 도메인 보호 규칙(localStorage.clear 등 미사용) 통과');
+
+  const uiFiles = [
+    join(ROOT, 'index.html'),
+    join(ROOT, 'lesson.html'),
+    join(ROOT, 'lesson-ai.html'),
+    join(ROOT, 'src', 'lesson.ts'),
+    join(ROOT, 'src', 'lesson-ai-panel.ts'),
+    join(ROOT, 'src', 'main.ts'),
+  ];
+  const devDraftRegex = /개발판|개발 전용|개발용|미완료|승인 전|사용하지 마세요/;
+  for (const file of uiFiles) {
+    const content = readFileSync(file, 'utf8');
+    if (devDraftRegex.test(content)) {
+      throw new Error(`${file}: 개발중/미완료 문구가 남아 있습니다.`);
+    }
+  }
+  console.log('✅ 공유 도메인 보호 규칙 및 정식 출시 문구(개발중 문구 0건) 검증 통과');
 }
 
 async function waitForServer(url, timeoutMs = 15000) {
@@ -119,7 +135,7 @@ runStep('단위 테스트 (node --test)', 'node', ['--test', 'tests/embedding-in
 
 // 3. 번들 용량 가드 및 공유 도메인 보호 규칙 검사
 checkBundleSizes();
-checkSharedOriginSafety();
+checkSharedOriginAndProductionCopy();
 
 // 4. 프리뷰 서버 기동 후 E2E 실행 및 즉시 정리
 console.log(`\n▶ [검증] 프리뷰 서버(${BASE_URL}) 임시 기동 중...`);

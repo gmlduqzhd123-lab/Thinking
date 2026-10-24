@@ -53,7 +53,7 @@ export function createLessonAiPanel(
     message = '이전 입력과 AI 후보를 지웠습니다.';
   }
 
-  // ─── 진행률 표시 (#4) ────────────────────────────────────────
+  // ─── 진행률 표시 ─────────────────────────────────────────────
   function updateProgress(percent: number, file: string) {
     const panel = root.querySelector<HTMLElement>('#lesson-ai-panel');
     if (!panel) return;
@@ -76,8 +76,8 @@ export function createLessonAiPanel(
 
   // ─── 렌더링 ──────────────────────────────────────────────────
   function renderPanelHeader(): string {
-    return `<h2>로컬 AI 후보 · 개발 전용</h2>
-      <p>위의 기본 이유 카드와 별개입니다. 학생 이름·번호·발언 원문 없이 수학 개념상의 혼동만 적어 주세요.</p>`;
+    return `<h2>로컬 AI 탐구 카드 추천</h2>
+      <p>위의 기본 이유 카드와 함께 활용할 수 있는 보조 도구입니다. 학생 이름·번호·발언 원문 없이 수학 개념상의 혼동만 적어 주세요.</p>`;
   }
 
   function renderPanelInput(): string {
@@ -106,7 +106,7 @@ export function createLessonAiPanel(
   function renderCandidateResult(): string {
     if (!candidate) return '';
 
-    const heading = approved ? '교사가 이 세션에서 확인한 카드' : 'AI 후보 · 교사 확인 전';
+    const heading = approved ? '교사가 확인한 추천 카드' : 'AI 후보 · 교사 확인 전';
     const simBadge = typeof candidateSimilarity === 'number'
       ? ` <span class="ai-similarity">(유사도 ${candidateSimilarity.toFixed(3)})</span>`
       : '';
@@ -117,7 +117,7 @@ export function createLessonAiPanel(
     return `<h3>${heading}</h3><p>${candidate.title}${simBadge}</p>${content}`;
   }
 
-  /** 입력창 포커스를 깨뜨리지 않고 상태·버튼·결과 영역만 갱신합니다 (#2). */
+  /** 입력창 포커스를 깨뜨리지 않고 상태·버튼·결과 영역만 갱신합니다. */
   function syncView() {
     const panel = root.querySelector<HTMLElement>('#lesson-ai-panel');
     if (!panel) return;
@@ -150,7 +150,7 @@ export function createLessonAiPanel(
 
     const panel = document.createElement('section');
     panel.id = 'lesson-ai-panel';
-    panel.setAttribute('aria-label', '개발용 로컬 AI 후보');
+    panel.setAttribute('aria-label', '로컬 AI 탐구 카드 추천');
     panel.innerHTML = [
       renderPanelHeader(),
       renderPanelInput(),
@@ -166,7 +166,6 @@ export function createLessonAiPanel(
 
     syncView();
 
-    // 입력 이벤트 — DOM 재생성 없이 상태와 결과만 부분 업데이트하여 포커스/IME 보존 (#2)
     input.addEventListener('input', () => {
       query = input.value;
       const countEl = panel.querySelector<HTMLElement>('#lesson-ai-count');
@@ -184,7 +183,6 @@ export function createLessonAiPanel(
       }
     });
 
-    // 버튼 이벤트
     panel.addEventListener('click', event => {
       const action = (event.target as HTMLElement).closest<HTMLButtonElement>('button')?.dataset.ai;
       if (action === 'prepare') prepare();
@@ -199,7 +197,7 @@ export function createLessonAiPanel(
       }
       if (action === 'approve' && candidate) {
         approved = true;
-        message = '교사가 이 세션에서 후보를 확인했습니다. 교육 자료 검수 완료를 뜻하지 않습니다.';
+        message = '교사가 후보 카드를 확인했습니다. 수업 탐구 주제로 연결할 수 있습니다.';
         syncView();
       }
       if (action === 'apply-reason' && candidate && approved) {
@@ -266,6 +264,7 @@ export function createLessonAiPanel(
           candidateSimilarity = undefined;
         }
         approved = false;
+        appliedToLesson = false;
         message = outcome?.hold
           ? `판단 보류: ${outcome.reason}`
           : candidate

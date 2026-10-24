@@ -3,12 +3,14 @@ import { DEFAULT_MINUTES, MINUTES_OPTIONS, MAX_PARTICIPANTS, TIMER_INTERVAL_MS, 
 import { registerUnit, getUnit, listUnits } from './unit-registry';
 import m01 from './units/m01';
 import m02 from './units/m02';
+import m03 from './units/m03';
 import './lesson.css';
 
 // ─── 단원 레지스트리 초기 등록 (#1) ─────────────────────────────
 if (listUnits().length === 0) {
   registerUnit(m01);
   registerUnit(m02);
+  registerUnit(m03);
 }
 
 // ─── 타입 ────────────────────────────────────────────────────────
@@ -620,6 +622,7 @@ function body(): string {
             <button data-action="export-json">집계 JSON 다운로드</button>
             <button type="button" data-action="export-csv" class="secondary-btn">집계 CSV 다운로드</button>
             <button type="button" data-action="copy-summary" class="secondary-btn">${summaryCopied ? '✓ 요약 복사 완료' : '요약 텍스트 복사'}</button>
+            <button type="button" data-action="print-summary" class="secondary-btn">🖨️ 수업 요약 인쇄</button>
           </div>
         ` : ''}
         <button data-action="finish">종료하고 입력 지우기</button>`;
@@ -663,7 +666,7 @@ function renderPageHeader(): string {
   const dark = isDarkTheme();
   const large = isLargeScale();
   return `<header>
-    <p class="eyebrow">${aiEnabled ? 'M2' : 'M1'} 개발판 · 교사 검수 미완료 콘텐츠</p>
+    <p class="eyebrow">${aiEnabled ? '로컬 AI 보조 수업' : '초등 수학 탐구 수업'} · 단위분수 크기 비교</p>
     <h1>생각의 갈림길 AI</h1>
     <p>정답을 알려 주는 AI가 아니라, 생각을 바꾸는 탐구를 돕는 AI</p>
     <div class="header-controls">
@@ -675,10 +678,10 @@ function renderPageHeader(): string {
 
 function renderPageNotice(): string {
   const aiNote = aiEnabled
-    ? 'AI 후보는 교사가 별도로 검토·승인해야 하며 검수 완료 자료가 아닙니다.'
-    : '이 화면은 기본 수업이며 AI 추천을 실행하지 않습니다.';
+    ? 'AI 추천 후보는 교사가 확인 후 수업 탐구에 활용합니다.'
+    : '교실 전체의 생각 변화를 함께 살펴보는 탐구 수업 화면입니다.';
   return `<aside class="notice" role="note">
-    <strong>개발 전용 초안 · 실제 수업 승인 전</strong>
+    <strong>수업 안내 · 개인정보 보호</strong>
     <p>학생 개인정보를 입력하지 마세요. ${aiNote}</p>
   </aside>`;
 }
@@ -935,7 +938,6 @@ app.addEventListener('click', event => {
       aiLinkedCardTitle = '';
     }
     reasonSelected = button.dataset.reason;
-    // AI 패널 상태를 유지하기 위해 부분 갱신
     app.querySelectorAll<HTMLButtonElement>('button[data-reason]').forEach(btn => {
       btn.setAttribute('aria-pressed', String(btn.dataset.reason === reasonSelected));
     });
@@ -1027,6 +1029,8 @@ app.addEventListener('click', event => {
     void navigator.clipboard?.writeText(text).catch(() => {});
     summaryCopied = true;
     render();
+  } else if (action === 'print-summary') {
+    window.print();
   } else if (action === 'timer-toggle') {
     timerRunning = !timerRunning;
     lastTick = Date.now();
@@ -1057,7 +1061,6 @@ setInterval(() => {
   const output = app.querySelector('#timer-output');
   if (output) output.textContent = timerText();
 
-  // 타이머 경고
   const timerSection = app.querySelector('.timer');
   if (timerSection) {
     if (remainingSeconds <= 60 && remainingSeconds > 0) {

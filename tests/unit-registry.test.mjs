@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { registerUnit, getUnit, listUnits, clearRegistry } from '../src/unit-registry.ts';
 import m01 from '../src/units/m01.ts';
 import m02 from '../src/units/m02.ts';
+import m03 from '../src/units/m03.ts';
 import { cards, examples } from '../src/cards.ts';
 import { holdRules, thresholds } from '../src/judge.ts';
 
@@ -12,10 +13,13 @@ test('unit registry registers, retrieves, and lists units', () => {
 
   registerUnit(m01);
   registerUnit(m02);
-  assert.equal(listUnits().length, 2);
+  registerUnit(m03);
+  assert.equal(listUnits().length, 3);
   assert.equal(getUnit('M01').title, m01.title);
   assert.equal(getUnit('M02').title, m02.title);
+  assert.equal(getUnit('M03').title, m03.title);
   assert.deepEqual(getUnit('M02').denominators.first, [4, 7]);
+  assert.deepEqual(getUnit('M03').denominators.first, [2, 6]);
 
   assert.throws(() => registerUnit(m01), /already registered/);
   assert.throws(() => getUnit('M99'), /not found/);
