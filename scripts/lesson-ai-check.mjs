@@ -15,7 +15,7 @@ page.on('request', request => requests.push({ url: request.url(), method: reques
 page.on('pageerror', error => errors.push(error.message));
 try {
   await page.goto(new URL('lesson-ai.html', base).href);
-  await page.getByRole('button', { name: 'M01 미리보기' }).click();
+  await page.getByRole('button', { name: '수업 미리보기' }).click();
   await page.locator('#participants').fill('20');
   await page.getByRole('button', { name: '첫 선택으로' }).click();
   await page.getByRole('button', { name: '집계 생략하고 계속' }).click();

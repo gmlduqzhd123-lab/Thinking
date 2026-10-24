@@ -8,7 +8,7 @@ import type { UnitConfig } from '../unit-types';
 
 const m02: UnitConfig = {
   id: 'M02',
-  title: '단위분수 심화 비교',
+  title: '단위분수 심화 비교 (1/4과 1/7)',
   description: '같은 전체에서 1/4과 1/7 한 조각을 비교합니다.',
 
   cards: [

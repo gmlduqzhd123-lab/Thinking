@@ -1,4 +1,4 @@
-import { CHOICES, FIRST_ITEM, TRANSFER_ITEM, emptyCounts, fractionSegments, parseParticipants, percentagePointChange, validateCounts, type Choice, type RawCounts } from './lesson-core';
+import { CHOICES, emptyCounts, fractionSegments, parseParticipants, percentagePointChange, validateCounts, type Choice, type RawCounts } from './lesson-core';
 import { DEFAULT_MINUTES, MINUTES_OPTIONS, MAX_PARTICIPANTS, TIMER_INTERVAL_MS, TIMER_EXTEND_SECONDS, DENOMINATOR_MIN, DENOMINATOR_MAX } from './constants';
 import { registerUnit, getUnit, listUnits } from './unit-registry';
 import m01 from './units/m01';
@@ -234,19 +234,15 @@ function formatPollNote(counts: RawCounts | null, participants: number | null): 
   return '집계를 입력하려면 네 칸 모두 0 이상의 정수를 입력하세요. 미응답은 참여 인원에서 집계 합계를 뺀 값입니다.';
 }
 
-function getPollItemMeta(poll: Poll) {
-  if (selectedUnitId === 'M01') {
-    return poll === 'transfer' ? TRANSFER_ITEM : FIRST_ITEM;
-  }
-  return {
-    id: poll === 'transfer' ? `${selectedUnitId}-UF-02` : `${selectedUnitId}-UF-01`,
-    version: 1,
-  };
+function getPollItemLabel(poll: Poll, denominatorA: number, denominatorB: number): string {
+  return poll === 'transfer'
+    ? `응용 비교 문항 · 1/${denominatorA}과 1/${denominatorB}`
+    : `기본 비교 문항 · 1/${denominatorA}과 1/${denominatorB}`;
 }
 
 /** 투표 템플릿 (#5 빈 칸 0 채우기, #8 가상 연습 샘플 채우기 포함). */
 function pollTemplate(poll: Poll, denominatorA: number, denominatorB: number): string {
-  const item = getPollItemMeta(poll);
+  const itemLabel = getPollItemLabel(poll, denominatorA, denominatorB);
   const labels = [`A. 1/${denominatorA}이 더 크다`, `B. 1/${denominatorB}이 더 크다`, 'C. 두 조각이 같다', 'D. 모르겠다'];
   const counts = pollData[poll];
   const n = parseParticipants(participantsRaw);
@@ -261,7 +257,7 @@ function pollTemplate(poll: Poll, denominatorA: number, denominatorB: number): s
     : '';
 
   return `
-    <p class="item-id">문항 ID ${item.id} · 버전 ${item.version}</p>
+    <p class="item-id">${itemLabel}</p>
     <p>길이가 같은 두 리본에서 한 조각의 길이를 비교합니다. 어느 쪽이 더 클까요?</p>
     ${renderVisualPair(denominatorA, denominatorB)}
     <ol class="choices">${labels.map(label => `<li>${label}</li>`).join('')}</ol>
@@ -436,7 +432,7 @@ function buildExportData() {
   const transfer = pollData.transfer && validateCounts(pollData.transfer, n);
 
   return {
-    unit: selectedUnitId,
+    unit: currentUnit().title,
     date: new Date().toISOString().slice(0, 10),
     participants: n,
     mode,
@@ -456,7 +452,7 @@ function downloadJSON() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `lesson-${data.unit}-${data.date}.json`;
+  a.download = `lesson-${data.date}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -487,7 +483,7 @@ function downloadCSV() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `lesson-${data.unit}-${data.date}.csv`;
+  a.download = `lesson-${data.date}.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -498,10 +494,8 @@ function downloadCSV() {
 
 function memoryText(): string {
   const n = parseParticipants(participantsRaw)!;
-  const [fA] = currentUnit().denominators.first;
-  const [tA] = currentUnit().denominators.transfer;
-  const firstItem = getPollItemMeta('first');
-  const transferItem = getPollItemMeta('transfer');
+  const [fA, fB] = currentUnit().denominators.first;
+  const [tA, tB] = currentUnit().denominators.transfer;
   const first = pollData.first && validateCounts(pollData.first, n);
   const again = pollData.again && validateCounts(pollData.again, n);
   const transfer = pollData.transfer && validateCounts(pollData.transfer, n);
@@ -515,15 +509,15 @@ function memoryText(): string {
 
   if (first && again) {
     const change = percentagePointChange(first.counts.A, again.counts.A, n);
-    parts.push(`같은 문항 ${firstItem.id} v${firstItem.version}에서 1/${fA}을 고른 집계는 ${first.counts.A}/${n}명에서 ${again.counts.A}/${n}명으로 바뀌었습니다 (${change >= 0 ? '+' : ''}${change.toFixed(1)}%p). 이는 집단 집계의 차이이며 개인별 성장으로 해석하지 않습니다.`);
+    parts.push(`기본 비교 문항(1/${fA}과 1/${fB})에서 1/${fA}을 고른 집계는 ${first.counts.A}/${n}명에서 ${again.counts.A}/${n}명으로 바뀌었습니다 (${change >= 0 ? '+' : ''}${change.toFixed(1)}%p). 이는 집단 집계의 차이이며 개인별 성장으로 해석하지 않습니다.`);
   } else {
     parts.push('첫 선택 또는 재선택의 집계를 생략해 변화 수치를 계산하지 않았습니다.');
   }
 
   if (transfer) {
-    parts.push(`새 문항 ${transferItem.id} v${transferItem.version}의 집계: 1/${tA} 선택 ${transfer.counts.A}명, 모르겠다 ${transfer.counts.D}명, 미응답 ${transfer.noResponse}명.`);
+    parts.push(`새로운 응용 문항(1/${tA}과 1/${tB})의 집계: 1/${tA} 선택 ${transfer.counts.A}명, 모르겠다 ${transfer.counts.D}명, 미응답 ${transfer.noResponse}명.`);
   } else {
-    parts.push(`새 문항 ${transferItem.id} v${transferItem.version}의 집계를 생략했습니다.`);
+    parts.push(`새로운 응용 문항(1/${tA}과 1/${tB})의 집계를 생략했습니다.`);
   }
 
   return parts.join(' ');
@@ -541,11 +535,11 @@ function body(): string {
         <fieldset class="unit-selector">
           <legend>단원 선택</legend>
           ${listUnits().map(u =>
-            `<label><input type="radio" name="unit" value="${u.id}" ${selectedUnitId === u.id ? 'checked' : ''}> ${u.id} · ${u.title}</label>`
+            `<label><input type="radio" name="unit" value="${u.id}" ${selectedUnitId === u.id ? 'checked' : ''}> ${u.title}</label>`
           ).join('')}
         </fieldset>
-        <p>${unit.id} ${unit.title} · ${unit.description}</p>
-        <button data-action="next">${unit.id} 미리보기</button>`;
+        <p>${unit.title} · ${unit.description}</p>
+        <button data-action="next">수업 미리보기</button>`;
 
     case 'preview':
       return `<h2 tabindex="-1">수업 미리보기</h2>

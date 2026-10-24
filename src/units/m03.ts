@@ -8,7 +8,7 @@ import type { UnitConfig } from '../unit-types';
 
 const m03: UnitConfig = {
   id: 'M03',
-  title: '단위분수 응용 비교',
+  title: '단위분수 응용 비교 (1/2과 1/6)',
   description: '같은 전체에서 1/2과 1/6 한 조각을 비교합니다.',
 
   cards: [

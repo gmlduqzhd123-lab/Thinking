@@ -131,7 +131,7 @@ function renderHeader(): string {
 function renderNotice(): string {
   return `<section class="notice">
     <strong>단위분수 크기 비교 · 로컬 AI 탐구 지원</strong>
-    <p>M01: 길이가 같은 두 리본에서 1/3과 1/5 한 조각을 비교합니다.
+    <p>길이가 같은 두 리본에서 1/3과 1/5 한 조각을 비교합니다.
        학생 개인정보 없이 수학 개념 설명을 입력하면 알맞은 탐구 카드를 추천합니다.</p>
   </section>`;
 }

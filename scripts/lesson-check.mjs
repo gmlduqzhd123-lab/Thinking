@@ -17,7 +17,8 @@ try {
   await page.clock.install();
   await page.goto(new URL('lesson.html', base).href);
   assert.match(await page.locator('body').innerText(), /수업 안내 · 개인정보 보호/);
-  await page.getByRole('button', { name: 'M01 미리보기' }).click();
+  assert.doesNotMatch(await page.locator('body').innerText(), /M01|M02|M03/);
+  await page.getByRole('button', { name: '수업 미리보기' }).click();
   await page.locator('#participants').fill('18');
   await page.getByLabel('실제 수업 입력').check();
   assert.equal(await page.locator('#participants').inputValue(), '');
@@ -35,7 +36,7 @@ try {
   await page.getByRole('button', { name: '5분 연장' }).click();
   assert.equal(await page.locator('#timer-output').innerText(), '14:00');
   await page.getByRole('button', { name: '첫 선택으로' }).click();
-  assert.match(await page.locator('.item-id').innerText(), /M01-UF-01 · 버전 1/);
+  assert.match(await page.locator('.item-id').innerText(), /기본 비교 문항 · 1\/3과 1\/5/);
   await page.getByRole('button', { name: '집계 확인 후 계속' }).click();
   assert.match(await page.locator('#error').innerText(), /빈값/);
   for (const [choice, value] of Object.entries({ A: '-1', B: '0', C: '0', D: '0' })) await page.locator(`[data-count="${choice}"]`).fill(value);
@@ -65,10 +66,10 @@ try {
   assert.equal(await page.getByText('같은 전체에서 1/3은 1/5보다 큽니다.').count(), 0);
   await page.getByRole('button', { name: '교사가 개념 정리 공개' }).click();
   await page.getByRole('button', { name: '같은 문항 다시 선택' }).click();
-  assert.match(await page.locator('.item-id').innerText(), /M01-UF-01 · 버전 1/);
+  assert.match(await page.locator('.item-id').innerText(), /기본 비교 문항 · 1\/3과 1\/5/);
   for (const [choice, value] of Object.entries({ A: '15', B: '3', C: '0', D: '0' })) await page.locator(`[data-count="${choice}"]`).fill(value);
   await page.getByRole('button', { name: '집계 확인 후 계속' }).click();
-  assert.match(await page.locator('.item-id').innerText(), /M01-UF-02 · 버전 1/);
+  assert.match(await page.locator('.item-id').innerText(), /응용 비교 문항 · 1\/4과 1\/6/);
   assert.equal(await page.getByText('같은 전체라면 1/4이 1/6보다 큽니다.').isHidden(), true);
   await page.getByRole('button', { name: '집계 생략하고 계속' }).click();
   await page.getByRole('button', { name: '요약 만들기' }).click();
@@ -80,7 +81,7 @@ try {
   await page.getByRole('button', { name: '집계 확인 후 계속' }).click();
   assert.equal(await page.locator('.memory').count(), 0);
   await page.getByRole('button', { name: '요약 만들기' }).click();
-  assert.match(await page.locator('.memory').innerText(), /새 문항 M01-UF-02 v1의 집계/);
+  assert.match(await page.locator('.memory').innerText(), /새로운 응용 문항\(1\/4과 1\/6\)의 집계/);
   for (let i = 0; i < 7; i++) await page.getByRole('button', { name: '이전 단계' }).click();
   assert.match(await page.locator('#step h2').innerText(), /이유 카드/);
   await page.getByRole('button', { name: '전체가 같은지 확인이 필요함' }).click();
@@ -108,7 +109,7 @@ try {
   assert.equal(await page.locator('#step').innerText().then(text => text.includes('10/20')), false);
   await page.reload();
   assert.match(await page.locator('#step h2').innerText(), /개념 선택/);
-  await page.getByRole('button', { name: 'M01 미리보기' }).click();
+  await page.getByRole('button', { name: '수업 미리보기' }).click();
   await page.locator('#participants').fill('20');
   await page.getByRole('button', { name: '첫 선택으로' }).click();
   await page.locator('[data-count="A"]').fill('10');
@@ -123,7 +124,7 @@ try {
   await page.goto('about:blank');
   await page.goBack();
   assert.match(await page.locator('#step h2').innerText(), /개념 선택/);
-  await page.getByRole('button', { name: 'M01 미리보기' }).click();
+  await page.getByRole('button', { name: '수업 미리보기' }).click();
   assert.equal(await page.locator('#participants').inputValue(), '');
   await page.locator('#participants').fill('22');
   await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })));

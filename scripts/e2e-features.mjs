@@ -123,8 +123,8 @@ async function testLessonFeatures(browser) {
   // 2. 멀티 단원 선택기 (M01 / M02) 전환 확인 (4차 #1)
   const m02Radio = page.locator('input[name="unit"][value="M02"]');
   await m02Radio.check();
-  const nextBtnTextM02 = await page.locator('button[data-action="next"]').textContent();
-  log('수업 M02 단원 선택 전환', nextBtnTextM02 === 'M02 미리보기', `button="${nextBtnTextM02}"`);
+  const stepTextM02 = await page.locator('#step').innerText();
+  log('수업 심화 단원 선택 전환 및 M코드 제거 확인', stepTextM02.includes('단위분수 심화 비교 (1/4과 1/7)') && !/M01|M02|M03/.test(stepTextM02));
   await page.locator('input[name="unit"][value="M01"]').check();
 
   // 3. 다크 모드 전환 후 단계 이동 시 아이콘(☀️) 유지 검증
