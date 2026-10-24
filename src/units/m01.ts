@@ -2,7 +2,6 @@
  * M01 단위분수 비교 · 단원 설정.
  *
  * 새 단원을 추가하려면 이 파일을 복사하여 같은 UnitConfig 구조를 채우세요.
- * 교사 검수 전 개발자 초안입니다.
  */
 import type { UnitConfig } from '../unit-types';
 

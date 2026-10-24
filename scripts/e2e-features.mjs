@@ -155,10 +155,12 @@ async function testLessonFeatures(browser) {
   log('개선 #7·#8: 실험 1 조각 포개어 비교 클릭 즉시 원리(발견 1) 표시', overlapText?.includes('발견 1') ?? false);
 
   const slider = page.locator('#explore-slider');
+  await slider.focus();
   await slider.fill('8');
   await slider.dispatchEvent('input');
+  const sliderStillFocused = await page.evaluate(() => document.activeElement?.id === 'explore-slider');
   const expText = await page.locator('#step').textContent();
-  log('개선 #7·#8: 실험 2 등분 슬라이더 조작 즉시 원리(발견 2) 표시', expText?.includes('발견 2') ?? false);
+  log('개선 #7·#8: 실험 2 등분 슬라이더 조작 즉시 원리(발견 2) 표시 및 포커스 유지', (expText?.includes('발견 2') ?? false) && sliderStillFocused);
 
   // #8. 3단계 다시 점검하기: 보기 클릭 즉시 정답/힌트 피드백 표시
   await page.click('button[data-action="next"]');

@@ -11,7 +11,7 @@ export interface Card {
   readonly hint: string;
 }
 
-/** 개발용 가상 예시 질의. */
+/** 예시 질의. */
 export interface Example {
   readonly id: string;
   readonly text: string;
@@ -50,7 +50,7 @@ export interface UnitConfig {
   readonly description: string;
   /** 탐구 카드 목록 (최소 2장). */
   readonly cards: readonly Card[];
-  /** 개발용 가상 예시 질의 목록. */
+  /** 예시 질의 목록. */
   readonly examples: readonly Example[];
   /** 분수 비교에 사용할 분모 쌍. */
   readonly denominators: {

@@ -248,7 +248,7 @@ section, aside, nav {
   border-color: var(--lesson-notice-border);
 }
 
-nav, .timer, .actions, .bar-pair {
+nav, .actions, .bar-pair {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -258,56 +258,13 @@ nav, .timer, .actions, .bar-pair {
 nav { justify-content: space-between; }
 .bar-pair { align-items: flex-start; }
 
-/* ─── Step indicator (#5) ────────────────────────────────────── */
+/* ─── Step indicator ─────────────────────────────────────────── */
 .step-indicator {
   display: flex;
-  gap: 4px;
+  gap: 8px;
   align-items: center;
   flex-wrap: wrap;
-}
-
-.step-dot {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.7rem;
-  font-weight: 700;
-  border: 2px solid var(--lesson-step-border);
-  color: var(--lesson-step-text);
-  background: var(--lesson-surface);
-  transition: all 0.2s ease;
-}
-
-.step-dot.done {
-  background: var(--lesson-step-done-bg);
-  border-color: var(--lesson-step-done-bg);
-  color: white;
-  cursor: pointer;
-}
-
-.step-dot.done:hover {
-  filter: brightness(1.15);
-  transform: scale(1.08);
-}
-
-.step-dot.done:focus-visible {
-  outline: 3px solid var(--lesson-focus-ring);
-  outline-offset: 2px;
-}
-
-.phase-badge {
-  font-weight: 700;
-  color: var(--lesson-accent-blue);
-}
-
-.step-dot.current {
-  border-color: var(--lesson-step-current-border);
-  color: var(--lesson-step-current-border);
-  background: var(--lesson-step-current-bg);
-  transform: scale(1.15);
+  width: 100%;
 }
 
 /* ─── Fraction bars ──────────────────────────────────────────── */
@@ -386,21 +343,6 @@ input[type=text] {
   color: var(--lesson-text);
 }
 
-input[type=radio] {
-  width: 20px;
-  height: 20px;
-  vertical-align: middle;
-}
-
-fieldset {
-  border: 1px solid var(--lesson-fieldset-border);
-  border-radius: 10px;
-  margin: 16px 0;
-  padding: 16px;
-}
-
-.choices { line-height: 1.8; }
-
 /* ─── Content blocks ─────────────────────────────────────────── */
 .answer, .memory, .comparison {
   border-left: 5px solid var(--lesson-answer-border);
@@ -409,7 +351,6 @@ fieldset {
   line-height: 1.6;
 }
 
-.item-id { font-weight: 700; }
 #error { color: var(--lesson-error); font-weight: 700; min-height: 1.5em; }
 output { font-variant-numeric: tabular-nums; }
 footer { color: var(--lesson-text-muted); padding: 12px; }
@@ -474,86 +415,7 @@ footer { color: var(--lesson-text-muted); padding: 12px; }
   margin: 4px 0 0;
 }
 
-/* ─── Timer warning (#5) ─────────────────────────────────────── */
-.timer-warning {
-  animation: pulse 1s ease-in-out infinite;
-  background: #fef2f2 !important;
-  border-color: #dc2626 !important;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
-}
-
-/* ─── Poll chart (#10) ───────────────────────────────────────── */
-.poll-comparison {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-  margin: 16px 0;
-}
-
-.poll-chart {
-  flex: 1 1 300px;
-  background: var(--lesson-chart-bg);
-  border: 1px solid var(--lesson-chart-border);
-  border-radius: 10px;
-  padding: 16px;
-}
-
-.poll-chart h4 {
-  margin: 0 0 12px;
-  font-size: 0.95rem;
-  color: var(--lesson-answer-border);
-}
-
-.chart-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 6px 0;
-}
-
-.chart-label {
-  flex: 0 0 65px;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.chart-track {
-  flex: 1;
-  height: 18px;
-  background: var(--lesson-track-bg);
-  border-radius: 9px;
-  overflow: hidden;
-}
-
-.chart-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--lesson-accent-gold), var(--lesson-accent-gold-dark));
-  border-radius: 9px;
-  transition: width 0.3s ease;
-  min-width: 2px;
-}
-
-.chart-fill-correct {
-  background: linear-gradient(90deg, var(--lesson-correct-fill), var(--lesson-correct-fill-end));
-}
-
-.chart-row-correct .chart-label {
-  color: var(--lesson-answer-border);
-}
-
-.chart-count {
-  flex: 0 0 80px;
-  font-size: 0.8rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--lesson-text-muted);
-  text-align: right;
-}
-
-/* ─── 4차 고도화: 시각화 툴바, 원형 모델, 발문 가이드, 이동 분석 ── */
+/* ─── 시각화 툴바 및 분수 모형 ────────────────────────────────── */
 .visual-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -567,7 +429,8 @@ footer { color: var(--lesson-text-muted); padding: 12px; }
   min-height: 44px;
 }
 
-.fraction-circle svg {
+.fraction-circle svg,
+.fraction-cup svg {
   max-height: 155px;
 }
 
@@ -580,98 +443,9 @@ footer { color: var(--lesson-text-muted); padding: 12px; }
   display: inline-block;
 }
 
-.inquiry-controls {
-  justify-content: flex-start;
-  gap: 20px;
-  margin: 10px 0 14px;
-}
-
-.control-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.base-denom-label {
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-button[data-reason][aria-pressed="true"] {
-  outline: 3px solid var(--lesson-accent-gold-dark);
-  outline-offset: 2px;
-}
-
-.scaffold-guide {
-  margin: 14px 0;
-  padding: 14px 18px;
-  background: var(--lesson-answer-bg);
-  border-left: 5px solid var(--lesson-accent-gold-dark);
-  border-radius: 8px;
-}
-
-.scaffold-guide h3 {
-  margin: 0 0 6px;
-  font-size: 1.02rem;
-}
-
-.scaffold-focus {
-  margin: 4px 0 8px;
-  font-weight: 600;
-  color: var(--lesson-text-muted);
-}
-
-.scaffold-guide ul {
-  margin: 6px 0 0;
-  padding-left: 20px;
-  line-height: 1.65;
-}
-
 .ai-linked-badge {
   margin: 4px 0 8px;
   color: var(--lesson-ai-border);
-}
-
-.shift-analysis {
-  margin: 16px 0;
-  background: var(--lesson-chart-bg);
-  border: 1px solid var(--lesson-chart-border);
-  border-radius: 10px;
-  padding: 16px;
-  overflow-x: auto;
-}
-
-.shift-analysis h4 {
-  margin: 0 0 10px;
-  color: var(--lesson-answer-border);
-}
-
-.shift-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-}
-
-.shift-table th,
-.shift-table td {
-  border: 1px solid var(--lesson-border);
-  padding: 8px 10px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-
-.shift-table td:first-child {
-  text-align: left;
-}
-
-.shift-table th {
-  background: var(--lesson-surface);
-  font-weight: 700;
-}
-
-.shortcut-hint {
-  font-size: 0.85rem;
-  opacity: 0.85;
 }
 
 /* ─── Responsive: Tablet ─────────────────────────────────────── */
@@ -684,12 +458,6 @@ button[data-reason][aria-pressed="true"] {
   }
 
   .fraction { flex: 1 1 250px; }
-
-  .step-dot {
-    width: 24px;
-    height: 24px;
-    font-size: 0.6rem;
-  }
 }
 
 /* ─── Responsive: Mobile ─────────────────────────────────────── */
@@ -710,16 +478,6 @@ button[data-reason][aria-pressed="true"] {
     text-align: center;
   }
 
-  .control-group {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .control-group button {
-    width: auto;
-    min-width: 72px;
-  }
-
   .poll-helpers button {
     flex: 1 1 140px;
   }
@@ -728,18 +486,6 @@ button[data-reason][aria-pressed="true"] {
     width: 80px;
     margin-left: 8px;
   }
-
-  fieldset { padding: 12px; }
-
-  .step-dot {
-    width: 22px;
-    height: 22px;
-    font-size: 0.55rem;
-  }
-
-  .poll-comparison { flex-direction: column; }
-  .chart-label { flex: 0 0 50px; font-size: 0.75rem; }
-  .chart-count { flex: 0 0 65px; font-size: 0.7rem; }
 }
 
 /* ─── Screen reader only ─────────────────────────────────────── */
@@ -755,63 +501,7 @@ button[data-reason][aria-pressed="true"] {
   border-width: 0;
 }
 
-/* ─── 초등 수학 눈높이 재구성 (10대 기능 스타일) ─────────────── */
-
-/* #3 똑같이 나누기(등분할) 워밍업 */
-.equal-parts-warmup {
-  margin: 16px 0;
-  padding: 16px;
-  background: var(--lesson-chart-bg);
-  border: 1px solid var(--lesson-chart-border);
-  border-radius: 12px;
-}
-
-.equal-parts-warmup h3 {
-  margin: 0 0 6px;
-  font-size: 1.05rem;
-}
-
-.warmup-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 10px;
-}
-
-.warmup-btn {
-  flex: 1 1 240px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 12px;
-  border-radius: 12px;
-}
-
-.warmup-btn svg {
-  width: 100%;
-  max-width: 220px;
-  height: auto;
-}
-
-.warmup-feedback {
-  margin: 12px 0 0;
-  padding: 10px 14px;
-  border-radius: 8px;
-  font-weight: 700;
-}
-
-.warmup-correct {
-  background: var(--lesson-answer-bg);
-  border-left: 4px solid var(--lesson-answer-border);
-}
-
-.warmup-retry {
-  background: var(--lesson-notice-bg);
-  border-left: 4px solid var(--lesson-notice-border);
-}
-
-/* #4 조각 포개어 겹쳐 비교하기 */
+/* ─── 실험 1: 조각 포개어 겹쳐 비교하기 ──────────────────────── */
 .overlap-comparison {
   margin: 10px 0 14px;
   padding: 14px;
@@ -820,17 +510,12 @@ button[data-reason][aria-pressed="true"] {
   border-radius: 12px;
 }
 
-.overlap-title {
-  margin: 0 0 8px;
-  font-size: 0.95rem;
-}
-
 .overlap-comparison svg {
   width: 100%;
   height: auto;
 }
 
-/* #5 이유 카드 말풍선 대화체 */
+/* ─── 이유 카드 말풍선 대화체 ────────────────────────────────── */
 .reason-bubble-list {
   flex-direction: column;
   align-items: stretch;
@@ -844,6 +529,19 @@ button[data-reason][aria-pressed="true"] {
   text-align: left;
   padding: 12px 16px;
   border-radius: 14px;
+  background: var(--lesson-secondary-bg);
+  color: var(--lesson-secondary-text);
+  border: 2px solid transparent;
+}
+
+.reason-bubble-btn:hover:not(:disabled) {
+  background: var(--lesson-secondary-hover);
+}
+
+button[data-reason][aria-pressed="true"] {
+  background: var(--lesson-answer-bg);
+  border-color: var(--lesson-accent-gold-dark);
+  outline: 3px solid var(--lesson-accent-gold);
 }
 
 .student-bubble {
@@ -851,61 +549,7 @@ button[data-reason][aria-pressed="true"] {
   font-weight: 700;
 }
 
-.reason-summary-tag {
-  font-size: 0.85rem;
-  opacity: 0.9;
-}
-
-/* #6 수직선 & #8 주스 컵 모형 */
-.fraction-cup svg {
-  max-height: 155px;
-}
-
-/* #7 단위분수 모아 '전체 1' 채우기 퍼즐 */
-.unit-puzzle {
-  margin: 14px 0;
-  padding: 14px 16px;
-  background: var(--lesson-chart-bg);
-  border: 1px solid var(--lesson-chart-border);
-  border-radius: 12px;
-}
-
-.unit-puzzle h3 {
-  margin: 0 0 6px;
-  font-size: 1.02rem;
-}
-
-.puzzle-status {
-  margin: 4px 0 10px;
-  font-weight: 600;
-}
-
-.unit-puzzle svg {
-  width: 100%;
-  height: auto;
-  margin-bottom: 8px;
-}
-
-/* #9 칠판 화면 모드 (학생 발표용 깔끔 보기) */
-html[data-board="true"] main {
-  max-width: 1200px;
-}
-
-html[data-board="true"] #step h2 {
-  font-size: 1.7rem;
-}
-
-html[data-board="true"] .choices {
-  font-size: 1.2rem;
-  line-height: 1.8;
-}
-
-html[data-board="true"] .scaffold-guide,
-html[data-board="true"] .poll-helpers {
-  display: none;
-}
-
-/* #10 학급 칭찬 배지 & 배움 공책 한 줄 정리 */
+/* ─── 배움 공책 한 줄 정리 ───────────────────────────────────── */
 .notebook-summary-card {
   margin: 14px 0;
   padding: 16px;
@@ -940,16 +584,7 @@ html[data-board="true"] .poll-helpers {
   border-radius: 6px;
 }
 
-/* ─── 혼자 해보기 (스스로 탐구) 모드 스타일 ─────────────────── */
-.solo-start-btn {
-  font-weight: 700;
-}
-
-.solo-fieldset {
-  margin: 14px 0;
-  border: 2px solid var(--lesson-answer-border);
-}
-
+/* ─── 4지선다 보기 및 성장 카드 ──────────────────────────────── */
 .solo-choice-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -992,25 +627,6 @@ html[data-board="true"] .poll-helpers {
   background: var(--lesson-chart-bg);
   border: 2px solid var(--lesson-answer-border);
   border-radius: 12px;
-}
-
-.solo-report-card h3 {
-  margin: 0 0 10px;
-  font-size: 1.08rem;
-}
-
-.solo-report-list {
-  margin: 0 0 10px;
-  padding-left: 20px;
-  line-height: 1.75;
-}
-
-.solo-report-praise {
-  margin: 0;
-  padding-top: 8px;
-  border-top: 1px dashed var(--lesson-border);
-  font-weight: 700;
-  color: var(--lesson-answer-border);
 }
 
 /* ─── 4단계 단순화 · 핵심 활동 중심 레이아웃 ─────────────────── */
@@ -1137,8 +753,13 @@ html[data-board="true"] .poll-helpers {
   margin: 10px 0;
 }
 
+.slider-experiment-controls button {
+  min-width: 48px;
+}
+
 .slider-experiment-controls input[type="range"] {
   flex: 1 1 180px;
+  min-height: 44px;
   accent-color: var(--lesson-accent-blue);
   cursor: pointer;
 }

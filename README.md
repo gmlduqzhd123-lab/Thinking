@@ -49,7 +49,7 @@ Vite 개발 서버가 `http://127.0.0.1:5173`에서 시작됩니다.
 | 페이지 | 경로 | 설명 |
 |--------|------|------|
 | 로컬 AI 탐구 카드 | `/` (`index.html`) | 로컬 AI 탐구 카드 추천 화면 |
-| 단위분수 비교 수업 | `/lesson.html` | 10단계 단위분수 비교 탐구 수업 화면 |
+| 단위분수 비교 수업 | `/lesson.html` | 4단계 단위분수 비교 탐구 수업 화면 (`① 생각 고르기 → ② 직접 실험하기 → ③ 다시 점검하기 → ④ 오늘의 발견`) |
 | 로컬 AI 보조 수업 | `/lesson-ai.html` | 로컬 AI 탐구 카드 추천 패널이 포함된 수업 화면 |
 
 ---
@@ -73,9 +73,12 @@ npm run build
 | 명령어 | 설명 |
 |--------|------|
 | `npm test` | 단위 테스트 (Node.js `--test` 러너) |
+| `npm run test:all` | 타입체크 + 단위 테스트 + 번들 가드 + 수업/기능 E2E 통합 검증 |
+| `npm run test:e2e` | 4단계 수업 및 전체 기능 E2E 테스트 (Playwright) |
+| `npm run test:mobile` | 5종 모바일·태블릿 뷰포트 호환성 검증 |
 | `npm run test:browser` | 정적 빌드의 브라우저 E2E 테스트 (Playwright) |
-| `npm run test:lesson` | M1 수업 흐름 E2E 테스트 |
-| `npm run test:lesson-ai` | M2 AI 수업 흐름 E2E 테스트 |
+| `npm run test:lesson` | 4단계 수업 흐름 E2E 테스트 |
+| `npm run test:lesson-ai` | 로컬 AI 보조 수업 흐름 E2E 테스트 |
 | `npm run test:ai` | AI 홀드아웃 smoke 테스트 |
 | `npm run test:holdout` | 홀드아웃 전체 평가 |
 | `npm run test:performance` | 로컬 모델 성능 측정 (30회) |
@@ -96,8 +99,8 @@ Thinking/
 ├── tsconfig.json           # TypeScript 설정
 ├── src/
 │   ├── main.ts             # M0 페이지 진입점
-│   ├── lesson.ts           # M1/M2 수업 렌더러 (10단계 수업 흐름)
-│   ├── lesson-ai-panel.ts  # M2 AI 후보 패널 UI
+│   ├── lesson.ts           # 4단계 단위분수 비교 탐구 수업 렌더러
+│   ├── lesson-ai-panel.ts  # 로컬 AI 후보 패널 UI
 │   ├── lesson-core.ts      # 수업 핵심 로직 (투표 검증·분수 계산)
 │   ├── ai.worker.ts        # Web Worker — 모델 로드·임베딩·추론
 │   ├── judge.ts            # AI 판단 로직 (보류 규칙·임계값)

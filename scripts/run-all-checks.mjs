@@ -86,11 +86,9 @@ function checkSharedOriginAndProductionCopy() {
     join(ROOT, 'index.html'),
     join(ROOT, 'lesson.html'),
     join(ROOT, 'lesson-ai.html'),
-    join(ROOT, 'src', 'lesson.ts'),
-    join(ROOT, 'src', 'lesson-ai-panel.ts'),
-    join(ROOT, 'src', 'main.ts'),
+    ...collectFiles(srcDir),
   ];
-  const devDraftRegex = /개발판|개발 전용|개발용|미완료|승인 전|사용하지 마세요/;
+  const devDraftRegex = /개발판|개발 전용|개발용|미완료|승인 전|검수 전|사용하지 마세요/;
   for (const file of uiFiles) {
     const content = readFileSync(file, 'utf8');
     if (devDraftRegex.test(content)) {
@@ -148,7 +146,8 @@ const serverProc = spawn('npx', ['vite', 'preview', '--host', '127.0.0.1', '--po
 try {
   await waitForServer(BASE_URL);
   runStep('수업 기본 흐름 E2E (lesson-check)', 'node', ['scripts/lesson-check.mjs'], { TEST_URL: BASE_URL });
-  runStep('1~4차 고도화 기능 E2E (e2e-features)', 'node', ['scripts/e2e-features.mjs'], { BASE_URL });
+  runStep('4단계 단순화 및 핵심 기능 E2E (e2e-features)', 'node', ['scripts/e2e-features.mjs'], { BASE_URL });
+  runStep('모바일·태블릿 5종 뷰포트 호환성 E2E (mobile-check)', 'node', ['scripts/mobile-check.mjs'], { TEST_URL: BASE_URL.replace(/\/$/, '') });
   if (WITH_AI) {
     runStep('수업 로컬 AI E2E (lesson-ai-check)', 'node', ['scripts/lesson-ai-check.mjs'], { TEST_URL: BASE_URL });
     runStep('M0 브라우저 기술 검증 E2E (browser-check)', 'node', ['scripts/browser-check.mjs'], { TEST_URL: BASE_URL });

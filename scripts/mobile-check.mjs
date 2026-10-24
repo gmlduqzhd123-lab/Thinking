@@ -1,7 +1,7 @@
 /**
- * 모바일 환경 호환성 테스트 (1~4차 고도화 기능 포함).
- * 여러 뷰포트에서 레이아웃, 터치 타겟(≥44px), 가로 스크롤 부재,
- * 원형 모형·비교 기준선, 양방향 분모 조절, 발문 가이드, 요약 분석표를 검증합니다.
+ * 모바일 환경 호환성 테스트 (4단계 핵심 흐름 기준).
+ * 5개 주요 모바일·태블릿 뷰포트에서 레이아웃, 터치 타겟(≥44px), 가로 스크롤 부재,
+ * 분수 모형(막대·원형·오버레이·수직선·주스컵), 등분 슬라이더, 성장 카드를 검증합니다.
  */
 import { chromium } from 'playwright';
 import { spawn, execFileSync } from 'node:child_process';
@@ -96,14 +96,11 @@ try {
     console.log('  M0 페이지 테스트...');
     await page.goto(`${TEST_URL}/`);
     await page.waitForLoadState('domcontentloaded');
-
     await page.screenshot({ path: `${SCREENSHOTS_DIR}/${vp.name}-m0.png`, fullPage: true });
 
-    // 1. 가로 스크롤 없음 확인
     const m0HScroll = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
     console.log(`  가로 스크롤: ${m0HScroll ? '❌ 있음' : '✅ 없음'}`);
 
-    // 2. 버튼 터치 타겟 크기 (최소 44px)
     const m0Buttons = await page.$$eval('button', buttons =>
       buttons.map(b => {
         const rect = b.getBoundingClientRect();
@@ -112,62 +109,26 @@ try {
     );
     const m0SmallButtons = m0Buttons.filter(b => b.h < 44 || b.w < 44);
     console.log(`  버튼 수: ${m0Buttons.length}, 터치 타겟 미달(44px): ${m0SmallButtons.length}`);
-    if (m0SmallButtons.length > 0) {
-      m0SmallButtons.forEach(b => console.log(`    ⚠️ "${b.text}" → ${b.w.toFixed(0)}×${b.h.toFixed(0)}px`));
-    }
 
-    // 3. 텍스트 잘림 확인
-    const m0Overflow = await page.evaluate(() => {
-      const issues = [];
-      document.querySelectorAll('*').forEach(el => {
-        const style = getComputedStyle(el);
-        if (style.overflow === 'hidden' && el.scrollWidth > el.clientWidth + 2) {
-          issues.push({ tag: el.tagName, text: el.textContent?.slice(0, 30) });
-        }
-      });
-      return issues;
-    });
-    console.log(`  텍스트 잘림: ${m0Overflow.length === 0 ? '✅ 없음' : `❌ ${m0Overflow.length}건`}`);
-
-    // 4. 주요 요소 표시 확인 (4차 임계값 슬라이더 포함)
-    const m0Visible = await page.evaluate(() => {
-      const checks = ['#app', 'header', 'textarea', 'button', '#threshold-sim', '#batch-eval', 'footer'];
-      return checks.map(sel => ({
-        sel,
-        visible: document.querySelector(sel) !== null && document.querySelector(sel).offsetParent !== null,
-      }));
-    });
-    m0Visible.forEach(v => console.log(`  ${v.sel}: ${v.visible ? '✅' : '❌'}`));
-
-    // 5. 폰트 크기 가독성 (최소 12px)
     const m0FontSizes = await page.$$eval('p, span, label, li, h1, h2', els =>
       els.map(el => parseFloat(getComputedStyle(el).fontSize)).filter(s => s > 0)
     );
     const m0MinFont = Math.min(...m0FontSizes);
     console.log(`  최소 폰트: ${m0MinFont.toFixed(1)}px ${m0MinFont >= 12 ? '✅' : '⚠️ 작음'}`);
 
-    // ── M1 수업 페이지 (lesson.html) ────────────────────────────
-    console.log('  M1 수업 페이지 테스트...');
+    // ── 4단계 수업 페이지 (lesson.html) ─────────────────────────
+    console.log('  4단계 수업 페이지 테스트...');
     await page.goto(`${TEST_URL}/lesson.html`);
     await page.waitForLoadState('domcontentloaded');
     await page.screenshot({ path: `${SCREENSHOTS_DIR}/${vp.name}-lesson-concept.png`, fullPage: true });
 
     let lessonHScroll = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
 
-    // 스텝 인디케이터 표시 확인
-    const stepDots = await page.$$('.step-dot');
-    console.log(`  스텝 인디케이터: ${stepDots.length}개 ${stepDots.length === 10 ? '✅' : '⚠️'}`);
+    // 4단계 스텝 알약 탭 확인
+    const stepPills = await page.$$('.step-pill');
+    console.log(`  스텝 인디케이터: ${stepPills.length}개 ${stepPills.length === 4 ? '✅' : '⚠️'}`);
 
-    // 수업 진행 테스트 (concept → preview → first)
-    await page.click('button[data-action="next"]');
-    await page.screenshot({ path: `${SCREENSHOTS_DIR}/${vp.name}-lesson-preview.png`, fullPage: true });
-    lessonHScroll ||= await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
-
-    await page.fill('#participants', '20');
-    await page.click('button[data-action="next"]');
-
-    // 4차 기능: 비교 기준선 켜기 + 원형 모형 전환 확인 후 복귀
-    await page.click('button[data-action="toggle-guide"]');
+    // 1단계: 피자 모형 전환 및 1클릭 보기 선택 + 말풍선 이유 선택
     await page.click('button[data-action="toggle-model"]');
     const circleFits = await page.evaluate(() => {
       const svgs = document.querySelectorAll('figure.fraction svg');
@@ -175,9 +136,7 @@ try {
     });
     lessonHScroll ||= await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
     await page.click('button[data-action="toggle-model"]');
-    await page.screenshot({ path: `${SCREENSHOTS_DIR}/${vp.name}-lesson-first.png`, fullPage: true });
 
-    // 분수 막대 표시 및 뷰포트 내 위치 확인
     const fractionSvgs = await page.$$('figure.fraction svg');
     const barFits = await page.evaluate(() => {
       const svgs = document.querySelectorAll('figure.fraction svg');
@@ -186,7 +145,7 @@ try {
     const svgFits = circleFits && barFits;
     console.log(`  SVG 뷰포트 내 (막대·원형): ${svgFits ? '✅' : '❌ 넘침'}`);
 
-    // 터치 타겟 (수업 페이지 first 단계)
+    // 터치 타겟 (1단계 버튼)
     const lessonButtons = await page.$$eval('button', buttons =>
       buttons.map(b => {
         const rect = b.getBoundingClientRect();
@@ -195,30 +154,29 @@ try {
     );
     const lessonSmallButtons = lessonButtons.filter(b => b.h < 44);
     console.log(`  수업 버튼: ${lessonButtons.length}개, 높이 44px 미달: ${lessonSmallButtons.length}`);
-    if (lessonSmallButtons.length > 0) {
-      lessonSmallButtons.forEach(b => console.log(`    ⚠️ "${b.text}" → ${b.w.toFixed(0)}×${b.h.toFixed(0)}px`));
-    }
 
-    // 4차 기능: 가상 샘플 집계 채우기 → 이유 카드(발문 가이드) → 탐구 3(양방향 조절) → 요약(이동 분석표)까지 진행하며 가로 스크롤 검사
-    await page.click('button[data-action="fill-sample"]');
-    await page.click('button[data-action="record"]');
+    await page.click('button[data-pick-poll="first"][data-pick-choice="B"]');
     await page.click('button[data-reason="0"]');
-    lessonHScroll ||= await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+    await page.screenshot({ path: `${SCREENSHOTS_DIR}/${vp.name}-lesson-first.png`, fullPage: true });
 
+    // 2단계: 직접 실험하기 (조각 포개기 + 등분 슬라이더)
     await page.click('button[data-action="next"]');
-    await page.click('button[data-action="inquiry-next"]');
-    await page.click('button[data-action="inquiry-next"]');
+    await page.click('button[data-action="toggle-overlap"]');
+    await page.locator('#explore-slider').fill('8');
+    await page.locator('#explore-slider').dispatchEvent('input');
     lessonHScroll ||= await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
     await page.screenshot({ path: `${SCREENSHOTS_DIR}/${vp.name}-lesson-inquiry3.png`, fullPage: true });
 
-    await page.click('button[data-action="inquiry-next"]');
-    await page.click('button[data-action="summary-reveal"]');
+    // 3단계: 다시 점검하기 (재선택 + 응용 문제)
     await page.click('button[data-action="next"]');
-    await page.click('button[data-action="fill-sample"]');
-    await page.click('button[data-action="record"]');
-    await page.click('button[data-action="fill-sample"]');
-    await page.click('button[data-action="record"]');
-    await page.click('button[data-action="memory-generate"]');
+    await page.click('button[data-pick-poll="again"][data-pick-choice="A"]');
+    await page.click('button[data-pick-poll="transfer"][data-pick-choice="A"]');
+    lessonHScroll ||= await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+    await page.screenshot({ path: `${SCREENSHOTS_DIR}/${vp.name}-lesson-preview.png`, fullPage: true });
+
+    // 4단계: 오늘의 발견 (내 생각의 성장 카드 + 빈칸 완성)
+    await page.click('button[data-action="next"]');
+    await page.click('button[data-action="toggle-notebook-blank"]');
     lessonHScroll ||= await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
     await page.screenshot({ path: `${SCREENSHOTS_DIR}/${vp.name}-lesson-memory.png`, fullPage: true });
 
@@ -232,7 +190,7 @@ try {
       m0SmallButtons: m0SmallButtons.length,
       lessonSmallButtons: lessonSmallButtons.length,
       m0MinFont,
-      stepDots: stepDots.length,
+      stepPills: stepPills.length,
       fractionSvgs: fractionSvgs.length,
       svgFits,
       jsErrors: errors.length,
@@ -253,12 +211,12 @@ for (const r of results) {
   console.log(
     `${r.viewport.padEnd(16)}| ${r.m0HScroll ? '❌' : '✅'}      | ${r.lessonHScroll ? '❌' : '✅'}        ` +
     `| ${String(r.m0SmallButtons).padEnd(8)}| ${String(r.lessonSmallButtons).padEnd(10)}` +
-    `| ${r.m0MinFont.toFixed(0).padEnd(8)}| ${String(r.stepDots).padEnd(5)}| ${r.svgFits ? '✅' : '❌'}   | ${r.jsErrors}`
+    `| ${r.m0MinFont.toFixed(0).padEnd(8)}| ${String(r.stepPills).padEnd(5)}| ${r.svgFits ? '✅' : '❌'}   | ${r.jsErrors}`
   );
 }
 
 const hasIssues = results.some(r =>
-  r.m0HScroll || r.lessonHScroll || r.m0SmallButtons > 0 || r.lessonSmallButtons > 0 || r.jsErrors > 0 || !r.svgFits
+  r.m0HScroll || r.lessonHScroll || r.m0SmallButtons > 0 || r.lessonSmallButtons > 0 || r.jsErrors > 0 || !r.svgFits || r.stepPills !== 4
 );
 
 console.log(`\n${hasIssues ? '⚠️ 일부 문제가 발견되었습니다.' : '✅ 모든 뷰포트에서 정상입니다.'}`);

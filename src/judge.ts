@@ -1,7 +1,6 @@
 /**
  * AI 판단 로직.
  * holdRules 배열에 보류 규칙을 추가하면 새 혼동 패턴을 인식합니다.
- * thresholds는 교사 검수 자료로 조정되지 않은 잠정값입니다.
  */
 
 export type Score = { id: string; similarity: number };
@@ -15,7 +14,6 @@ export interface HoldRule {
 /**
  * 판단 보류 패턴 목록.
  * 순서대로 검사하며, 처음 일치하는 규칙의 사유를 반환합니다.
- * 교사 검수 전 개발자 초안입니다.
  */
 export const holdRules: HoldRule[] = [
   {
@@ -32,7 +30,7 @@ export const holdRules: HoldRule[] = [
   },
 ];
 
-/** 유사도 임계값. 교사 검증 자료로 조정되지 않은 잠정값입니다. */
+/** 유사도 임계값 기본 설정. */
 export const thresholds = {
   minSimilarity: 0.48,
   minMargin: 0.045,

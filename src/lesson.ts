@@ -258,20 +258,18 @@ function renderInstantFeedback(poll: Poll, dA: number, dB: number): string {
   if (selected === 'C') {
     return `<p class="answer feedback-hint" role="status">💡 <strong>다시 살펴볼까요?</strong> 나눈 조각 수가 ${dA}등분과 ${dB}등분으로 서로 다르기 때문에 한 조각의 크기도 달라요. 덜 나눈 <strong>1/${dA}</strong>이 더 큽니다.</p>`;
   }
-  return `<p class="answer feedback-hint" role="status">🌱 <strong>괜찮아요!</strong> 위 그림에서 색칠된 첫 번째 조각의 길이를 비교해 보세요. 덜 나눈 <strong>1/${dA}</strong> 조각이 더 길어요.</p>`;
+  return `<p class="answer feedback-hint" role="status">🌱 <strong>괜찮아요!</strong> 같은 전체를 덜 나눈 조각일수록 한 조각의 크기가 더 커요. 따라서 <strong>1/${dA}</strong> 조각이 <strong>1/${dB}</strong> 조각보다 더 큽니다.</p>`;
 }
 
 /** 교사용 선택형 학급 인원 집계 (기본은 접혀 있어서 화면을 복잡하게 만들지 않음). */
 function renderOptionalClassPoll(poll: Poll, dA: number, dB: number): string {
   const counts = pollData[poll] ?? emptyCounts();
-  const n = parseParticipants(participantsRaw);
-  const checked = n ? validateCounts(counts, n) : null;
   const labels = [`A (1/${dA})`, `B (1/${dB})`, 'C (같다)', 'D (모름)'];
 
-  return `<details class="class-poll-details" ${classPollOpen ? 'open' : ''}>
+  return `<details class="class-poll-details" data-poll-details="${poll}" ${classPollOpen ? 'open' : ''}>
     <summary>👩‍🏫 교실 수업용 인원수 기록하기 (필요할 때만 열기)</summary>
     <div class="class-poll-body">
-      <label>참여 인원(1~${MAX_PARTICIPANTS}명) <input id="participants" type="text" inputmode="numeric" value="${participantsRaw}" autocomplete="off"></label>
+      <label>참여 인원(1~${MAX_PARTICIPANTS}명) <input id="participants" data-participants-input="${poll}" type="text" inputmode="numeric" value="${participantsRaw}" autocomplete="off"></label>
       <div class="class-poll-inputs">
         ${CHOICES.map((ch, i) =>
           `<label>${labels[i]} <input data-count="${ch}" data-count-poll="${poll}" type="text" inputmode="numeric" value="${counts[ch]}" aria-label="${ch} 선택 인원" autocomplete="off"></label>`
@@ -281,7 +279,7 @@ function renderOptionalClassPoll(poll: Poll, dA: number, dB: number): string {
         <button type="button" data-action="fill-zeros" data-target-poll="${poll}" class="secondary-btn">빈 칸 0으로 채우기</button>
         <button type="button" data-action="fill-sample" data-target-poll="${poll}" class="secondary-btn">예시 인원 채우기</button>
       </div>
-      <p class="class-poll-status" role="status">${checked ? `집계 완료: 정답(A) ${checked.counts.A}/${n}명 · 미응답 ${checked.noResponse}명` : '학급 인원 집계를 기록하려면 숫자를 입력하세요.'}</p>
+      <p class="class-poll-status" data-status-poll="${poll}" role="status">${formatClassPollStatus(poll)}</p>
     </div>
   </details>`;
 }
@@ -333,6 +331,60 @@ function renderThinkPhase(): string {
     </div>`;
 }
 
+function renderExploreDynamicComparison(firstA: number): { barsHtml: string; badgeHtml: string; discoveryHtml: string } {
+  const cmpSymbol = firstA < exploreDenominator ? '>' : firstA > exploreDenominator ? '<' : '=';
+  const cmpDesc = firstA < exploreDenominator
+    ? `${firstA}등분 한 조각이 ${exploreDenominator}등분 한 조각보다 더 큽니다`
+    : firstA > exploreDenominator
+      ? `${exploreDenominator}등분 한 조각이 ${firstA}등분 한 조각보다 더 큽니다`
+      : '두 조각의 크기가 같습니다';
+
+  return {
+    barsHtml: `${bar(firstA)}${bar(exploreDenominator)}`,
+    badgeHtml: `크기 비교: <strong>1/${firstA} ${cmpSymbol} 1/${exploreDenominator}</strong> (${cmpDesc})`,
+    discoveryHtml: exploreMoved
+      ? `<p class="answer">💡 <strong>발견 2</strong>: 같은 크기의 전체를 더 많은 조각으로 나눌수록(분모가 커질수록) 한 조각의 크기는 점점 작아집니다!</p>`
+      : '',
+  };
+}
+
+function updateExploreSliderDOM() {
+  const [firstA] = currentUnit().denominators.first;
+  const { barsHtml, badgeHtml, discoveryHtml } = renderExploreDynamicComparison(firstA);
+
+  const barsEl = app.querySelector<HTMLElement>('#explore-exp2-bars');
+  if (barsEl) barsEl.innerHTML = barsHtml;
+
+  const outputEl = app.querySelector<HTMLElement>('#explore-denom-output');
+  if (outputEl) outputEl.textContent = `${exploreDenominator}등분 (1/${exploreDenominator})`;
+
+  const sliderEl = app.querySelector<HTMLInputElement>('#explore-slider');
+  if (sliderEl && sliderEl.value !== String(exploreDenominator)) {
+    sliderEl.value = String(exploreDenominator);
+  }
+
+  const lessBtn = app.querySelector<HTMLButtonElement>('button[data-action="less"]');
+  if (lessBtn) lessBtn.disabled = exploreDenominator <= DENOMINATOR_MIN;
+
+  const moreBtn = app.querySelector<HTMLButtonElement>('button[data-action="more"]');
+  if (moreBtn) moreBtn.disabled = exploreDenominator >= DENOMINATOR_MAX;
+
+  const badgeEl = app.querySelector<HTMLElement>('#explore-cmp-badge');
+  if (badgeEl) badgeEl.innerHTML = badgeHtml;
+
+  const discEl = app.querySelector<HTMLElement>('#explore-discovery-2');
+  if (discEl) discEl.innerHTML = discoveryHtml;
+}
+
+function formatClassPollStatus(poll: Poll): string {
+  const counts = pollData[poll] ?? emptyCounts();
+  const n = parseParticipants(participantsRaw);
+  const checked = n ? validateCounts(counts, n) : null;
+  return checked
+    ? `집계 완료: 정답(A) ${checked.counts.A}/${n}명 · 미응답 ${checked.noResponse}명`
+    : '학급 인원 집계를 기록하려면 숫자를 입력하세요.';
+}
+
 /** 2단계: 내가 고른 생각 확인 + 딱 2가지 직관적 실험(포개어 보기 & 등분 슬라이더) (#2, #6, #7, #8). */
 function renderExplorePhase(): string {
   const [firstA, firstB] = currentUnit().denominators.first;
@@ -341,12 +393,7 @@ function renderExplorePhase(): string {
 
   const wA = 600 / firstA;
   const wB = 600 / firstB;
-  const cmpSymbol = firstA < exploreDenominator ? '>' : firstA > exploreDenominator ? '<' : '=';
-  const cmpDesc = firstA < exploreDenominator
-    ? `${firstA}등분 한 조각이 ${exploreDenominator}등분 한 조각보다 더 큽니다`
-    : firstA > exploreDenominator
-      ? `${exploreDenominator}등분 한 조각이 ${firstA}등분 한 조각보다 더 큽니다`
-      : '두 조각의 크기가 같습니다';
+  const { barsHtml, badgeHtml, discoveryHtml } = renderExploreDynamicComparison(firstA);
 
   return `
     <div class="step-card">
@@ -383,7 +430,7 @@ function renderExplorePhase(): string {
         <h3>실험 2 · 나누는 조각 수(분모)를 2~12 사이에서 직접 바꿔 보기</h3>
         <p>아래 슬라이더나 <strong>− / ＋</strong> 버튼을 움직여 전체를 더 많이 나눌 때 한 조각이 어떻게 변하는지 관찰해 보세요.</p>
 
-        <div class="bar-pair">${bar(firstA)}${bar(exploreDenominator)}</div>
+        <div id="explore-exp2-bars" class="bar-pair">${barsHtml}</div>
 
         <div class="slider-experiment-controls">
           <button type="button" data-action="less" ${exploreDenominator <= DENOMINATOR_MIN ? 'disabled' : ''} aria-label="등분 수 줄이기">−</button>
@@ -392,8 +439,8 @@ function renderExplorePhase(): string {
           <button type="button" data-action="more" ${exploreDenominator >= DENOMINATOR_MAX ? 'disabled' : ''} aria-label="등분 수 늘리기">＋</button>
         </div>
 
-        <p class="comparison-badge" aria-live="polite">크기 비교: <strong>1/${firstA} ${cmpSymbol} 1/${exploreDenominator}</strong> (${cmpDesc})</p>
-        ${exploreMoved ? `<p class="answer">💡 <strong>발견 2</strong>: 같은 크기의 전체를 더 많은 조각으로 나눌수록(분모가 커질수록) 한 조각의 크기는 점점 작아집니다!</p>` : ''}
+        <p id="explore-cmp-badge" class="comparison-badge" aria-live="polite">${badgeHtml}</p>
+        <div id="explore-discovery-2" aria-live="polite">${discoveryHtml}</div>
       </section>
 
       <div class="actions next-step-bar">
@@ -540,6 +587,9 @@ function renderProgressNav(): string {
 }
 
 function render(focus = false) {
+  if (phase !== 'check' && (visualModel === 'numberline' || visualModel === 'cup')) {
+    visualModel = 'bar';
+  }
   const currentLabel = phaseLabels[phase];
   app.innerHTML = [
     renderPageHeader(),
@@ -557,7 +607,26 @@ function render(focus = false) {
   }
 }
 
+function updateClassPollStatusesDOM() {
+  app.querySelectorAll<HTMLElement>('.class-poll-status[data-status-poll]').forEach(el => {
+    const p = el.dataset.statusPoll as Poll;
+    el.textContent = formatClassPollStatus(p);
+  });
+  app.querySelectorAll<HTMLInputElement>('input[data-participants-input]').forEach(el => {
+    if (el !== document.activeElement && el.value !== participantsRaw) {
+      el.value = participantsRaw;
+    }
+  });
+}
+
 // ─── 이벤트 핸들러 ───────────────────────────────────────────────
+
+app.addEventListener('toggle', event => {
+  const details = event.target as HTMLElement;
+  if (details instanceof HTMLDetailsElement && details.classList.contains('class-poll-details')) {
+    classPollOpen = details.open;
+  }
+}, true);
 
 app.addEventListener('input', event => {
   const target = event.target as HTMLInputElement;
@@ -565,14 +634,14 @@ app.addEventListener('input', event => {
   if (target.id === 'explore-slider') {
     exploreDenominator = Number(target.value);
     exploreMoved = true;
-    render();
+    updateExploreSliderDOM();
     return;
   }
 
-  if (target.id === 'participants') {
+  if (target.id === 'participants' || target.dataset.participantsInput) {
     participantsRaw = target.value;
     classPollOpen = true;
-    render();
+    updateClassPollStatusesDOM();
     return;
   }
 
@@ -582,7 +651,7 @@ app.addEventListener('input', event => {
     pollData[p] ??= emptyCounts();
     pollData[p]![ch] = target.value;
     classPollOpen = true;
-    render();
+    updateClassPollStatusesDOM();
   }
 });
 
@@ -681,7 +750,7 @@ app.addEventListener('click', event => {
       Math.min(DENOMINATOR_MAX, exploreDenominator + (action === 'more' ? 1 : -1)),
     );
     exploreMoved = true;
-    render();
+    updateExploreSliderDOM();
   } else if (action === 'toggle-notebook-blank') {
     notebookBlankRevealed = !notebookBlankRevealed;
     render();
@@ -721,6 +790,7 @@ app.addEventListener('click', event => {
     window.print();
   } else if (action === 'restart') {
     resetSession();
+    window.scrollTo?.({ top: 0 });
   }
 });
 
