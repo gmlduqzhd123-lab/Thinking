@@ -19,6 +19,8 @@ type Phase = 'think' | 'explore' | 'check' | 'result';
 type VisualModel = 'bar' | 'circle' | 'numberline' | 'cup';
 type DuelPick = 'left' | 'right';
 type RuleChoice = 'bigger' | 'smaller' | 'same' | '';
+type LetterChoice = 'correct' | 'wrong' | '';
+type DuelRound = { id: number; leftDenom: number; rightDenom: number; answer: DuelPick };
 
 // ─── 상수 ────────────────────────────────────────────────────────
 const order: Phase[] = ['think', 'explore', 'check', 'result'];
@@ -29,18 +31,21 @@ const phaseLabels: Record<Phase, string> = {
   result: '4. 오늘의 발견',
 };
 
-const storyDilemmas: Record<string, { badge: string; lead: string }> = {
+const storyDilemmas: Record<string, { badge: string; lead: string; friend: string }> = {
   M01: {
     badge: '🍫 민수의 초코바 고민',
     lead: '초코바를 아주 좋아하는 민수는 <strong>"3보다 5가 더 큰 숫자니까 나는 1/5 조각을 먹을래!"</strong>라고 골랐어요. 과연 민수는 1/3 조각보다 더 큰 초코바를 먹게 될까요?',
+    friend: '민수',
   },
   M02: {
     badge: '🍕 서연이의 피자 고민',
     lead: '피자 파티에서 서연이는 <strong>"4보다 7이 더 큰 숫자니까 1/7 피자 조각이 더 크겠지?"</strong>라고 생각했어요. 과연 1/4 조각과 1/7 조각 중 어느 쪽이 더 클까요?',
+    friend: '서연이',
   },
   M03: {
     badge: '🎀 준호의 색테이프 고민',
     lead: '만들기 시간에 준호는 <strong>"숫자 6이 2보다 훨씬 크니까 1/6 색테이프가 더 길 거야!"</strong>라고 말했어요. 과연 1/2 조각과 1/6 조각 중 어느 쪽이 더 길까요?',
+    friend: '준호',
   },
 };
 
@@ -51,13 +56,14 @@ const teacherTalkPrompts: Record<Phase, string> = {
   result: '🙋 선생님 질문 톡: "오늘 발견한 단위분수의 비밀을 한 문장으로 다 함께 읽어 보고, 다른 간식 이야기에도 도전해 봐요!"',
 };
 
-const duelRounds = [
-  { id: 0, leftDenom: 7, rightDenom: 2, answer: 'right' as DuelPick },
-  { id: 1, leftDenom: 3, rightDenom: 9, answer: 'left' as DuelPick },
-  { id: 2, leftDenom: 11, rightDenom: 4, answer: 'right' as DuelPick },
-] as const;
+const DEFAULT_DUEL_ROUNDS: DuelRound[] = [
+  { id: 0, leftDenom: 7, rightDenom: 2, answer: 'right' },
+  { id: 1, leftDenom: 3, rightDenom: 9, answer: 'left' },
+  { id: 2, leftDenom: 11, rightDenom: 4, answer: 'right' },
+];
 
 const QUICK_DENOMS = [2, 3, 5, 8, 12] as const;
+const TRAIN_POOL = [6, 2, 9] as const;
 
 const reasonCards = [
   '분모가 클수록 조각이 크다고 생각함',
@@ -80,17 +86,26 @@ let aiPanel: { sync(active: boolean): void; dispose(): void } | undefined;
 let selectedUnitId = 'M01';
 let visualModel: VisualModel = 'bar';
 let phase: Phase = 'think';
+let soundEnabled = true;
+let ttsSpoken = false;
 let spoilerPreview = false;
 let myChoices: Record<Poll, Choice | null> = { first: null, again: null, transfer: null };
 let reasonSelected = '';
 let aiLinkedCardTitle = '';
 let showOverlap = false;
 let showTrapExperiment = false;
+let showRealLife = false;
+let exploreBaseDenominator = 3;
 let exploreDenominator = 5;
 let exploreMoved = false;
+let filledPieces = 1;
+let duelRounds: DuelRound[] = DEFAULT_DUEL_ROUNDS.map(r => ({ ...r }));
 let duelPicks: Record<number, DuelPick | null> = { 0: null, 1: null, 2: null };
+let duelStreak = 0;
+let trainOrder: number[] = [];
 let ruleChoice: RuleChoice = '';
 let notebookBlankRevealed = false;
+let friendLetterChoice: LetterChoice = '';
 let clearedUnits = new Set<string>();
 let classPollOpen = false;
 let pollBlind = false;
@@ -111,23 +126,53 @@ function isLargeScale(): boolean {
   return document.documentElement.getAttribute('data-scale') === 'large';
 }
 
+function playSound(kind: 'click' | 'correct' | 'fanfare') {
+  if (!soundEnabled) return;
+  try {
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    const now = ctx.currentTime;
+    osc.frequency.setValueAtTime(kind === 'fanfare' ? 659.25 : kind === 'correct' ? 523.25 : 440, now);
+    gain.gain.setValueAtTime(0.04, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+    osc.start(now);
+    osc.stop(now + 0.11);
+    osc.onended = () => { void ctx.close().catch(() => {}); };
+  } catch {
+    // 오디오 컨텍스트 미지원 환경 무시
+  }
+}
+
 function resetSession(keepUnit = false, keepStamps = false) {
   aiPanel?.dispose();
   if (!keepUnit) selectedUnitId = 'M01';
   if (!keepStamps) clearedUnits.clear();
   visualModel = 'bar';
   phase = 'think';
+  ttsSpoken = false;
   spoilerPreview = false;
   myChoices = { first: null, again: null, transfer: null };
   reasonSelected = '';
   aiLinkedCardTitle = '';
   showOverlap = false;
   showTrapExperiment = false;
+  showRealLife = false;
+  exploreBaseDenominator = currentUnit().denominators.first[0];
   exploreDenominator = currentUnit().denominators.first[1];
   exploreMoved = false;
+  filledPieces = 1;
+  duelRounds = DEFAULT_DUEL_ROUNDS.map(r => ({ ...r }));
   duelPicks = { 0: null, 1: null, 2: null };
+  duelStreak = 0;
+  trainOrder = [];
   ruleChoice = '';
   notebookBlankRevealed = false;
+  friendLetterChoice = '';
   classPollOpen = false;
   pollBlind = false;
   participantsRaw = '20';
@@ -398,7 +443,37 @@ function formatClassPollStatus(poll: Poll): string {
   return '학급 인원 집계를 기록하려면 숫자를 입력하거나 ＋1 버튼을 누르세요.';
 }
 
-/** #7 교사용 선택형 학급 인원 집계 (+1/-1 스마트보드 터치 카운터 & 결과 가리기 포함). */
+function renderLivePollChart(poll: Poll, dA: number, dB: number): string {
+  if (pollBlind) {
+    return `<div class="live-poll-chart" data-chart-poll="${poll}"><p class="chart-blind-msg">🙈 결과 공개 시 보기별 막대그래프가 표시됩니다.</p></div>`;
+  }
+  const counts = pollData[poll] ?? emptyCounts();
+  const [leftD, rightD] = isTransferReversed(poll) ? [dB, dA] : [dA, dB];
+  const labels: Record<Choice, string> = {
+    A: `A (1/${leftD})`,
+    B: `B (1/${rightD})`,
+    C: 'C (같다)',
+    D: 'D (모름)',
+  };
+  const vals = CHOICES.map(ch => Math.max(0, parseInt(counts[ch], 10) || 0));
+  const sum = vals.reduce((a, b) => a + b, 0);
+  const denom = Math.max(1, parseParticipants(participantsRaw) ?? 20, sum);
+  const correctCh = correctChoiceForPoll(poll);
+
+  return `<div class="live-poll-chart" data-chart-poll="${poll}" role="region" aria-label="학급 투표 실시간 막대그래프">
+    ${CHOICES.map((ch, idx) => {
+      const v = vals[idx];
+      const pct = Math.min(100, Math.round((v / denom) * 100));
+      return `<div class="poll-bar-row">
+        <span class="poll-bar-label">${labels[ch]}</span>
+        <div class="poll-bar-track"><div class="poll-bar-fill ${ch === correctCh ? 'poll-bar-correct' : ''}" style="width: ${pct}%"></div></div>
+        <span class="poll-bar-val">${v}명 (${pct}%)</span>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+/** #7 교사용 선택형 학급 인원 집계 (+1/-1 스마트보드 터치 카운터 & 결과 가리기 & 실시간 막대그래프 포함). */
 function renderOptionalClassPoll(poll: Poll, dA: number, dB: number): string {
   const counts = pollData[poll] ?? emptyCounts();
   const [leftD, rightD] = isTransferReversed(poll) ? [dB, dA] : [dA, dB];
@@ -427,6 +502,7 @@ function renderOptionalClassPoll(poll: Poll, dA: number, dB: number): string {
         <button type="button" data-action="fill-zeros" data-target-poll="${poll}" class="secondary-btn">빈 칸 0으로 채우기</button>
         <button type="button" data-action="fill-sample" data-target-poll="${poll}" class="secondary-btn">예시 인원 채우기</button>
       </div>
+      ${renderLivePollChart(poll, dA, dB)}
       <p class="class-poll-status" data-status-poll="${poll}" role="status">${formatClassPollStatus(poll)}</p>
     </div>
   </details>`;
@@ -434,7 +510,7 @@ function renderOptionalClassPoll(poll: Poll, dA: number, dB: number): string {
 
 // ─── 4단계 화면별 본문 ───────────────────────────────────────────
 
-/** 1단계: 스토리 딜레마(#1) + 정답 스포일러 없는 상상 모형(#2) + 1클릭 선택 & 말풍선(#3, #4). */
+/** 1단계: 스토리 딜레마(#1) + TTS 읽어주기 + 정답 스포일러 없는 상상 모형(#2) + 1클릭 선택 & 말풍선(#3, #4). */
 function renderThinkPhase(): string {
   const unit = currentUnit();
   const [firstA, firstB] = unit.denominators.first;
@@ -459,8 +535,12 @@ function renderThinkPhase(): string {
       <h2 tabindex="-1">① 처음 생각 고르기 · 1/${firstA}과 1/${firstB} 비교</h2>
 
       <div class="story-dilemma-card" role="region" aria-label="${story.badge}">
-        <span class="story-badge">${story.badge}</span>
+        <div class="story-card-header">
+          <span class="story-badge">${story.badge}</span>
+          <button type="button" data-action="speak-story" class="secondary-btn tts-btn">🔊 이야기 읽어주기</button>
+        </div>
         <p class="question-lead">${story.lead}</p>
+        ${ttsSpoken ? '<p id="tts-status" class="tts-status" role="status">🔊 이야기를 음성으로 읽어주었어요!</p>' : ''}
       </div>
 
       <p class="teacher-talk-banner">${teacherTalkPrompts.think}</p>
@@ -495,29 +575,69 @@ function renderThinkPhase(): string {
     </div>`;
 }
 
-function renderExploreDynamicComparison(firstA: number): { barsHtml: string; badgeHtml: string; discoveryHtml: string } {
-  const cmpSymbol = firstA < exploreDenominator ? '>' : firstA > exploreDenominator ? '<' : '=';
-  const cmpDesc = firstA < exploreDenominator
-    ? `${firstA}등분 한 조각이 ${exploreDenominator}등분 한 조각보다 더 큽니다`
-    : firstA > exploreDenominator
-      ? `${exploreDenominator}등분 한 조각이 ${firstA}등분 한 조각보다 더 큽니다`
+function renderExploreDynamicComparison(baseD: number): { barsHtml: string; badgeHtml: string; discoveryHtml: string } {
+  const cmpSymbol = baseD < exploreDenominator ? '>' : baseD > exploreDenominator ? '<' : '=';
+  const cmpDesc = baseD < exploreDenominator
+    ? `${baseD}등분 한 조각이 ${exploreDenominator}등분 한 조각보다 더 큽니다`
+    : baseD > exploreDenominator
+      ? `${exploreDenominator}등분 한 조각이 ${baseD}등분 한 조각보다 더 큽니다`
       : '두 조각의 크기가 같습니다';
 
   return {
-    barsHtml: `${bar(firstA)}${bar(exploreDenominator)}`,
-    badgeHtml: `크기 비교: <strong>1/${firstA} ${cmpSymbol} 1/${exploreDenominator}</strong> (${cmpDesc})`,
+    barsHtml: `${bar(baseD)}${bar(exploreDenominator)}`,
+    badgeHtml: `크기 비교: <strong>1/${baseD} ${cmpSymbol} 1/${exploreDenominator}</strong> (${cmpDesc})`,
     discoveryHtml: exploreMoved
       ? `<p class="answer">💡 <strong>발견 2</strong>: 같은 크기의 전체를 더 많은 조각으로 나눌수록(분모가 커질수록) 한 조각의 크기는 점점 작아집니다!</p>`
       : '',
   };
 }
 
+function renderFillWholeContent(): string {
+  const clampedFilled = Math.max(1, Math.min(exploreDenominator, filledPieces));
+  const { fill, bg, stroke } = snackColors();
+  const segW = 600 / exploreDenominator;
+  const filledW = segW * clampedFilled;
+  const dividers = Array.from({ length: exploreDenominator - 1 }, (_, i) => {
+    const x = ((i + 1) * segW).toFixed(2);
+    return `<line x1="${x}" y1="10" x2="${x}" y2="54" stroke="${stroke}" stroke-width="2"/>`;
+  }).join('');
+  const isComplete = clampedFilled === exploreDenominator;
+
+  return `<figure class="whole-fill-figure">
+      <svg viewBox="0 0 600 66" role="img" aria-label="1/${exploreDenominator} 조각을 ${clampedFilled}개 모아 ${clampedFilled}/${exploreDenominator}만큼 채운 막대">
+        <rect x="0" y="10" width="600" height="44" rx="6" fill="${bg}" stroke="${stroke}" stroke-width="3"/>
+        <rect x="0" y="10" width="${filledW.toFixed(2)}" height="44" rx="4" fill="${fill}"/>
+        ${dividers}
+      </svg>
+      <figcaption>1/${exploreDenominator} 조각 <strong>${clampedFilled}개</strong> 모음 = <strong>${clampedFilled}/${exploreDenominator}</strong> ${isComplete ? '(= 전체 1 완성!)' : ''}</figcaption>
+    </figure>
+    <div class="fill-whole-controls" role="group" aria-label="단위분수 조각 모아 전체 1 채우기 조작">
+      <button type="button" data-action="fill-piece-add" class="secondary-btn" ${isComplete ? 'disabled' : ''}>➕ 1/${exploreDenominator} 조각 더 채우기</button>
+      <button type="button" data-action="fill-piece-full" class="secondary-btn" ${isComplete ? 'disabled' : ''}>⚡ 끝까지 채우기 (${exploreDenominator}/${exploreDenominator} = 1)</button>
+      <button type="button" data-action="fill-piece-reset" class="secondary-btn" ${clampedFilled <= 1 ? 'disabled' : ''}>🔄 1조각으로 비우기</button>
+    </div>
+    <p id="fill-whole-status" class="answer" role="status">${
+      isComplete
+        ? `🎉 <strong>전체 1 완성!</strong> <strong>1/${exploreDenominator}</strong> 조각을 <strong>${exploreDenominator}개</strong> 모으니 전체 1(${exploreDenominator}/${exploreDenominator})이 꼭 맞게 채워졌어요! 한 조각이 작을수록 전체 1을 채우는 데 더 많은 조각이 필요합니다.`
+        : `🧩 현재 <strong>1/${exploreDenominator}</strong> 조각 <strong>${clampedFilled}개(${clampedFilled}/${exploreDenominator})</strong>를 채웠어요. 전체 1이 되려면 조각 <strong>${exploreDenominator - clampedFilled}개</strong>가 더 필요해요!`
+    }</p>`;
+}
+
 function updateExploreSliderDOM() {
-  const [firstA] = currentUnit().denominators.first;
-  const { barsHtml, badgeHtml, discoveryHtml } = renderExploreDynamicComparison(firstA);
+  filledPieces = Math.max(1, Math.min(exploreDenominator, filledPieces));
+  const { barsHtml, badgeHtml, discoveryHtml } = renderExploreDynamicComparison(exploreBaseDenominator);
 
   const barsEl = app.querySelector<HTMLElement>('#explore-exp2-bars');
   if (barsEl) barsEl.innerHTML = barsHtml;
+
+  const baseOutputEl = app.querySelector<HTMLElement>('#explore-base-output');
+  if (baseOutputEl) baseOutputEl.textContent = `기준 분수: 1/${exploreBaseDenominator} (${exploreBaseDenominator}등분)`;
+
+  const baseLessBtn = app.querySelector<HTMLButtonElement>('button[data-action="base-less"]');
+  if (baseLessBtn) baseLessBtn.disabled = exploreBaseDenominator <= DENOMINATOR_MIN;
+
+  const baseMoreBtn = app.querySelector<HTMLButtonElement>('button[data-action="base-more"]');
+  if (baseMoreBtn) baseMoreBtn.disabled = exploreBaseDenominator >= DENOMINATOR_MAX;
 
   const outputEl = app.querySelector<HTMLElement>('#explore-denom-output');
   if (outputEl) outputEl.textContent = `${exploreDenominator}등분 (1/${exploreDenominator})`;
@@ -544,9 +664,12 @@ function updateExploreSliderDOM() {
 
   const discEl = app.querySelector<HTMLElement>('#explore-discovery-2');
   if (discEl) discEl.innerHTML = discoveryHtml;
+
+  const fillWholeEl = app.querySelector<HTMLElement>('#fill-whole-box');
+  if (fillWholeEl) fillWholeEl.innerHTML = renderFillWholeContent();
 }
 
-/** 2단계: 포개어 차이 보기(#5) + 빠른 인원 버튼 & 슬라이더(#5) + 전체 크기가 다를 때 깜짝 실험(#6). */
+/** 2단계: 포개어 차이 보기 + 양쪽 분모 자유 비교 + 조각 모아 전체 1 채우기 + 깜짝 함정 실험 + 실생활 단위분수 찾기. */
 function renderExplorePhase(): string {
   const [firstA, firstB] = currentUnit().denominators.first;
   const myFirstText = choiceLabel(myChoices.first, firstA, firstB, 'first');
@@ -555,7 +678,7 @@ function renderExplorePhase(): string {
   const wA = 600 / firstA;
   const wB = 600 / firstB;
   const diffW = Math.max(0, wA - wB);
-  const { barsHtml, badgeHtml, discoveryHtml } = renderExploreDynamicComparison(firstA);
+  const { barsHtml, badgeHtml, discoveryHtml } = renderExploreDynamicComparison(exploreBaseDenominator);
 
   const quickDenomBtns = QUICK_DENOMS.map(d => {
     const active = exploreDenominator === d;
@@ -597,11 +720,17 @@ function renderExplorePhase(): string {
       </section>
 
       <section class="experiment-box" aria-label="실험 2 나누는 조각 수 바꿔 보기">
-        <h3>실험 2 · 나누어 먹는 사람 수(분모)를 2명~12명 사이에서 바꿔 보기</h3>
-        <p>빠른 인원 버튼을 누르거나 슬라이더를 움직여 더 많이 나눌 때 한 조각이 어떻게 변하는지 관찰해 보세요.</p>
+        <h3>실험 2 · 양쪽 단위분수의 나누는 사람 수(분모)를 2명~12명 사이에서 자유롭게 비교하기</h3>
+        <p>위쪽 기준 분수와 아래쪽 실험 분수를 원하는 등분 수로 바꾸어 어떤 분수끼리든 직접 비교해 보세요.</p>
 
         <div class="visual-toolbar" role="group" aria-label="분수 모양 바꾸기">
           <button type="button" data-action="toggle-model" class="secondary-btn visual-btn" aria-pressed="${visualModel === 'circle'}">${visualModel === 'circle' ? '📏 막대 모양으로 보기' : '🍕 둥근 피자 모양으로 보기'}</button>
+        </div>
+
+        <div class="base-denom-controls" role="group" aria-label="위쪽 기준 분수 분모 조절">
+          <button type="button" data-action="base-less" class="secondary-btn" ${exploreBaseDenominator <= DENOMINATOR_MIN ? 'disabled' : ''} aria-label="기준 분모 줄이기">기준 −1</button>
+          <output id="explore-base-output" aria-live="polite">기준 분수: 1/${exploreBaseDenominator} (${exploreBaseDenominator}등분)</output>
+          <button type="button" data-action="base-more" class="secondary-btn" ${exploreBaseDenominator >= DENOMINATOR_MAX ? 'disabled' : ''} aria-label="기준 분모 늘리기">기준 ＋1</button>
         </div>
 
         <div class="quick-denom-bar" role="group" aria-label="나누는 사람 수 빠른 선택">
@@ -619,6 +748,12 @@ function renderExplorePhase(): string {
 
         <p id="explore-cmp-badge" class="comparison-badge" aria-live="polite">${badgeHtml}</p>
         <div id="explore-discovery-2" aria-live="polite">${discoveryHtml}</div>
+      </section>
+
+      <section class="experiment-box" aria-label="실험 3 단위분수 조각 모아 전체 1 채우기">
+        <h3>실험 3 · 단위분수 조각을 하나씩 모아 '전체 1' 완성하기</h3>
+        <p>단위분수 조각을 몇 개 모아야 원래 전체 1이 꼭 맞게 채워지는지 직접 채워 보세요!</p>
+        <div id="fill-whole-box">${renderFillWholeContent()}</div>
       </section>
 
       <section class="experiment-box trap-box" aria-label="깜짝 실험 원래 전체 크기가 다를 때">
@@ -641,6 +776,27 @@ function renderExplorePhase(): string {
         ` : ''}
       </section>
 
+      <section class="experiment-box reallife-box" aria-label="생활 속 숨은 단위분수 찾기">
+        <h3>🕒 생활 속 실험 · 시계판(60분)과 판초콜릿(12칸)에서 단위분수 찾기</h3>
+        <button type="button" data-action="toggle-reallife" class="secondary-btn" aria-pressed="${showRealLife}">
+          ${showRealLife ? '🕒 생활 속 단위분수 실험 닫기' : '🕒 생활 속 단위분수 열기: 1시간의 1/2(30분) vs 1/4(15분) & 12칸 초콜릿'}
+        </button>
+        ${showRealLife ? `
+          <div class="reallife-content" role="region" aria-label="시계판과 12칸 초콜릿 단위분수 비교">
+            <div class="reallife-grid">
+              <div class="reallife-item">
+                <strong>⏰ 1시간(60분) 시계판 비교</strong>
+                <p>1시간의 <strong>1/2은 30분</strong>, <strong>1/4은 15분</strong>이에요. 시계판에서도 <strong>1/2 &gt; 1/4</strong>임을 한눈에 알 수 있어요!</p>
+              </div>
+              <div class="reallife-item">
+                <strong>🍫 12칸 판초콜릿 비교</strong>
+                <p>12칸 전체를 똑같이 나누면 <strong>1/3은 4칸</strong>, <strong>1/4은 3칸</strong>이에요. 따라서 <strong>1/3 &gt; 1/4</strong>입니다!</p>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+      </section>
+
       <div class="actions next-step-bar">
         <button type="button" data-action="back" class="secondary-btn">← 이전 단계</button>
         <button type="button" data-action="next" class="primary-next-btn">③ 내 생각 다시 점검하기 →</button>
@@ -648,7 +804,7 @@ function renderExplorePhase(): string {
     </div>`;
 }
 
-/** 3단계: 처음 문제 재확인 + 함정 없는 응용 문제(B가 정답) + 3연속 분수 대결 미니게임(#4, #8). */
+/** 3단계: 처음 문제 재확인 + 함정 없는 응용 문제(B가 정답) + 무한 번개 미니게임 + 분수 기차 줄 세우기. */
 function renderCheckPhase(): string {
   const [firstA, firstB] = currentUnit().denominators.first;
   const [transferA, transferB] = currentUnit().denominators.transfer;
@@ -667,6 +823,14 @@ function renderCheckPhase(): string {
       <span class="duel-result-tag" role="status">${picked === null ? '👆 더 큰 쪽을 터치!' : isCorrect ? '🎉 정답!' : `💡 1/${Math.min(r.leftDenom, r.rightDenom)}이 더 커요!`}</span>
     </div>`;
   }).join('');
+
+  const trainComplete = trainOrder.length === TRAIN_POOL.length;
+  const trainCorrect = trainComplete && trainOrder[0] === 2 && trainOrder[1] === 6 && trainOrder[2] === 9;
+  const trainStatusHtml = !trainComplete
+    ? '👆 위 분수 버튼을 가장 큰 조각부터 차례대로 눌러 1호차 → 2호차 → 3호차에 태워 보세요!'
+    : trainCorrect
+      ? '🎉 <strong>칙칙폭폭 출발!</strong> 분모가 작은 수부터 <strong>1/2 &gt; 1/6 &gt; 1/9</strong> 순서로 완벽하게 줄을 세웠어요!'
+      : '💡 <strong>다시 줄을 세워 볼까요?</strong> 분모 숫자가 작을수록 한 조각이 더 크답니다. [🔄 기차 다시 줄 세우기]를 눌러 가장 큰 조각(1/2)부터 태워 보세요!';
 
   return `
     <div class="step-card">
@@ -692,11 +856,26 @@ function renderCheckPhase(): string {
       </section>
 
       <section class="check-subcard duel-game-box" aria-label="번개 미니게임 더 큰 단위분수 찾기">
-        <h3>3) ⚡ 번개 미니게임 · 어느 조각이 더 클까요? (더 큰 분수 카드를 콕 찍어 보세요!)</h3>
+        <div class="duel-header-row">
+          <h3>3) ⚡ 번개 미니게임 · 어느 조각이 더 클까요? (더 큰 분수 카드를 콕 찍어 보세요!)</h3>
+          <button type="button" data-action="duel-shuffle" class="secondary-btn">🎲 새로운 랜덤 대결 3문제 뽑기</button>
+        </div>
         <div class="duel-rounds-list">
           ${duelRowsHtml}
         </div>
-        <p class="duel-score-banner" role="status">🎯 미니게임 현재 점수: <strong>${duelScore} / ${duelRounds.length}</strong> 정답 ${duelScore === duelRounds.length ? '🏆 퍼펙트 클리어!' : ''}</p>
+        <p class="duel-score-banner" role="status">🎯 미니게임 현재 점수: <strong>${duelScore} / ${duelRounds.length}</strong> 정답 ${duelScore === duelRounds.length ? '🏆 퍼펙트 클리어!' : ''} · <span id="duel-streak-badge">🔥 연속 정답 콤보: ${duelStreak}연속</span></p>
+      </section>
+
+      <section class="check-subcard train-puzzle-box" aria-label="분수 기차 줄 세우기 퍼즐">
+        <h3>4) 🚂 분수 기차 줄 세우기 · 가장 큰 조각부터 순서대로 기차에 태워 보세요!</h3>
+        <div class="train-pick-row" role="group" aria-label="기차에 태울 단위분수 고르기">
+          ${TRAIN_POOL.map(d => `<button type="button" data-train-denom="${d}" class="secondary-btn train-pick-btn" ${trainOrder.includes(d) ? 'disabled' : ''}>🚂 1/${d} 조각 태우기</button>`).join('')}
+          <button type="button" data-action="train-reset" class="secondary-btn">🔄 기차 다시 줄 세우기</button>
+        </div>
+        <div class="train-cars" role="group" aria-label="분수 기차 칸">
+          ${[0, 1, 2].map(idx => `<div class="train-car">${idx + 1}호차: <strong>${trainOrder[idx] ? `1/${trainOrder[idx]}` : '빈칸'}</strong></div>`).join('<span class="train-link" aria-hidden="true">&gt;</span>')}
+        </div>
+        <p id="train-status" class="answer" role="status">${trainStatusHtml}</p>
       </section>
 
       <div class="actions next-step-bar">
@@ -706,12 +885,13 @@ function renderCheckPhase(): string {
     </div>`;
 }
 
-/** 4단계: 성장 카드 + 단어 카드 콕콕 규칙 퀴즈(#8) + 3개 주제 스탬프 투어(#9). */
+/** 4단계: 성장 카드 + 단어 카드 콕콕 규칙 퀴즈 + 친구에게 보내는 설명 편지 + 3개 주제 스탬프 투어 + 인증서 인쇄. */
 function renderResultPhase(): string {
   clearedUnits.add(selectedUnitId);
   const unit = currentUnit();
   const [fA, fB] = unit.denominators.first;
   const [tA, tB] = unit.denominators.transfer;
+  const story = storyDilemmas[selectedUnitId] ?? storyDilemmas.M01;
   const blankText = notebookBlankRevealed ? '작아집니다!' : ruleChoice === 'bigger' ? '커집니다(?)' : ruleChoice === 'same' ? '같습니다(?)' : '______';
 
   const againCorrect = myChoices.again === correctChoiceForPoll('again');
@@ -742,6 +922,12 @@ function renderResultPhase(): string {
     ? '<p class="answer feedback-correct" role="status">🎉 <strong>정답이에요!</strong> 같은 전체를 똑같이 더 많이 나눌수록 한 조각의 크기는 <strong>점점 작아집니다!</strong></p>'
     : ruleChoice === 'bigger' || ruleChoice === 'same'
       ? '<p class="answer feedback-hint" role="status">💡 <strong>다시 골라 볼까요?</strong> 2단계 실험에서 나누는 사람 수를 12명으로 늘렸을 때 한 조각의 크기가 어떻게 변했는지 떠올려 보세요!</p>'
+      : '';
+
+  const letterReplyHtml = friendLetterChoice === 'correct'
+    ? `<p id="letter-reply" class="answer feedback-correct" role="status">📬 <strong>${story.friend}의 답장</strong>: "아하! 똑같은 간식을 더 많은 사람이 나누어 먹을수록 한 조각이 작아진다는 걸 생각하니 왜 분모가 작은 단위분수가 더 큰지 완전히 이해됐어. 친절하게 알려줘서 정말 고마워!"</p>`
+    : friendLetterChoice === 'wrong'
+      ? `<p id="letter-reply" class="answer feedback-hint" role="status">💡 ${story.friend}가 아직 헷갈려하고 있어요! 같은 간식을 더 많은 조각으로 나누었을 때 한 조각이 어떻게 변했는지 다시 골라 볼까요?</p>`
       : '';
 
   const allUnits = listUnits();
@@ -794,11 +980,26 @@ function renderResultPhase(): string {
         ${ruleFeedbackHtml}
       </div>
 
+      <div class="friend-letter-card" role="region" aria-label="고민하던 친구에게 보내는 설명 편지">
+        <h3>💌 1단계에서 고민하던 ${story.friend}에게 친절한 설명 편지를 보내 볼까요?</h3>
+        <p>"분모 숫자가 클수록 조각도 더 클 거야!"라고 생각했던 ${story.friend}에게 어떤 설명을 보내면 좋을까요?</p>
+        <div class="letter-choice-list" role="group" aria-label="친구에게 보낼 설명 고르기">
+          <button type="button" data-letter-choice="correct" class="secondary-btn letter-choice-btn ${friendLetterChoice === 'correct' ? 'solo-choice-selected' : ''}" aria-pressed="${friendLetterChoice === 'correct'}">💌 "같은 전체를 더 많은 조각으로 나눌수록 한 조각의 크기는 오히려 작아지기 때문이야!"</button>
+          <button type="button" data-letter-choice="wrong" class="secondary-btn letter-choice-btn ${friendLetterChoice === 'wrong' ? 'rule-card-wrong' : ''}" aria-pressed="${friendLetterChoice === 'wrong'}">💌 "분모 숫자가 크면 언제나 한 조각의 크기도 함께 커지기 때문이야!"</button>
+        </div>
+        ${letterReplyHtml}
+      </div>
+
       <div class="stamp-tour-board" role="region" aria-label="분수 탐구 3대 주제 스탬프 투어">
         <h3>🎖️ 분수 탐구 스탬프 투어 (${clearedUnits.size} / ${allUnits.length} 이야기 클리어!)</h3>
         <div class="stamp-grid">
           ${stampsHtml}
         </div>
+      </div>
+
+      <div class="print-certificate-box" role="region" aria-label="단위분수 탐구 박사 인증서 서명란">
+        <p class="cert-title">🎓 단위분수 탐구 박사 인증서 · 배움 공책 붙임용</p>
+        <p class="cert-sign-line">학번·이름: ____________________ &nbsp;|&nbsp; 오늘 나의 한 줄 소감: ________________________________________</p>
       </div>
 
       <div class="actions next-step-bar">
@@ -829,6 +1030,7 @@ function renderPageHeader(): string {
     <h1>생각의 갈림길 AI</h1>
     <p>직접 나누고 겹쳐 보며 분수의 크기를 스스로 깨닫는 4단계 탐구</p>
     <div class="header-controls">
+      <button id="sound-toggle" class="scale-toggle" aria-label="효과음 전환" aria-pressed="${soundEnabled}" type="button">${soundEnabled ? '🔊 효과음' : '🔇 음소거'}</button>
       <button id="scale-toggle" class="scale-toggle" aria-label="큰 글씨 모드 전환" aria-pressed="${large}" type="button">${large ? '🔍 기본' : '🔍 큰글씨'}</button>
       <button id="theme-toggle" class="theme-toggle" aria-label="다크 모드 전환" aria-pressed="${dark}" type="button">${dark ? '☀️' : '🌙'}</button>
     </div>
@@ -871,9 +1073,17 @@ function render(focus = false) {
 }
 
 function updateClassPollStatusesDOM() {
+  const unit = currentUnit();
+  const [fA, fB] = unit.denominators.first;
+  const [tA, tB] = unit.denominators.transfer;
   app.querySelectorAll<HTMLElement>('.class-poll-status[data-status-poll]').forEach(el => {
     const p = el.dataset.statusPoll as Poll;
     el.textContent = formatClassPollStatus(p);
+  });
+  app.querySelectorAll<HTMLElement>('.live-poll-chart[data-chart-poll]').forEach(el => {
+    const p = el.dataset.chartPoll as Poll;
+    const [dA, dB] = p === 'transfer' ? [tA, tB] : [fA, fB];
+    el.outerHTML = renderLivePollChart(p, dA, dB);
   });
   app.querySelectorAll<HTMLInputElement>('input[data-participants-input]').forEach(el => {
     if (el !== document.activeElement && el.value !== participantsRaw) {
@@ -941,7 +1151,15 @@ app.addEventListener('click', event => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button');
   if (!button) return;
 
-  // 다크 모드 & 큰 글씨 모드
+  // 효과음 토글, 다크 모드 & 큰 글씨 모드
+  if (button.id === 'sound-toggle') {
+    soundEnabled = !soundEnabled;
+    button.textContent = soundEnabled ? '🔊 효과음' : '🔇 음소거';
+    button.setAttribute('aria-pressed', String(soundEnabled));
+    if (soundEnabled) playSound('click');
+    return;
+  }
+
   if (button.id === 'theme-toggle') {
     const nextTheme = isDarkTheme() ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', nextTheme);
@@ -980,6 +1198,7 @@ app.addEventListener('click', event => {
   if (button.dataset.quickDenom !== undefined) {
     exploreDenominator = Number(button.dataset.quickDenom);
     exploreMoved = true;
+    playSound('click');
     updateExploreSliderDOM();
     return;
   }
@@ -987,8 +1206,31 @@ app.addEventListener('click', event => {
   // 3단계 번개 미니게임 카드 선택
   if (button.dataset.duelRound !== undefined && button.dataset.duelPick) {
     const r = Number(button.dataset.duelRound);
-    duelPicks[r] = button.dataset.duelPick as DuelPick;
+    const pick = button.dataset.duelPick as DuelPick;
+    duelPicks[r] = pick;
+    const roundObj = duelRounds.find(item => item.id === r);
+    if (roundObj && roundObj.answer === pick) {
+      duelStreak++;
+      playSound('correct');
+    } else {
+      duelStreak = 0;
+    }
     render();
+    return;
+  }
+
+  // 3단계 분수 기차 줄 세우기
+  if (button.dataset.trainDenom !== undefined) {
+    const denom = Number(button.dataset.trainDenom);
+    if (!trainOrder.includes(denom) && trainOrder.length < TRAIN_POOL.length) {
+      trainOrder = [...trainOrder, denom];
+      if (trainOrder.length === 3 && trainOrder[0] === 2 && trainOrder[1] === 6 && trainOrder[2] === 9) {
+        playSound('fanfare');
+      } else {
+        playSound('click');
+      }
+      render();
+    }
     return;
   }
 
@@ -997,6 +1239,15 @@ app.addEventListener('click', event => {
     const picked = button.dataset.ruleChoice as RuleChoice;
     ruleChoice = picked;
     notebookBlankRevealed = picked === 'smaller' ? !notebookBlankRevealed : false;
+    if (notebookBlankRevealed) playSound('correct');
+    render();
+    return;
+  }
+
+  // 4단계 친구에게 보내는 설명 편지 선택
+  if (button.dataset.letterChoice) {
+    friendLetterChoice = button.dataset.letterChoice as LetterChoice;
+    if (friendLetterChoice === 'correct') playSound('fanfare');
     render();
     return;
   }
@@ -1031,6 +1282,7 @@ app.addEventListener('click', event => {
     const ch = button.dataset.pickChoice as Choice;
     myChoices[poll] = ch;
     error = '';
+    playSound(poll !== 'first' && ch === correctChoiceForPoll(poll) ? 'correct' : 'click');
     render();
     return;
   }
@@ -1039,13 +1291,29 @@ app.addEventListener('click', event => {
   if (button.dataset.reason !== undefined) {
     reasonSelected = button.dataset.reason;
     aiLinkedCardTitle = '';
+    playSound('click');
     render();
     return;
   }
 
   const action = button.dataset.action;
 
-  if (action === 'toggle-model') {
+  if (action === 'speak-story') {
+    ttsSpoken = true;
+    playSound('click');
+    try {
+      const plain = (storyDilemmas[selectedUnitId]?.lead ?? '').replace(/<[^>]+>/g, '');
+      if ('speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined') {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(plain);
+        u.lang = 'ko-KR';
+        window.speechSynthesis.speak(u);
+      }
+    } catch {
+      // 음성 합성 미지원 환경 무시
+    }
+    render();
+  } else if (action === 'toggle-model') {
     visualModel = visualModel === 'circle' ? 'bar' : 'circle';
     render();
   } else if (action === 'toggle-spoiler') {
@@ -1063,10 +1331,20 @@ app.addEventListener('click', event => {
   } else if (action === 'toggle-trap') {
     showTrapExperiment = !showTrapExperiment;
     render();
+  } else if (action === 'toggle-reallife') {
+    showRealLife = !showRealLife;
+    render();
   } else if (action === 'toggle-poll-blind') {
     pollBlind = !pollBlind;
     classPollOpen = true;
     render();
+  } else if (action === 'base-less' || action === 'base-more') {
+    exploreBaseDenominator = Math.max(
+      DENOMINATOR_MIN,
+      Math.min(DENOMINATOR_MAX, exploreBaseDenominator + (action === 'base-more' ? 1 : -1)),
+    );
+    exploreMoved = true;
+    updateExploreSliderDOM();
   } else if (action === 'less' || action === 'more') {
     exploreDenominator = Math.max(
       DENOMINATOR_MIN,
@@ -1074,6 +1352,41 @@ app.addEventListener('click', event => {
     );
     exploreMoved = true;
     updateExploreSliderDOM();
+  } else if (action === 'fill-piece-add') {
+    filledPieces = Math.min(exploreDenominator, filledPieces + 1);
+    if (filledPieces === exploreDenominator) playSound('fanfare');
+    else playSound('click');
+    const fillWholeEl = app.querySelector<HTMLElement>('#fill-whole-box');
+    if (fillWholeEl) fillWholeEl.innerHTML = renderFillWholeContent();
+  } else if (action === 'fill-piece-full') {
+    filledPieces = exploreDenominator;
+    playSound('fanfare');
+    const fillWholeEl = app.querySelector<HTMLElement>('#fill-whole-box');
+    if (fillWholeEl) fillWholeEl.innerHTML = renderFillWholeContent();
+  } else if (action === 'fill-piece-reset') {
+    filledPieces = 1;
+    const fillWholeEl = app.querySelector<HTMLElement>('#fill-whole-box');
+    if (fillWholeEl) fillWholeEl.innerHTML = renderFillWholeContent();
+  } else if (action === 'duel-shuffle') {
+    const pool = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    duelRounds = [0, 1, 2].map(id => {
+      const i1 = (id * 3 + duelStreak + 1) % pool.length;
+      const i2 = (i1 + id + 2) % pool.length;
+      const leftDenom = pool[i1];
+      const rightDenom = pool[i2] === leftDenom ? pool[(i2 + 1) % pool.length] : pool[i2];
+      return {
+        id,
+        leftDenom,
+        rightDenom,
+        answer: leftDenom < rightDenom ? 'left' : 'right',
+      };
+    });
+    duelPicks = { 0: null, 1: null, 2: null };
+    playSound('click');
+    render();
+  } else if (action === 'train-reset') {
+    trainOrder = [];
+    render();
   } else if (action === 'toggle-notebook-blank') {
     notebookBlankRevealed = !notebookBlankRevealed;
     render();
@@ -1131,6 +1444,7 @@ window.addEventListener('pagehide', () => resetSession());
 window.addEventListener('pageshow', event => { if (event.persisted) resetSession(); });
 
 // ─── 초기 렌더 ───────────────────────────────────────────────────
+exploreBaseDenominator = currentUnit().denominators.first[0];
 exploreDenominator = currentUnit().denominators.first[1];
 render();
 

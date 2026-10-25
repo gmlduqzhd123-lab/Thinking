@@ -232,7 +232,7 @@ h1 {
 .theme-toggle:hover,
 .scale-toggle:hover,
 .board-toggle:hover { background: rgba(255, 255, 255, 0.25); }
-header { position: relative; padding-right: 260px; }
+header { position: relative; padding-right: 320px; }
 
 /* ─── Sections / Layout ──────────────────────────────────────── */
 section, aside, nav {
@@ -1088,6 +1088,278 @@ button[data-reason][aria-pressed="true"] {
   padding: 8px 12px;
 }
 
+/* ─── 차세대 탐구·게임화·교실 코칭 10대 기능 추가 스타일 ────────── */
+.story-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.story-card-header .story-badge {
+  margin-bottom: 0;
+}
+
+.tts-btn {
+  font-size: 0.86rem;
+  padding: 6px 12px;
+}
+
+.tts-status {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--lesson-answer-border);
+}
+
+.base-denom-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+#explore-base-output {
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--lesson-surface);
+  border: 1px solid var(--lesson-border);
+}
+
+.whole-fill-figure {
+  margin: 8px 0 12px;
+}
+
+.whole-fill-figure svg {
+  width: 100%;
+  height: auto;
+  max-height: 80px;
+}
+
+.whole-fill-figure figcaption {
+  font-size: 0.96rem;
+  font-weight: 700;
+}
+
+.fill-whole-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
+.reallife-content {
+  margin-top: 12px;
+}
+
+.reallife-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.reallife-item {
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--lesson-surface);
+  border: 1px solid var(--lesson-border);
+}
+
+.reallife-item p {
+  margin: 6px 0 0;
+  line-height: 1.5;
+}
+
+.duel-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.duel-header-row h3 {
+  margin: 0;
+}
+
+#duel-streak-badge {
+  font-weight: 800;
+  color: var(--lesson-accent-gold-dark);
+}
+
+.train-pick-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
+.train-cars {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.train-car {
+  flex: 1 1 130px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--lesson-surface);
+  border: 2px solid var(--lesson-answer-border);
+  text-align: center;
+}
+
+.train-link {
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: var(--lesson-answer-border);
+}
+
+.friend-letter-card {
+  margin: 14px 0;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--lesson-chart-bg);
+  border: 2px solid var(--lesson-border);
+}
+
+.friend-letter-card h3 {
+  margin: 0 0 8px;
+  font-size: 1.04rem;
+}
+
+.letter-choice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.letter-choice-btn {
+  text-align: left;
+}
+
+.live-poll-chart {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--lesson-surface);
+  border: 1px solid var(--lesson-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.poll-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+}
+
+.poll-bar-label {
+  min-width: 78px;
+  font-weight: 700;
+}
+
+.poll-bar-track {
+  flex: 1;
+  height: 14px;
+  background: var(--lesson-track-bg);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.poll-bar-fill {
+  height: 100%;
+  background: var(--lesson-btn-bg);
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.poll-bar-correct {
+  background: var(--lesson-correct-fill);
+}
+
+.poll-bar-val {
+  min-width: 76px;
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-blind-msg {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--lesson-text-muted);
+}
+
+.ai-coaching-preview {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--lesson-surface);
+  border: 1px dashed var(--lesson-ai-border);
+}
+
+.ai-coaching-preview summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.ai-coaching-preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.ai-coaching-card {
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--lesson-chart-bg);
+  border: 1px solid var(--lesson-border);
+}
+
+.ai-coaching-steps {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--lesson-surface);
+  border-left: 4px solid var(--lesson-ai-border);
+}
+
+.coaching-step {
+  margin: 4px 0;
+  font-size: 0.9rem;
+}
+
+.print-certificate-box {
+  margin: 14px 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--lesson-surface);
+  border: 2px dashed var(--lesson-accent-gold-dark);
+}
+
+.cert-title {
+  margin: 0 0 6px;
+  font-weight: 800;
+}
+
+.cert-sign-line {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
 @media (max-width: 550px) {
   .journey-arrow { display: none; }
   .duel-btn-pair { width: 100%; }
@@ -1097,8 +1369,9 @@ button[data-reason][aria-pressed="true"] {
 /* ─── Print ──────────────────────────────────────────────────── */
 @media print {
   body { color: #000; background: #fff; }
-  header { background: #333; }
-  button, .buttons, .actions, .timer, nav { display: none; }
+  header { background: #333; padding: 14px 18px; }
+  button, .buttons, .actions, .timer, nav, .teacher-talk-banner, .rule-word-cards, .letter-choice-list { display: none !important; }
+  section { page-break-inside: avoid; margin: 8px 0; padding: 12px; }
   .notice { border: 1px solid #999; }
   .answer, .memory, .comparison {
     border-left: 3px solid #666;

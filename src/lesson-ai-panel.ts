@@ -86,6 +86,24 @@ export function createLessonAiPanel(
     { label: '💬 "전체 길이가 서로 다르면 비교가 달라져요"', text: '두 리본의 전체 길이가 서로 다르면 비교가 달라질 수 있어요.' },
   ] as const;
 
+  const coachingGuides: Record<string, { step1: string; step2: string; step3: string }> = {
+    A: {
+      step1: '① 공감하기: "자연수에서는 5가 3보다 크니까 1/5도 더 클 거라고 생각하기 쉬워요!"',
+      step2: '② 추천 실험: 2단계 [실험 1 · 조각 포개어 비교하기]와 [실험 3 · 조각 모아 전체 1 채우기]를 함께 조작해 보세요.',
+      step3: '③ 깨달음 발문: "같은 간식을 3명이 나눌 때와 5명이 나눌 때, 한 사람이 먹는 조각은 어느 쪽이 더 클까요?"',
+    },
+    B: {
+      step1: '① 공감하기: "나누는 횟수와 한 조각의 크기 관계를 정확하게 포착했어요!"',
+      step2: '② 추천 실험: 2단계 [실험 2 · 양쪽 분모 자유 비교]와 3단계 [분수 기차 줄 세우기]로 원리를 확장해 보세요.',
+      step3: '③ 깨달음 발문: "그렇다면 1/6, 1/2, 1/9 중에서 가장 큰 조각과 가장 작은 조각은 무엇일지 친구에게 설명해 볼까요?"',
+    },
+    C: {
+      step1: '① 공감하기: "아주 중요한 수학적 조건(전체의 크기)을 예리하게 발견했어요!"',
+      step2: '② 추천 실험: 2단계 [😮 깜짝 실험 · 원래 전체 크기가 서로 다르면 어떨까요?]를 열어 함께 확인해 보세요.',
+      step3: '③ 깨달음 발문: "전체 크기가 다르면 1/4이 1/2보다 클 수도 있네요! 단위분수를 비교할 때 꼭 필요한 첫 번째 약속은 무엇일까요?"',
+    },
+  };
+
   function renderPanelInput(): string {
     const chipsHtml = quickChips.map((chip, idx) =>
       `<button type="button" data-ai-chip="${idx}" class="secondary-btn ai-chip-btn">${chip.label}</button>`
@@ -116,6 +134,27 @@ export function createLessonAiPanel(
     </div>`;
   }
 
+  function renderCoachingSteps(cardId: string): string {
+    const guide = coachingGuides[cardId] ?? coachingGuides.A;
+    return `<div class="ai-coaching-steps" role="region" aria-label="교사 3단계 발문 코칭 가이드">
+      <p class="coaching-step">${guide.step1}</p>
+      <p class="coaching-step">${guide.step2}</p>
+      <p class="coaching-step">${guide.step3}</p>
+    </div>`;
+  }
+
+  function renderCoachingPreview(): string {
+    return `<details class="ai-coaching-preview">
+      <summary>👩‍🏫 교사용 3단계 발문 코칭 시나리오 보기 (공감 → 추천 실험 → 깨달음 발문)</summary>
+      <div class="ai-coaching-preview-list">
+        ${cards.map(c => `<div class="ai-coaching-card">
+          <strong>[${c.id}] ${c.title}</strong>
+          ${renderCoachingSteps(c.id)}
+        </div>`).join('')}
+      </div>
+    </details>`;
+  }
+
   function renderCandidateResult(): string {
     if (!candidate) return '';
 
@@ -124,7 +163,7 @@ export function createLessonAiPanel(
       ? ` <span class="ai-similarity">(유사도 ${candidateSimilarity.toFixed(3)})</span>`
       : '';
     const content = approved
-      ? `<p>${candidate.text}</p><button type="button" data-ai="apply-reason" class="secondary-btn">${appliedToLesson ? '✓ 수업 탐구 주제로 연결됨' : '수업 탐구 주제로 연결'}</button>`
+      ? `<p>${candidate.text}</p>${renderCoachingSteps(candidate.id)}<button type="button" data-ai="apply-reason" class="secondary-btn">${appliedToLesson ? '✓ 수업 탐구 주제로 연결됨' : '수업 탐구 주제로 연결'}</button>`
       : '<button type="button" data-ai="approve">교사가 후보 카드 확인</button>';
 
     return `<h3>${heading}</h3><p>${candidate.title}${simBadge}</p>${content}`;
@@ -169,6 +208,7 @@ export function createLessonAiPanel(
       renderPanelInput(),
       renderPanelActions(),
       '<div id="lesson-ai-result" aria-live="polite"></div>',
+      renderCoachingPreview(),
     ].join('');
 
     root.querySelector('#step')?.after(panel);

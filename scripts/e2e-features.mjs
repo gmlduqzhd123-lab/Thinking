@@ -133,9 +133,12 @@ async function testLessonFeatures(browser) {
   const step1ToolbarBtns = await page.locator('.visual-toolbar button').count();
   log('개선 #2: 1단계 시각화 버튼 1개로 단순화', step1ToolbarBtns === 1, `${step1ToolbarBtns}개`);
 
-  // #1. 캐릭터 스토리 딜레마 및 선생님 발문 톡 확인
+  // #1. 캐릭터 스토리 딜레마, TTS 읽어주기(#5), 효과음 토글(#5) 및 선생님 발문 톡 확인
   const storyCard = await page.locator('.story-dilemma-card').textContent();
   log('재미 개선 #1: 캐릭터 고민(스토리 딜레마) 도입', storyCard?.includes('민수') ?? false);
+  await page.click('button[data-action="speak-story"]');
+  const ttsStatus = await page.locator('#tts-status').textContent();
+  log('추가 개발 #5: 이야기 음성 읽어주기(TTS) 및 효과음 토글 작동', (ttsStatus?.includes('음성으로 읽어주었어요') ?? false) && (await page.locator('#sound-toggle').count()) === 1);
   const talkBanner = await page.locator('.teacher-talk-banner').textContent();
   log('재미 개선 #7: 교실 수업용 선생님 질문 톡 제공', talkBanner?.includes('선생님 질문 톡') ?? false);
 
@@ -151,7 +154,7 @@ async function testLessonFeatures(browser) {
   log('둥근 피자(원형) 모형 전환 작동', (await page.locator('.fraction-circle').count()) === 2);
   await page.click('button[data-action="toggle-model"]');
 
-  // #4. 기본 방식을 1클릭 보기 선택으로 통일 + #7 스마트보드 +1 거수 투표 및 결과 가리기
+  // #4. 기본 방식을 1클릭 보기 선택으로 통일 + #7 스마트보드 +1 거수 투표 및 결과 가리기 + #8 실시간 가로 막대그래프
   await page.click('button[data-pick-poll="first"][data-pick-choice="B"]');
   const pollNote = await page.locator('#poll-note').textContent();
   log('개선 #4: 1클릭 보기 선택 및 즉시 확인 메시지', pollNote?.includes('1/5이 더 크다') ?? false);
@@ -160,6 +163,8 @@ async function testLessonFeatures(browser) {
   await page.click('button[data-vote-poll="first"][data-vote-choice="A"][data-vote-delta="1"]');
   const voteInputA = await page.locator('input[data-count="A"][data-count-poll="first"]').inputValue();
   log('재미 개선 #7: 스마트보드 +1 원터치 거수 투표 카운터 작동', voteInputA === '1', `A="${voteInputA}"`);
+  const pollBarsCount = await page.locator('.live-poll-chart[data-chart-poll="first"] .poll-bar-row').count();
+  log('추가 개발 #8: 교사용 거수 투표 실시간 가로 막대그래프 시각화', pollBarsCount === 4, `${pollBarsCount}개 막대`);
   await page.click('button[data-action="toggle-poll-blind"]');
   const blindStatus = await page.locator('.class-poll-status').textContent();
   log('재미 개선 #7: 투표 결과 잠시 가리기 작동', blindStatus?.includes('가려 두었습니다') ?? false);
@@ -172,10 +177,15 @@ async function testLessonFeatures(browser) {
   const hypothesisText = await page.locator('.hypothesis-banner').textContent();
   log('개선 #6: 내가 고른 처음 생각·이유가 실험 화면 상단에 연결됨', hypothesisText?.includes('1/5이 더 크다') ?? false);
 
-  // #5 & #6. 조각 포개어 차이 보기 + 빠른 인원 버튼 + 전체 크기가 다를 때 깜짝 실험
+  // #5 & #6. 조각 포개어 차이 보기 + 양쪽 분모 자유 비교(#2) + 조각 모아 전체 1 채우기(#1) + 실생활 분수(#6)
   await page.click('button[data-action="toggle-overlap"]');
   const overlapText = await page.locator('.overlap-comparison').textContent();
   log('재미 개선 #5: 실험 1 조각 포개어 길이 차이 강조 및 발견 1 표시', (overlapText?.includes('발견 1') && overlapText?.includes('더 길어요')) ?? false);
+
+  await page.click('button[data-action="base-more"]');
+  const baseOut = await page.locator('#explore-base-output').textContent();
+  log('추가 개발 #2: 실험 2 위쪽 기준 분수 분모 자유 조절 작동', baseOut?.includes('1/4') ?? false, `"${baseOut}"`);
+  await page.click('button[data-action="base-less"]');
 
   await page.click('button[data-quick-denom="8"]');
   const quickOutput = await page.locator('#explore-denom-output').textContent();
@@ -189,11 +199,19 @@ async function testLessonFeatures(browser) {
   const expText = await page.locator('#step').textContent();
   log('개선 #7·#8: 실험 2 등분 슬라이더 조작 즉시 원리(발견 2) 표시 및 포커스 유지', (expText?.includes('발견 2') ?? false) && sliderStillFocused);
 
+  await page.click('button[data-action="fill-piece-full"]');
+  const fillWholeText = await page.locator('#fill-whole-status').textContent();
+  log('추가 개발 #1: 실험 3 단위분수 조각을 모아 전체 1 채우기 완성 작동', fillWholeText?.includes('전체 1 완성') ?? false);
+
   await page.click('button[data-action="toggle-trap"]');
   const trapText = await page.locator('.trap-experiment-content').textContent();
   log('재미 개선 #6: 원래 전체 크기가 다를 때 깜짝 함정 실험 작동', trapText?.includes('깜짝 발견') ?? false);
 
-  // #4. 3단계 다시 점검하기: 응용 문제(B가 정답), 중복 ID 부재 및 3연속 번개 미니게임
+  await page.click('button[data-action="toggle-reallife"]');
+  const realLifeText = await page.locator('.reallife-content').textContent();
+  log('추가 개발 #6: 생활 속 시계판(30분 vs 15분) & 12칸 초콜릿 단위분수 실험 작동', realLifeText?.includes('30분') ?? false);
+
+  // #4. 3단계 다시 점검하기: 응용 문제(B가 정답), 중복 ID 부재, 무한 미니게임(#4) 및 분수 기차 줄 세우기(#3)
   await page.click('button[data-action="next"]');
   const duplicateIds = await page.evaluate(() => {
     const ids = [...document.querySelectorAll('[id]')].map(el => el.id).filter(Boolean);
@@ -211,14 +229,24 @@ async function testLessonFeatures(browser) {
   log('응용 문제 주스 컵 모형 전환 작동', (await page.locator('.fraction-cup').count()) === 2);
   await page.click('button[data-pick-poll="transfer"][data-pick-choice="B"]');
 
-  // 3연속 번개 미니게임 클리어 확인
+  // 3연속 번개 미니게임 클리어 & 연속 정답 콤보 & 새 랜덤 문제 뽑기 확인
   await page.click('button[data-duel-round="0"][data-duel-pick="right"]');
   await page.click('button[data-duel-round="1"][data-duel-pick="left"]');
   await page.click('button[data-duel-round="2"][data-duel-pick="right"]');
   const duelBanner = await page.locator('.duel-score-banner').textContent();
-  log('재미 개선 #4: 3연속 번개 미니게임 퍼펙트 클리어 작동', duelBanner?.includes('3 / 3') ?? false, `"${duelBanner}"`);
+  log('재미 개선 #4 & 추가 개발 #4: 번개 미니게임 퍼펙트 클리어 및 3연속 콤보 작동', (duelBanner?.includes('3 / 3') && duelBanner?.includes('3연속')) ?? false, `"${duelBanner}"`);
+  await page.click('button[data-action="duel-shuffle"]');
+  const shuffledBanner = await page.locator('.duel-score-banner').textContent();
+  log('추가 개발 #4: 새로운 랜덤 대결 3문제 뽑기 작동', shuffledBanner?.includes('0 / 3') ?? false);
 
-  // #8 & #9. 4단계 오늘의 발견: 성장 카드 + 단어 카드 콕콕 규칙 퀴즈 + 3대 주제 스탬프 투어
+  // 4) 분수 기차 줄 세우기 퍼즐 확인 (1/2 > 1/6 > 1/9)
+  await page.click('button[data-train-denom="2"]');
+  await page.click('button[data-train-denom="6"]');
+  await page.click('button[data-train-denom="9"]');
+  const trainStatus = await page.locator('#train-status').textContent();
+  log('추가 개발 #3: 분수 기차 줄 세우기 퍼즐(1/2 > 1/6 > 1/9) 완성 작동', trainStatus?.includes('칙칙폭폭 출발') ?? false);
+
+  // #8 & #9. 4단계 오늘의 발견: 성장 카드 + 단어 카드 규칙 퀴즈 + 친구 설명 편지(#7) + 인증서(#9) + 스탬프 투어
   await page.click('button[data-action="next"]');
   const reportVisible = await page.locator('.solo-report-card').isVisible();
   const journeySteps = await page.locator('.journey-step').count();
@@ -227,6 +255,13 @@ async function testLessonFeatures(browser) {
   await page.click('button[data-rule-choice="smaller"]');
   const blankText = await page.locator('.notebook-blank').textContent();
   log('재미 개선 #8: 단어 카드 콕콕 선택으로 규칙 빈칸 완성 작동', blankText?.includes('작아집니다') ?? false);
+
+  await page.click('button[data-letter-choice="correct"]');
+  const letterReply = await page.locator('#letter-reply').textContent();
+  log('추가 개발 #7: 고민하던 친구(민수)에게 보내는 설명 편지 및 답장 작동', letterReply?.includes('민수의 답장') ?? false);
+
+  const certVisible = await page.locator('.print-certificate-box').isVisible();
+  log('추가 개발 #9: 한 장짜리 단위분수 탐구 박사 인증서 서명란 표시', certVisible);
 
   const stampTitle = await page.locator('.stamp-tour-board h3').textContent();
   log('재미 개선 #9: 3대 주제 스탬프 투어 보드 획득 확인', stampTitle?.includes('1 / 3') ?? false, `"${stampTitle}"`);
@@ -261,6 +296,10 @@ async function testLessonAiPanelFeatures(browser) {
 
   const progressExists = await page.locator('#lesson-ai-progress').count() > 0;
   log('AI 보조 수업 패널 진행률 바 DOM 존재', progressExists);
+
+  await page.click('.ai-coaching-preview summary');
+  const coachingCount = await page.locator('.ai-coaching-card').count();
+  log('추가 개발 #10: AI 보조 수업 패널 교사용 3단계 발문 코칭 시나리오 제공', coachingCount === 3, `${coachingCount}개 카드 시나리오`);
 
   log('AI 보조 수업 JS 에러 없음', errors.length === 0, errors.length > 0 ? errors.join('; ') : '');
 

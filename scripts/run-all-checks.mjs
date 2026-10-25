@@ -47,8 +47,8 @@ function checkBundleSizes() {
 
   const jsSizeKb = statSync(join(assetsDir, lessonJs)).size / 1024;
   const cssSizeKb = statSync(join(assetsDir, lessonCss)).size / 1024;
-  if (jsSizeKb > 60) {
-    throw new Error(`lesson JS 번들 크기(${jsSizeKb.toFixed(1)}KB)가 상한(60KB)을 초과했습니다.`);
+  if (jsSizeKb > 75) {
+    throw new Error(`lesson JS 번들 크기(${jsSizeKb.toFixed(1)}KB)가 상한(75KB)을 초과했습니다.`);
   }
   if (cssSizeKb > 40) {
     throw new Error(`lesson CSS 번들 크기(${cssSizeKb.toFixed(1)}KB)가 상한(40KB)을 초과했습니다.`);
