@@ -1026,6 +1026,11 @@ button[data-reason][aria-pressed="true"] {
   font-weight: 800;
 }
 
+.rule-card-wrong {
+  border: 2px dashed var(--lesson-error);
+  background: var(--lesson-notice-bg);
+}
+
 .stamp-tour-board {
   margin: 14px 0;
   padding: 16px;

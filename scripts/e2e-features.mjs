@@ -193,8 +193,13 @@ async function testLessonFeatures(browser) {
   const trapText = await page.locator('.trap-experiment-content').textContent();
   log('재미 개선 #6: 원래 전체 크기가 다를 때 깜짝 함정 실험 작동', trapText?.includes('깜짝 발견') ?? false);
 
-  // #4. 3단계 다시 점검하기: 응용 문제(B가 정답) 및 3연속 번개 미니게임
+  // #4. 3단계 다시 점검하기: 응용 문제(B가 정답), 중복 ID 부재 및 3연속 번개 미니게임
   await page.click('button[data-action="next"]');
+  const duplicateIds = await page.evaluate(() => {
+    const ids = [...document.querySelectorAll('[id]')].map(el => el.id).filter(Boolean);
+    return ids.filter((id, i) => ids.indexOf(id) !== i);
+  });
+  log('3단계 DOM 중복 ID 없음', duplicateIds.length === 0, duplicateIds.length > 0 ? duplicateIds.join(', ') : '');
   await page.click('button[data-pick-poll="again"][data-pick-choice="A"]');
   const checkText = await page.locator('#step').textContent();
   log('개선 #8: 3단계 재선택 클릭 즉시 정답 피드백 표시', checkText?.includes('정답이에요') ?? false);

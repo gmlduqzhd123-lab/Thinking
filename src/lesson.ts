@@ -200,7 +200,7 @@ function circleFraction(denominator: number, undividedPreview = false): string {
       aria-label="같은 크기의 전체를 ${denominator}등분하고 첫 한 조각을 칠한 분수 원형 모형, 1/${denominator}">
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="${bg}" stroke="${stroke}" stroke-width="3"/>
       <path d="${sectorPath}" fill="${fill}"/>
-      <circle cx="${pepX}" cy="${pepY}" r="4.5" fill="#d9381e" fill-opacity="0.85"/>
+      <circle cx="${pepX}" cy="${pepY}" r="${denominator >= 9 ? 3.2 : 4.5}" fill="#d9381e" fill-opacity="0.85"/>
       ${dividers}
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${stroke}" stroke-width="3"/>
     </svg>
@@ -274,7 +274,7 @@ function bar(denominator: number, undividedPreview = false): string {
         aria-label="아직 자르지 않은 전체 길이가 같은 ${snackName()} 모형 (${denominator}명이 똑같이 나눌 예정)">
         <rect x="0" y="10" width="600" height="48" rx="8" fill="${fill}" fill-opacity="0.22" stroke="${stroke}" stroke-width="3" stroke-dasharray="8 5"/>
         <line x1="14" y1="34" x2="586" y2="34" stroke="${stroke}" stroke-width="1.2" stroke-opacity="0.35" stroke-dasharray="4 4"/>
-        <text x="300" y="39" text-anchor="middle" font-size="16" font-weight="800" fill="var(--lesson-bar-stroke, #153a69)">아직 자르기 전 똑같은 ${snackName()} 전체 1 → ✂️ ${denominator}조각으로 나누면 한 조각(1/${denominator})은?</text>
+        <text x="300" y="39" text-anchor="middle" font-size="15" font-weight="800" fill="var(--lesson-bar-stroke, #153a69)">전체 크기가 똑같은 ${snackName()} 1개 · ✂️ ${denominator}조각으로 나누면 1/${denominator}은?</text>
       </svg>
       <figcaption>상상하기: 같은 ${snackName()}를 <strong>${denominator}명</strong>이 똑같이 나눈 한 조각 (<strong>1/${denominator}</strong>)</figcaption>
     </figure>`;
@@ -380,11 +380,22 @@ function formatClassPollStatus(poll: Poll): string {
   }
   const counts = pollData[poll] ?? emptyCounts();
   const n = parseParticipants(participantsRaw);
-  const checked = n ? validateCounts(counts, n) : null;
+  if (!n) {
+    return `⚠️ 참여 인원은 1~${MAX_PARTICIPANTS} 사이의 자연수로 입력해 주세요.`;
+  }
+  const checked = validateCounts(counts, n);
   const correctCh = correctChoiceForPoll(poll);
-  return checked
-    ? `집계 완료: 정답(${correctCh}) ${checked.counts[correctCh]}/${n}명 · 미응답 ${checked.noResponse}명`
-    : '학급 인원 집계를 기록하려면 숫자를 입력하거나 ＋1 버튼을 누르세요.';
+  if (checked) {
+    return `집계 완료: 정답(${correctCh}) ${checked.counts[correctCh]}/${n}명 · 미응답 ${checked.noResponse}명`;
+  }
+  const allDigits = CHOICES.every(c => /^(?:0|[1-9]\d*)$/.test(counts[c]));
+  if (allDigits) {
+    const sum = CHOICES.reduce((acc, c) => acc + Number(counts[c]), 0);
+    if (sum > n) {
+      return `⚠️ 보기 인원 합계(${sum}명)가 참여 인원(${n}명)보다 많습니다. 인원수를 확인해 주세요.`;
+    }
+  }
+  return '학급 인원 집계를 기록하려면 숫자를 입력하거나 ＋1 버튼을 누르세요.';
 }
 
 /** #7 교사용 선택형 학급 인원 집계 (+1/-1 스마트보드 터치 카운터 & 결과 가리기 포함). */
@@ -392,12 +403,13 @@ function renderOptionalClassPoll(poll: Poll, dA: number, dB: number): string {
   const counts = pollData[poll] ?? emptyCounts();
   const [leftD, rightD] = isTransferReversed(poll) ? [dB, dA] : [dA, dB];
   const labels = [`A (1/${leftD})`, `B (1/${rightD})`, 'C (같다)', 'D (모름)'];
+  const participantsId = poll === 'transfer' ? 'participants-transfer' : 'participants';
 
   return `<details class="class-poll-details" data-poll-details="${poll}" ${classPollOpen ? 'open' : ''}>
     <summary>👩‍🏫 교실 수업용 거수 투표·인원수 기록하기 (필요할 때만 열기)</summary>
     <div class="class-poll-body">
       <div class="poll-top-row">
-        <label>참여 인원(1~${MAX_PARTICIPANTS}명) <input id="participants" data-participants-input="${poll}" type="text" inputmode="numeric" value="${participantsRaw}" autocomplete="off"></label>
+        <label>참여 인원(1~${MAX_PARTICIPANTS}명) <input id="${participantsId}" data-participants-input="${poll}" type="text" inputmode="numeric" value="${participantsRaw}" autocomplete="off"></label>
         <button type="button" data-action="toggle-poll-blind" class="secondary-btn" aria-pressed="${pollBlind}">${pollBlind ? '👀 결과 공개하기' : '🙈 결과 잠시 가리기'}</button>
       </div>
       <div class="class-poll-inputs">
@@ -588,6 +600,10 @@ function renderExplorePhase(): string {
         <h3>실험 2 · 나누어 먹는 사람 수(분모)를 2명~12명 사이에서 바꿔 보기</h3>
         <p>빠른 인원 버튼을 누르거나 슬라이더를 움직여 더 많이 나눌 때 한 조각이 어떻게 변하는지 관찰해 보세요.</p>
 
+        <div class="visual-toolbar" role="group" aria-label="분수 모양 바꾸기">
+          <button type="button" data-action="toggle-model" class="secondary-btn visual-btn" aria-pressed="${visualModel === 'circle'}">${visualModel === 'circle' ? '📏 막대 모양으로 보기' : '🍕 둥근 피자 모양으로 보기'}</button>
+        </div>
+
         <div class="quick-denom-bar" role="group" aria-label="나누는 사람 수 빠른 선택">
           ${quickDenomBtns}
         </div>
@@ -709,8 +725,17 @@ function renderResultPhase(): string {
   const n = parseParticipants(participantsRaw);
   const firstPoll = n && pollData.first ? validateCounts(pollData.first, n) : null;
   const againPoll = n && pollData.again ? validateCounts(pollData.again, n) : null;
-  const classSummaryHtml = firstPoll && againPoll && n
-    ? `<p class="comparison">👩‍🏫 <strong>학급 전체 집계 변화</strong>: 정답(1/${fA}) 선택 인원이 <strong>${firstPoll.counts.A}/${n}명</strong>에서 <strong>${againPoll.counts.A}/${n}명</strong>으로 바뀌었습니다 (${percentagePointChange(firstPoll.counts.A, againPoll.counts.A, n) >= 0 ? '+' : ''}${percentagePointChange(firstPoll.counts.A, againPoll.counts.A, n).toFixed(1)}%p).</p>`
+  const transferPoll = n && pollData.transfer ? validateCounts(pollData.transfer, n) : null;
+  const classSummaryParts: string[] = [];
+  if (firstPoll && againPoll && n) {
+    const diffPp = percentagePointChange(firstPoll.counts.A, againPoll.counts.A, n);
+    classSummaryParts.push(`처음·재선택 정답(1/${fA}) 인원: <strong>${firstPoll.counts.A}/${n}명 → ${againPoll.counts.A}/${n}명</strong> (${diffPp >= 0 ? '+' : ''}${diffPp.toFixed(1)}%p)`);
+  }
+  if (transferPoll && n) {
+    classSummaryParts.push(`응용 문제 정답(1/${tA}, B번) 인원: <strong>${transferPoll.counts.B}/${n}명</strong>`);
+  }
+  const classSummaryHtml = classSummaryParts.length > 0
+    ? `<p class="comparison">👩‍🏫 <strong>학급 전체 집계 요약</strong>: ${classSummaryParts.join(' · ')}</p>`
     : '';
 
   const ruleFeedbackHtml = notebookBlankRevealed
@@ -762,9 +787,9 @@ function renderResultPhase(): string {
           <p>"크기가 같은 전체를 똑같이 더 많이 나눌수록(분모가 커질수록), 한 조각의 크기는 <strong class="notebook-blank">[ ${blankText} ]</strong>"</p>
         </div>
         <div class="rule-word-cards" role="group" aria-label="빈칸에 들어갈 알맞은 말 고르기">
-          <button type="button" data-rule-choice="bigger" class="secondary-btn rule-card-btn" aria-pressed="${ruleChoice === 'bigger'}">📈 점점 커집니다</button>
+          <button type="button" data-rule-choice="bigger" class="secondary-btn rule-card-btn ${ruleChoice === 'bigger' ? 'rule-card-wrong' : ''}" aria-pressed="${ruleChoice === 'bigger'}">📈 점점 커집니다</button>
           <button type="button" data-rule-choice="smaller" data-action="toggle-notebook-blank" class="secondary-btn rule-card-btn ${notebookBlankRevealed ? 'solo-choice-selected' : ''}" aria-pressed="${notebookBlankRevealed}">📉 작아집니다!</button>
-          <button type="button" data-rule-choice="same" class="secondary-btn rule-card-btn" aria-pressed="${ruleChoice === 'same'}">🟰 항상 똑같습니다</button>
+          <button type="button" data-rule-choice="same" class="secondary-btn rule-card-btn ${ruleChoice === 'same' ? 'rule-card-wrong' : ''}" aria-pressed="${ruleChoice === 'same'}">🟰 항상 똑같습니다</button>
         </div>
         ${ruleFeedbackHtml}
       </div>
@@ -985,8 +1010,16 @@ app.addEventListener('click', event => {
     for (const c of CHOICES) {
       if (pollData[p]![c].trim() === '') pollData[p]![c] = '0';
     }
+    const otherSum = CHOICES.filter(c => c !== ch).reduce((acc, c) => acc + (parseInt(pollData[p]![c], 10) || 0), 0);
     const currentVal = parseInt(pollData[p]![ch], 10) || 0;
-    pollData[p]![ch] = String(Math.max(0, Math.min(MAX_PARTICIPANTS, currentVal + delta)));
+    const maxForChoice = Math.max(0, MAX_PARTICIPANTS - otherSum);
+    const nextVal = Math.max(0, Math.min(maxForChoice, currentVal + delta));
+    pollData[p]![ch] = String(nextVal);
+    const totalNow = otherSum + nextVal;
+    const parsedN = parseParticipants(participantsRaw);
+    if (!parsedN || totalNow > parsedN) {
+      participantsRaw = String(Math.max(1, Math.min(MAX_PARTICIPANTS, totalNow)));
+    }
     classPollOpen = true;
     render();
     return;

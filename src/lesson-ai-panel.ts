@@ -227,8 +227,8 @@ export function createLessonAiPanel(
       }
       if (action === 'apply-reason' && candidate && approved) {
         appliedToLesson = true;
-        onApplyCandidate?.(candidate.id, candidate.title);
         message = '선택한 AI 후보를 위 수업 이유 카드에 연결했습니다.';
+        onApplyCandidate?.(candidate.id, candidate.title);
         syncView();
       }
     });
