@@ -225,7 +225,9 @@ async function testLessonFeatures(browser) {
 
   await page.click('button[data-action="flag-all"]');
   const flagLineText = await page.locator('#flag-line-status').textContent();
-  log('고도화 #6: 실험 5 0~1 수직선 위에 여러 단위분수 깃발 꽂기 작동', flagLineText?.includes('한눈에 발견') ?? false);
+  await page.click('button[data-action="flag-reset"]');
+  const resetFlagCaption = await page.locator('.flag-line-figure figcaption').textContent();
+  log('고도화 #6: 실험 5 0~1 수직선 위에 여러 단위분수 깃발 꽂기 및 초기화 작동', (flagLineText?.includes('한눈에 발견') ?? false) && (resetFlagCaption?.includes('2개') ?? false));
 
   await page.click('button[data-action="toggle-trap"]');
   const trapText = await page.locator('.trap-experiment-content').textContent();

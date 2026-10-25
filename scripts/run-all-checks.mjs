@@ -19,10 +19,10 @@ const isWin = process.platform === 'win32';
 
 function runStep(title, cmd, args, extraEnv = {}) {
   console.log(`\n▶ [검증] ${title}...`);
-  execFileSync(cmd, args, {
+  const execBin = cmd === 'node' ? process.execPath : cmd;
+  execFileSync(execBin, args, {
     cwd: ROOT,
     stdio: 'inherit',
-    shell: isWin,
     env: { ...process.env, ...extraEnv },
   });
 }
@@ -126,7 +126,7 @@ function stopServerProcess(proc) {
 }
 
 // 1. 타입 체크
-runStep('TypeScript 타입 검사', 'npx', ['tsc', '--noEmit']);
+runStep('TypeScript 타입 검사', 'node', [join(ROOT, 'node_modules', 'typescript', 'bin', 'tsc'), '--noEmit']);
 
 // 2. 단위 테스트
 runStep('단위 테스트 (node --test)', 'node', ['--test', 'tests/embedding-integrity.test.mjs', 'tests/errors.test.mjs', 'tests/judge.test.mjs', 'tests/lesson-core.test.mjs', 'tests/privacy.test.mjs', 'tests/unit-registry.test.mjs']);

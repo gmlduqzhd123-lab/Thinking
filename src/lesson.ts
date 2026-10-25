@@ -256,11 +256,15 @@ function circleFraction(denominator: number, undividedPreview = false): string {
   const { fill, bg, stroke } = snackColors();
 
   if (undividedPreview) {
-    return `<figure class="fraction fraction-circle">
+    const previewPattern = patternMode
+      ? `<circle cx="${cx}" cy="${cy}" r="${r - 14}" fill="none" stroke="${stroke}" stroke-width="2" stroke-dasharray="4 4"/>`
+      : '';
+    return `<figure class="fraction fraction-circle ${patternMode ? 'pattern-active' : ''}">
       <svg viewBox="0 0 160 160" role="img"
         aria-label="아직 자르지 않은 전체 크기가 같은 간식 모형 (${denominator}명이 똑같이 나눌 예정)">
         <circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill}" fill-opacity="0.28" stroke="${stroke}" stroke-width="3" stroke-dasharray="6 4"/>
         <circle cx="${cx}" cy="${cy}" r="${r - 8}" fill="none" stroke="${stroke}" stroke-width="1.2" stroke-opacity="0.4"/>
+        ${previewPattern}
         <text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="14" font-weight="800" fill="var(--lesson-bar-stroke, #153a69)">똑같은 전체 1</text>
         <text x="${cx}" y="${cy + 16}" text-anchor="middle" font-size="13" font-weight="700" fill="#d9381e">? (${denominator}등분 중 1조각)</text>
       </svg>
@@ -369,11 +373,15 @@ function bar(denominator: number, undividedPreview = false): string {
   const { fill, bg, stroke } = snackColors();
 
   if (undividedPreview) {
-    return `<figure class="fraction">
+    const previewPattern = patternMode
+      ? `<line x1="14" y1="22" x2="586" y2="22" stroke="${stroke}" stroke-width="2" stroke-opacity="0.55" stroke-dasharray="6 4"/><line x1="14" y1="46" x2="586" y2="46" stroke="${stroke}" stroke-width="2" stroke-opacity="0.55" stroke-dasharray="2 5"/>`
+      : '';
+    return `<figure class="fraction ${patternMode ? 'pattern-active' : ''}">
       <svg viewBox="0 0 600 70" role="img"
         aria-label="아직 자르지 않은 전체 길이가 같은 ${snackName()} 모형 (${denominator}명이 똑같이 나눌 예정)">
         <rect x="0" y="10" width="600" height="48" rx="8" fill="${fill}" fill-opacity="0.22" stroke="${stroke}" stroke-width="3" stroke-dasharray="8 5"/>
         <line x1="14" y1="34" x2="586" y2="34" stroke="${stroke}" stroke-width="1.2" stroke-opacity="0.35" stroke-dasharray="4 4"/>
+        ${previewPattern}
         <text x="300" y="39" text-anchor="middle" font-size="15" font-weight="800" fill="var(--lesson-bar-stroke, #153a69)">전체 크기가 똑같은 ${snackName()} 1개 · ✂️ ${denominator}조각으로 나누면 1/${denominator}은?</text>
       </svg>
       <figcaption>상상하기: 같은 ${snackName()}를 <strong>${denominator}명</strong>이 똑같이 나눈 한 조각 (<strong>1/${denominator}</strong>)</figcaption>
@@ -566,9 +574,9 @@ function renderTeacherTalkBar(p: Phase): string {
 function renderBeforeAfterPollComparison(): string {
   if (pollBlind || (!pollData.first && !pollData.again)) return '';
   const [fA] = currentUnit().denominators.first;
-  const n = Math.max(1, parseParticipants(participantsRaw) ?? 20);
   const firstA = Math.max(0, parseInt(pollData.first?.A ?? '0', 10) || 0);
   const againA = Math.max(0, parseInt(pollData.again?.A ?? '0', 10) || 0);
+  const n = Math.max(1, parseParticipants(participantsRaw) ?? 20, firstA, againA);
   const firstPct = Math.min(100, Math.round((firstA / n) * 100));
   const againPct = Math.min(100, Math.round((againA / n) * 100));
   const delta = againA - firstA;
@@ -808,25 +816,26 @@ function renderFlagNumberLine(): string {
   const endX = 556;
   const width = endX - startX;
   const sorted = [...pinnedFlags].sort((a, b) => a - b);
+  const poleTops = [14, 26, 38];
 
   const flagsSvg = sorted.map((d, idx) => {
     const x = (startX + width / d).toFixed(2);
-    const poleTop = idx % 2 === 0 ? 14 : 26;
+    const poleTop = poleTops[idx % poleTops.length];
     return `<g>
-      <line x1="${x}" y1="${poleTop}" x2="${x}" y2="54" stroke="#d9381e" stroke-width="2.2"/>
-      <circle cx="${x}" cy="54" r="4.5" fill="#d9381e"/>
+      <line x1="${x}" y1="${poleTop}" x2="${x}" y2="56" stroke="#d9381e" stroke-width="2.2"/>
+      <circle cx="${x}" cy="56" r="4.5" fill="#d9381e"/>
       <text x="${x}" y="${poleTop - 2}" text-anchor="middle" font-size="12" font-weight="800" fill="#d9381e">🚩1/${d}</text>
     </g>`;
   }).join('');
 
   return `<figure class="flag-line-figure">
-    <svg viewBox="0 0 600 82" role="img" aria-label="0부터 1까지 수직선 위에 ${sorted.map(d => `1/${d}`).join(', ')} 깃발을 꽂아 위치를 비교한 모형">
-      <line x1="${startX}" y1="54" x2="${endX}" y2="54" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3.5"/>
-      <line x1="${startX}" y1="40" x2="${startX}" y2="66" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3"/>
-      <line x1="${endX}" y1="40" x2="${endX}" y2="66" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3"/>
+    <svg viewBox="0 0 600 84" role="img" aria-label="0부터 1까지 수직선 위에 ${sorted.map(d => `1/${d}`).join(', ')} 깃발을 꽂아 위치를 비교한 모형">
+      <line x1="${startX}" y1="56" x2="${endX}" y2="56" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3.5"/>
+      <line x1="${startX}" y1="42" x2="${startX}" y2="68" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3"/>
+      <line x1="${endX}" y1="42" x2="${endX}" y2="68" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3"/>
       ${flagsSvg}
-      <text x="${startX}" y="78" text-anchor="middle" font-size="13" font-weight="800" fill="var(--lesson-bar-stroke, #153a69)">0</text>
-      <text x="${endX}" y="78" text-anchor="middle" font-size="13" font-weight="800" fill="var(--lesson-bar-stroke, #153a69)">1 (전체)</text>
+      <text x="${startX}" y="80" text-anchor="middle" font-size="13" font-weight="800" fill="var(--lesson-bar-stroke, #153a69)">0</text>
+      <text x="${endX}" y="80" text-anchor="middle" font-size="13" font-weight="800" fill="var(--lesson-bar-stroke, #153a69)">1 (전체)</text>
     </svg>
     <figcaption>꽂힌 단위분수 깃발(${sorted.length}개): <strong>${sorted.length > 0 ? sorted.map(d => `1/${d}`).join(' > ') : '없음'}</strong></figcaption>
   </figure>`;
@@ -956,6 +965,7 @@ function renderExplorePhase(): string {
         <div class="flag-controls" role="group" aria-label="수직선 깃발 선택">
           ${flagBtns}
           <button type="button" data-action="flag-all" class="secondary-btn">🚩 모든 깃발 한꺼번에 꽂기</button>
+          <button type="button" data-action="flag-reset" class="secondary-btn">🔄 기본 깃발만 남기기</button>
         </div>
         ${renderFlagNumberLine()}
         <p id="flag-line-status" class="answer" role="status">${
@@ -1382,10 +1392,13 @@ function updateClassPollStatusesDOM() {
     el.outerHTML = renderLivePollChart(p, dA, dB);
   });
   const baChart = app.querySelector<HTMLElement>('#poll-before-after-chart');
+  const nextBa = renderBeforeAfterPollComparison();
   if (baChart) {
-    const nextBa = renderBeforeAfterPollComparison();
     if (nextBa) baChart.outerHTML = nextBa;
     else baChart.remove();
+  } else if (nextBa) {
+    const againLiveChart = app.querySelector<HTMLElement>('.live-poll-chart[data-chart-poll="again"]');
+    againLiveChart?.insertAdjacentHTML('afterend', nextBa);
   }
   app.querySelectorAll<HTMLInputElement>('input[data-participants-input]').forEach(el => {
     if (el !== document.activeElement && el.value !== participantsRaw) {
@@ -1436,8 +1449,9 @@ app.addEventListener('input', event => {
 
 // 단축키 지원 (Alt+←, Alt+→ 및 1~4 숫자키로 A~D 보기 빠른 선택)
 window.addEventListener('keydown', event => {
+  if (event.repeat) return;
   const activeTag = (document.activeElement as HTMLElement | null)?.tagName;
-  if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
+  if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return;
 
   if (!event.altKey && !event.ctrlKey && !event.metaKey && ['1', '2', '3', '4'].includes(event.key)) {
     if (phase === 'think' || phase === 'check') {
@@ -1700,6 +1714,10 @@ app.addEventListener('click', event => {
   } else if (action === 'flag-all') {
     pinnedFlags = [...FLAG_DENOMS];
     playSound('fanfare');
+    render();
+  } else if (action === 'flag-reset') {
+    pinnedFlags = [2, 4];
+    playSound('click');
     render();
   } else if (action === 'talk-bell') {
     if (talkSecondsLeft > 0) {
