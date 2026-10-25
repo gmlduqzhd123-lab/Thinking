@@ -133,14 +133,37 @@ async function testLessonFeatures(browser) {
   const step1ToolbarBtns = await page.locator('.visual-toolbar button').count();
   log('개선 #2: 1단계 시각화 버튼 1개로 단순화', step1ToolbarBtns === 1, `${step1ToolbarBtns}개`);
 
+  // #1. 캐릭터 스토리 딜레마 및 선생님 발문 톡 확인
+  const storyCard = await page.locator('.story-dilemma-card').textContent();
+  log('재미 개선 #1: 캐릭터 고민(스토리 딜레마) 도입', storyCard?.includes('민수') ?? false);
+  const talkBanner = await page.locator('.teacher-talk-banner').textContent();
+  log('재미 개선 #7: 교실 수업용 선생님 질문 톡 제공', talkBanner?.includes('선생님 질문 톡') ?? false);
+
+  // #2. 1단계 정답 스포일러 방지(자르기 전 간식 상상 모형) 및 힌트 토글
+  const firstSvgLabel = await page.locator('figure.fraction svg').first().getAttribute('aria-label');
+  log('재미 개선 #2: 1단계 정답 스포일러 없는 자르기 전 간식 상상 모형', firstSvgLabel?.includes('아직 자르지 않은') ?? false);
+  await page.click('button[data-action="toggle-spoiler"]');
+  const revealedSvgLabel = await page.locator('figure.fraction svg').first().getAttribute('aria-label');
+  log('재미 개선 #2: 자른 눈금 힌트 미리 보기 토글 작동', revealedSvgLabel?.includes('1/3') ?? false);
+  await page.click('button[data-action="toggle-spoiler"]');
+
   await page.click('button[data-action="toggle-model"]');
   log('둥근 피자(원형) 모형 전환 작동', (await page.locator('.fraction-circle').count()) === 2);
   await page.click('button[data-action="toggle-model"]');
 
-  // #4. 기본 방식을 1클릭 보기 선택으로 통일 (교사용 인원 집계는 접기 메뉴로 분리)
+  // #4. 기본 방식을 1클릭 보기 선택으로 통일 + #7 스마트보드 +1 거수 투표 및 결과 가리기
   await page.click('button[data-pick-poll="first"][data-pick-choice="B"]');
   const pollNote = await page.locator('#poll-note').textContent();
   log('개선 #4: 1클릭 보기 선택 및 즉시 확인 메시지', pollNote?.includes('1/5이 더 크다') ?? false);
+
+  await page.click('.class-poll-details summary');
+  await page.click('button[data-vote-poll="first"][data-vote-choice="A"][data-vote-delta="1"]');
+  const voteInputA = await page.locator('input[data-count="A"][data-count-poll="first"]').inputValue();
+  log('재미 개선 #7: 스마트보드 +1 원터치 거수 투표 카운터 작동', voteInputA === '1', `A="${voteInputA}"`);
+  await page.click('button[data-action="toggle-poll-blind"]');
+  const blindStatus = await page.locator('.class-poll-status').textContent();
+  log('재미 개선 #7: 투표 결과 잠시 가리기 작동', blindStatus?.includes('가려 두었습니다') ?? false);
+  await page.click('button[data-action="toggle-poll-blind"]');
 
   await page.click('button[data-reason="0"]');
 
@@ -149,41 +172,62 @@ async function testLessonFeatures(browser) {
   const hypothesisText = await page.locator('.hypothesis-banner').textContent();
   log('개선 #6: 내가 고른 처음 생각·이유가 실험 화면 상단에 연결됨', hypothesisText?.includes('1/5이 더 크다') ?? false);
 
-  // #7 & #8. 2가지 직관적 실험(조각 포개어 보기 + 등분 슬라이더) 및 설명 공개 버튼 없이 즉시 원리 표시
+  // #5 & #6. 조각 포개어 차이 보기 + 빠른 인원 버튼 + 전체 크기가 다를 때 깜짝 실험
   await page.click('button[data-action="toggle-overlap"]');
   const overlapText = await page.locator('.overlap-comparison').textContent();
-  log('개선 #7·#8: 실험 1 조각 포개어 비교 클릭 즉시 원리(발견 1) 표시', overlapText?.includes('발견 1') ?? false);
+  log('재미 개선 #5: 실험 1 조각 포개어 길이 차이 강조 및 발견 1 표시', (overlapText?.includes('발견 1') && overlapText?.includes('더 길어요')) ?? false);
+
+  await page.click('button[data-quick-denom="8"]');
+  const quickOutput = await page.locator('#explore-denom-output').textContent();
+  log('재미 개선 #5: 빠른 인원(8명) 원터치 비교 버튼 작동', quickOutput?.includes('8등분') ?? false);
 
   const slider = page.locator('#explore-slider');
   await slider.focus();
-  await slider.fill('8');
+  await slider.fill('12');
   await slider.dispatchEvent('input');
   const sliderStillFocused = await page.evaluate(() => document.activeElement?.id === 'explore-slider');
   const expText = await page.locator('#step').textContent();
   log('개선 #7·#8: 실험 2 등분 슬라이더 조작 즉시 원리(발견 2) 표시 및 포커스 유지', (expText?.includes('발견 2') ?? false) && sliderStillFocused);
 
-  // #8. 3단계 다시 점검하기: 보기 클릭 즉시 정답/힌트 피드백 표시
+  await page.click('button[data-action="toggle-trap"]');
+  const trapText = await page.locator('.trap-experiment-content').textContent();
+  log('재미 개선 #6: 원래 전체 크기가 다를 때 깜짝 함정 실험 작동', trapText?.includes('깜짝 발견') ?? false);
+
+  // #4. 3단계 다시 점검하기: 응용 문제(B가 정답) 및 3연속 번개 미니게임
   await page.click('button[data-action="next"]');
   await page.click('button[data-pick-poll="again"][data-pick-choice="A"]');
   const checkText = await page.locator('#step').textContent();
   log('개선 #8: 3단계 재선택 클릭 즉시 정답 피드백 표시', checkText?.includes('정답이에요') ?? false);
 
-  // 응용 문제에서 수직선·주스컵 모형 전환 및 선택 확인
+  // 응용 문제에서 수직선·주스컵 모형 전환 및 선택 확인 (B: 1/4 조각이 더 크다가 정답)
   await page.click('button[data-action="toggle-numberline"]');
   log('응용 문제 수직선 모형 전환 작동', (await page.locator('.fraction-numberline').count()) === 2);
   await page.click('button[data-action="toggle-cup"]');
   log('응용 문제 주스 컵 모형 전환 작동', (await page.locator('.fraction-cup').count()) === 2);
-  await page.click('button[data-pick-poll="transfer"][data-pick-choice="A"]');
+  await page.click('button[data-pick-poll="transfer"][data-pick-choice="B"]');
 
-  // #10. 4단계 오늘의 발견: 도착 즉시 열리는 '내 생각의 성장 카드' 및 한 줄 규칙 완성
+  // 3연속 번개 미니게임 클리어 확인
+  await page.click('button[data-duel-round="0"][data-duel-pick="right"]');
+  await page.click('button[data-duel-round="1"][data-duel-pick="left"]');
+  await page.click('button[data-duel-round="2"][data-duel-pick="right"]');
+  const duelBanner = await page.locator('.duel-score-banner').textContent();
+  log('재미 개선 #4: 3연속 번개 미니게임 퍼펙트 클리어 작동', duelBanner?.includes('3 / 3') ?? false, `"${duelBanner}"`);
+
+  // #8 & #9. 4단계 오늘의 발견: 성장 카드 + 단어 카드 콕콕 규칙 퀴즈 + 3대 주제 스탬프 투어
   await page.click('button[data-action="next"]');
   const reportVisible = await page.locator('.solo-report-card').isVisible();
   const journeySteps = await page.locator('.journey-step').count();
   log('개선 #10: 4단계 도착 즉시 내 생각의 성장 카드(3단계 여정) 표시', reportVisible && journeySteps === 3);
 
-  await page.click('button[data-action="toggle-notebook-blank"]');
+  await page.click('button[data-rule-choice="smaller"]');
   const blankText = await page.locator('.notebook-blank').textContent();
-  log('개선 #10: 오늘 내가 발견한 규칙 빈칸 채우기 작동', blankText?.includes('작아집니다') ?? false);
+  log('재미 개선 #8: 단어 카드 콕콕 선택으로 규칙 빈칸 완성 작동', blankText?.includes('작아집니다') ?? false);
+
+  const stampTitle = await page.locator('.stamp-tour-board h3').textContent();
+  log('재미 개선 #9: 3대 주제 스탬프 투어 보드 획득 확인', stampTitle?.includes('1 / 3') ?? false, `"${stampTitle}"`);
+  await page.click('button[data-action="next-unit"]');
+  const nextUnitH2 = await page.locator('#step h2').textContent();
+  log('재미 개선 #9: 다음 이야기 도전하기 버튼으로 즉시 다음 주제(1/4 vs 1/7) 시작', nextUnitH2?.includes('1/4과 1/7') ?? false);
 
   log('수업 JS 에러 없음', errors.length === 0, errors.length > 0 ? errors.join('; ') : '');
 
@@ -201,6 +245,10 @@ async function testLessonAiPanelFeatures(browser) {
 
   const countText = await page.locator('#lesson-ai-count').textContent();
   log('AI 보조 수업 패널 글자 수 카운터 표시', countText === '0/160자', `"${countText}"`);
+
+  await page.click('button[data-ai-chip="0"]');
+  const chipValue = await page.locator('#lesson-ai-query').inputValue();
+  log('재미 개선 #10: AI 보조 수업 패널 자주 나오는 학생 생각 1클릭 칩 입력 작동', chipValue.includes('1/5 한 조각이 더 길다고'), `"${chipValue}"`);
 
   await page.locator('#lesson-ai-query').fill('분모가 크면 조각도 크다고 생각해요');
   const updatedCount = await page.locator('#lesson-ai-count').textContent();

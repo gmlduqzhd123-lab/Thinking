@@ -837,14 +837,256 @@ button[data-reason][aria-pressed="true"] {
 }
 
 .class-poll-inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.poll-top-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.poll-counter-card {
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--lesson-surface);
+  border: 1px solid var(--lesson-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.poll-counter-card label {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.poll-touch-btns {
+  display: flex;
+  gap: 6px;
+}
+
+.vote-step-btn {
+  flex: 1;
+  min-width: 48px;
+  padding: 6px 10px;
+}
+
+/* ─── 학생 흥미·몰입 및 교실 활용 10대 기능 추가 스타일 ────────── */
+.unit-stamp-tag {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--lesson-surface);
+  color: var(--lesson-accent-blue);
+  border: 1px solid var(--lesson-border);
+}
+
+.story-dilemma-card {
+  margin: 10px 0 12px;
+  padding: 14px 16px;
+  background: var(--lesson-notice-bg);
+  border: 2px solid var(--lesson-notice-border);
+  border-radius: 12px;
+}
+
+.story-badge {
+  display: inline-block;
+  font-size: 0.88rem;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--lesson-surface);
+  color: var(--lesson-text);
+  margin-bottom: 6px;
+}
+
+.teacher-talk-banner {
+  margin: 8px 0 14px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--lesson-answer-bg);
+  border-left: 4px solid var(--lesson-answer-border);
+  font-size: 0.94rem;
+  font-weight: 600;
+}
+
+.spoiler-hint-row {
+  margin: 4px 0 12px;
+}
+
+.quick-denom-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 10px;
+}
+
+.quick-denom-btn {
+  padding: 8px 12px;
+  font-size: 0.9rem;
+}
+
+.quick-denom-active {
+  background: var(--lesson-answer-bg);
+  border-color: var(--lesson-accent-gold-dark);
+  outline: 2px solid var(--lesson-accent-gold);
+  font-weight: 800;
+}
+
+.trap-experiment-content {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--lesson-surface);
+  border: 2px dashed var(--lesson-notice-border);
+}
+
+.trap-experiment-content svg {
+  width: 100%;
+  height: auto;
+}
+
+.transfer-caution-note {
+  margin: 4px 0 8px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--lesson-answer-border);
+}
+
+.duel-rounds-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.duel-round-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--lesson-surface);
+  border: 1px solid var(--lesson-border);
+}
+
+.duel-round-badge {
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+.duel-btn-pair {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.duel-card-btn {
+  min-width: 110px;
+  font-weight: 800;
+}
+
+.duel-vs {
+  font-weight: 900;
+  color: var(--lesson-text-muted);
+}
+
+.duel-result-tag {
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.duel-score-banner {
+  margin: 8px 0 0;
+  font-size: 1rem;
+}
+
+.rule-word-cards {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin: 8px 0;
+  margin: 12px 0 8px;
+}
+
+.rule-card-btn {
+  flex: 1 1 160px;
+  font-weight: 800;
+}
+
+.stamp-tour-board {
+  margin: 14px 0;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--lesson-chart-bg);
+  border: 2px solid var(--lesson-border);
+}
+
+.stamp-tour-board h3 {
+  margin: 0 0 10px;
+  font-size: 1.04rem;
+}
+
+.stamp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+}
+
+.stamp-item {
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--lesson-surface);
+  border: 1px dashed var(--lesson-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stamp-done {
+  border: 2px solid var(--lesson-accent-gold-dark);
+  background: var(--lesson-step-current-bg);
+}
+
+.stamp-icon {
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+.ai-quick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.ai-chip-label {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.ai-chip-btn {
+  font-size: 0.88rem;
+  padding: 8px 12px;
 }
 
 @media (max-width: 550px) {
   .journey-arrow { display: none; }
+  .duel-btn-pair { width: 100%; }
+  .duel-card-btn { flex: 1; }
 }
 
 /* ─── Print ──────────────────────────────────────────────────── */

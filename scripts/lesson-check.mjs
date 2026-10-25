@@ -45,13 +45,13 @@ try {
   assert.match(await page.locator('#explore-denom-output').innerText(), /12등분/);
   assert.equal(await page.locator('.fraction').last().locator('svg').getAttribute('aria-label').then(s => s.includes('1/12')), true);
 
-  // 3단계: 다시 점검하기 (행동 즉시 정답/힌트 피드백)
+  // 3단계: 다시 점검하기 (행동 즉시 정답/힌트 피드백, 응용 문제는 B가 정답)
   await page.click('button[data-action="next"]');
   assert.match(await page.locator('#step h2').innerText(), /③ 다시 점검하기/);
   await page.click('button[data-pick-poll="again"][data-pick-choice="A"]');
   assert.match(await page.locator('#step').innerText(), /정답이에요/);
 
-  await page.click('button[data-pick-poll="transfer"][data-pick-choice="A"]');
+  await page.click('button[data-pick-poll="transfer"][data-pick-choice="B"]');
 
   // 4단계: 오늘의 발견 (도착 즉시 열리는 성장 카드 + 한 줄 규칙 빈칸 완성)
   await page.click('button[data-action="next"]');

@@ -167,10 +167,11 @@ try {
     lessonHScroll ||= await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
     await page.screenshot({ path: `${SCREENSHOTS_DIR}/${vp.name}-lesson-inquiry3.png`, fullPage: true });
 
-    // 3단계: 다시 점검하기 (재선택 + 응용 문제)
+    // 3단계: 다시 점검하기 (재선택 + 응용 문제 + 미니게임)
     await page.click('button[data-action="next"]');
     await page.click('button[data-pick-poll="again"][data-pick-choice="A"]');
-    await page.click('button[data-pick-poll="transfer"][data-pick-choice="A"]');
+    await page.click('button[data-pick-poll="transfer"][data-pick-choice="B"]');
+    await page.click('button[data-duel-round="0"][data-duel-pick="right"]');
     lessonHScroll ||= await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
     await page.screenshot({ path: `${SCREENSHOTS_DIR}/${vp.name}-lesson-preview.png`, fullPage: true });
 

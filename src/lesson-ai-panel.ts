@@ -80,8 +80,21 @@ export function createLessonAiPanel(
       <p>위의 기본 이유 카드와 함께 활용할 수 있는 보조 도구입니다. 학생 이름·번호·발언 원문 없이 수학 개념상의 혼동만 적어 주세요.</p>`;
   }
 
+  const quickChips = [
+    { label: '💬 "5가 3보다 크니까 1/5이 더 길어요"', text: '5가 3보다 크니까 1/5 한 조각이 더 길다고 생각해요.' },
+    { label: '💬 "더 많이 나누면 한 조각은 작아져요"', text: '같은 길이를 더 많이 나누면 한 조각은 작아져요.' },
+    { label: '💬 "전체 길이가 서로 다르면 비교가 달라져요"', text: '두 리본의 전체 길이가 서로 다르면 비교가 달라질 수 있어요.' },
+  ] as const;
+
   function renderPanelInput(): string {
-    return `<label for="lesson-ai-query">일반적인 개념 설명</label>
+    const chipsHtml = quickChips.map((chip, idx) =>
+      `<button type="button" data-ai-chip="${idx}" class="secondary-btn ai-chip-btn">${chip.label}</button>`
+    ).join('');
+    return `<div class="ai-quick-chips" role="group" aria-label="자주 나오는 학생 생각 예시 1클릭 입력">
+        <span class="ai-chip-label">⚡ 자주 나오는 학생 생각 1클릭 입력:</span>
+        ${chipsHtml}
+      </div>
+      <label for="lesson-ai-query">일반적인 개념 설명</label>
       <textarea id="lesson-ai-query" maxlength="${MAX_QUERY_LENGTH}" rows="3" autocomplete="off"></textarea>
       <p id="lesson-ai-count" class="char-count">${query.length}/${MAX_QUERY_LENGTH}자</p>
       <p>개인정보 필터는 보조 장치이며 완전한 익명화를 보장하지 않습니다.</p>`;
@@ -184,7 +197,19 @@ export function createLessonAiPanel(
     });
 
     panel.addEventListener('click', event => {
-      const action = (event.target as HTMLElement).closest<HTMLButtonElement>('button')?.dataset.ai;
+      const btn = (event.target as HTMLElement).closest<HTMLButtonElement>('button');
+      if (!btn) return;
+
+      if (btn.dataset.aiChip !== undefined) {
+        const chip = quickChips[Number(btn.dataset.aiChip)];
+        if (chip) {
+          input.value = chip.text;
+          input.dispatchEvent(new Event('input'));
+        }
+        return;
+      }
+
+      const action = btn.dataset.ai;
       if (action === 'prepare') prepare();
       if (action === 'infer') infer();
       if (action === 'cancel') {
