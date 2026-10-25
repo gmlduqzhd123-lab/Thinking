@@ -20,6 +20,7 @@ type VisualModel = 'bar' | 'circle' | 'numberline' | 'cup';
 type DuelPick = 'left' | 'right';
 type RuleChoice = 'bigger' | 'smaller' | 'same' | '';
 type LetterChoice = 'correct' | 'wrong' | '';
+type ConfidenceLevel = 'low' | 'mid' | 'high' | '';
 type DuelRound = { id: number; leftDenom: number; rightDenom: number; answer: DuelPick };
 
 // ─── 상수 ────────────────────────────────────────────────────────
@@ -64,6 +65,8 @@ const DEFAULT_DUEL_ROUNDS: DuelRound[] = [
 
 const QUICK_DENOMS = [2, 3, 5, 8, 12] as const;
 const TRAIN_POOL = [6, 2, 9] as const;
+const FLAG_DENOMS = [2, 3, 4, 6, 12] as const;
+const MYSTERY_CANDIDATES = [2, 4, 5, 6, 8] as const;
 
 const reasonCards = [
   '분모가 클수록 조각이 크다고 생각함',
@@ -90,12 +93,16 @@ let phase: Phase = 'think';
 let soundEnabled = true;
 let ttsSpoken = false;
 let spoilerPreview = false;
+let patternMode = false;
 let myChoices: Record<Poll, Choice | null> = { first: null, again: null, transfer: null };
+let confidence: Record<'first' | 'again', ConfidenceLevel> = { first: '', again: '' };
 let reasonSelected = '';
 let aiLinkedCardTitle = '';
 let showOverlap = false;
 let showTrapExperiment = false;
 let showRealLife = false;
+let fairCutAligned = false;
+let pinnedFlags: number[] = [2, 4];
 let exploreBaseDenominator = 3;
 let exploreDenominator = 5;
 let exploreMoved = false;
@@ -105,14 +112,19 @@ let duelPicks: Record<number, DuelPick | null> = { 0: null, 1: null, 2: null };
 let duelStreak = 0;
 let duelShuffleCount = 0;
 let trainOrder: number[] = [];
+let mysteryDenomPick: number | null = null;
 let ruleChoice: RuleChoice = '';
 let notebookBlankRevealed = false;
 let friendLetterChoice: LetterChoice = '';
+let bridgeChoice: DuelPick | '' = '';
 let clearedUnits = new Set<string>();
 let classPollOpen: Record<Poll, boolean> = { first: false, again: false, transfer: false };
 let pollBlind = false;
 let participantsRaw = '20';
 let pollData: Record<Poll, RawCounts | null> = { first: null, again: null, transfer: null };
+let talkSecondsLeft = 0;
+let talkInterval: ReturnType<typeof setInterval> | undefined;
+let pickedGroup: number | null = null;
 let error = '';
 
 // ─── 헬퍼 ────────────────────────────────────────────────────────
@@ -168,21 +180,34 @@ function playSound(kind: 'click' | 'correct' | 'fanfare') {
   }
 }
 
+function stopTalkCountdown() {
+  if (talkInterval) {
+    clearInterval(talkInterval);
+    talkInterval = undefined;
+  }
+  talkSecondsLeft = 0;
+}
+
 function resetSession(keepUnit = false, keepStamps = false) {
   aiPanel?.dispose();
   stopSpeech();
+  stopTalkCountdown();
   if (!keepUnit) selectedUnitId = 'M01';
   if (!keepStamps) clearedUnits.clear();
   visualModel = 'bar';
   phase = 'think';
   ttsSpoken = false;
   spoilerPreview = false;
+  patternMode = false;
   myChoices = { first: null, again: null, transfer: null };
+  confidence = { first: '', again: '' };
   reasonSelected = '';
   aiLinkedCardTitle = '';
   showOverlap = false;
   showTrapExperiment = false;
   showRealLife = false;
+  fairCutAligned = false;
+  pinnedFlags = [2, 4];
   exploreBaseDenominator = currentUnit().denominators.first[0];
   exploreDenominator = currentUnit().denominators.first[1];
   exploreMoved = false;
@@ -192,9 +217,12 @@ function resetSession(keepUnit = false, keepStamps = false) {
   duelStreak = 0;
   duelShuffleCount = 0;
   trainOrder = [];
+  mysteryDenomPick = null;
   ruleChoice = '';
   notebookBlankRevealed = false;
   friendLetterChoice = '';
+  bridgeChoice = '';
+  pickedGroup = null;
   classPollOpen = { first: false, again: false, transfer: false };
   pollBlind = false;
   participantsRaw = '20';
@@ -262,11 +290,16 @@ function circleFraction(denominator: number, undividedPreview = false): string {
     return `<line x1="${cx}" y1="${cy}" x2="${lx.toFixed(2)}" y2="${ly.toFixed(2)}" stroke="${stroke}" stroke-width="1.8"/>`;
   }).join('');
 
-  return `<figure class="fraction fraction-circle">
+  const patternRing = patternMode
+    ? `<path d="${sectorPath}" fill="none" stroke="#153a69" stroke-width="3" stroke-dasharray="5 3"/>`
+    : '';
+
+  return `<figure class="fraction fraction-circle ${patternMode ? 'pattern-active' : ''}">
     <svg viewBox="0 0 160 160" role="img"
       aria-label="같은 크기의 전체를 ${denominator}등분하고 첫 한 조각을 칠한 분수 원형 모형, 1/${denominator}">
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="${bg}" stroke="${stroke}" stroke-width="3"/>
       <path d="${sectorPath}" fill="${fill}"/>
+      ${patternRing}
       <circle cx="${pepX}" cy="${pepY}" r="${denominator >= 9 ? 3.2 : 4.5}" fill="#d9381e" fill-opacity="0.85"/>
       ${dividers}
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${stroke}" stroke-width="3"/>
@@ -360,12 +393,17 @@ function bar(denominator: number, undividedPreview = false): string {
       ? `<circle cx="${Math.min(580, segmentWidth * 0.5).toFixed(2)}" cy="34" r="6" fill="#d9381e" fill-opacity="0.8"/>`
       : `<line x1="6" y1="34" x2="${Math.max(10, segmentWidth - 6).toFixed(2)}" y2="34" stroke="#fff" stroke-opacity="0.7" stroke-width="2" stroke-dasharray="5 3"/>`;
 
-  return `<figure class="fraction">
+  const patternOverlay = patternMode
+    ? `<line x1="4" y1="22" x2="${Math.max(6, segmentWidth - 4).toFixed(2)}" y2="22" stroke="#153a69" stroke-width="2.5" stroke-dasharray="6 4"/><line x1="4" y1="46" x2="${Math.max(6, segmentWidth - 4).toFixed(2)}" y2="46" stroke="#153a69" stroke-width="2.5" stroke-dasharray="2 5"/>`
+    : '';
+
+  return `<figure class="fraction ${patternMode ? 'pattern-active' : ''}">
     <svg viewBox="0 0 600 70" role="img"
       aria-label="같은 길이의 전체를 ${denominator}등분하고 첫 한 조각을 칠한 분수 막대, 1/${denominator}">
       <rect x="0" y="10" width="600" height="48" rx="6" fill="${bg}" stroke="${stroke}" stroke-width="3"/>
       <rect x="0" y="10" width="${segmentWidth}" height="48" rx="4" fill="${fill}"/>
       ${themeDecoration}
+      ${patternOverlay}
       ${dividers}
     </svg>
     <figcaption>같은 ${snackName()}의 <strong>1/${denominator}</strong> (${denominator}조각 중 한 조각)</figcaption>
@@ -495,6 +533,62 @@ function renderLivePollChart(poll: Poll, dA: number, dB: number): string {
   </div>`;
 }
 
+function renderConfidencePicker(poll: 'first' | 'again'): string {
+  const current = confidence[poll];
+  const levels: { key: ConfidenceLevel; label: string }[] = [
+    { key: 'low', label: '🌱 조금 헷갈려요' },
+    { key: 'mid', label: '🙂 어느 정도 맞을 것 같아요' },
+    { key: 'high', label: '🔥 완전히 확신해요!' },
+  ];
+  return `<div class="confidence-picker" role="group" aria-label="내 생각 확신 온도계">
+    <span class="confidence-label">🌡️ 내 생각 확신 온도계:</span>
+    <div class="confidence-btns">
+      ${levels.map(l => `<button type="button" data-conf-poll="${poll}" data-conf-level="${l.key}" class="secondary-btn conf-btn ${current === l.key ? 'solo-choice-selected' : ''}" aria-pressed="${current === l.key}">${l.label}</button>`).join('')}
+    </div>
+  </div>`;
+}
+
+function renderTeacherTalkBar(p: Phase): string {
+  const bellLabel = talkSecondsLeft > 0 ? `🔔 짝 토론 진행 중 (${talkSecondsLeft}초)` : '🔔 30초 짝 토론 벨';
+  const groupBadge = pickedGroup !== null
+    ? `<span id="picked-group-badge" class="picked-group-badge" role="status">🎤 이번 발표: <strong>${pickedGroup}모둠</strong>!</span>`
+    : '';
+  return `<div class="teacher-talk-banner">
+    <p class="teacher-talk-text">${teacherTalkPrompts[p]}</p>
+    <div class="talk-dock" role="group" aria-label="짝 토론 및 발표 모둠 도구">
+      <button type="button" id="talk-bell-btn" data-action="talk-bell" class="secondary-btn talk-dock-btn" aria-pressed="${talkSecondsLeft > 0}">${bellLabel}</button>
+      <button type="button" data-action="pick-group" class="secondary-btn talk-dock-btn">🎲 발표 모둠 뽑기</button>
+      ${groupBadge}
+    </div>
+  </div>`;
+}
+
+function renderBeforeAfterPollComparison(): string {
+  if (pollBlind || (!pollData.first && !pollData.again)) return '';
+  const [fA] = currentUnit().denominators.first;
+  const n = Math.max(1, parseParticipants(participantsRaw) ?? 20);
+  const firstA = Math.max(0, parseInt(pollData.first?.A ?? '0', 10) || 0);
+  const againA = Math.max(0, parseInt(pollData.again?.A ?? '0', 10) || 0);
+  const firstPct = Math.min(100, Math.round((firstA / n) * 100));
+  const againPct = Math.min(100, Math.round((againA / n) * 100));
+  const delta = againA - firstA;
+  const deltaSign = delta > 0 ? `+${delta}명` : `${delta}명`;
+
+  return `<div id="poll-before-after-chart" class="poll-before-after-chart" role="region" aria-label="실험 전후 학급 정답 인원 비교 차트">
+    <strong>📈 실험 전(1단계) vs 실험 후(3단계) 정답(1/${fA}) 인원 변화 (${deltaSign})</strong>
+    <div class="poll-bar-row">
+      <span class="poll-bar-label">1단계 처음</span>
+      <div class="poll-bar-track"><div class="poll-bar-fill" style="width: ${firstPct}%"></div></div>
+      <span class="poll-bar-val">${firstA}명 (${firstPct}%)</span>
+    </div>
+    <div class="poll-bar-row">
+      <span class="poll-bar-label">3단계 실험 후</span>
+      <div class="poll-bar-track"><div class="poll-bar-fill poll-bar-correct" style="width: ${againPct}%"></div></div>
+      <span class="poll-bar-val">${againA}명 (${againPct}%)</span>
+    </div>
+  </div>`;
+}
+
 /** #7 교사용 선택형 학급 인원 집계 (+1/-1 스마트보드 터치 카운터 & 결과 가리기 & 실시간 막대그래프 포함). */
 function renderOptionalClassPoll(poll: Poll, dA: number, dB: number): string {
   const counts = pollData[poll] ?? emptyCounts();
@@ -525,6 +619,7 @@ function renderOptionalClassPoll(poll: Poll, dA: number, dB: number): string {
         <button type="button" data-action="fill-sample" data-target-poll="${poll}" class="secondary-btn">예시 인원 채우기</button>
       </div>
       ${renderLivePollChart(poll, dA, dB)}
+      ${poll === 'again' ? renderBeforeAfterPollComparison() : ''}
       <p class="class-poll-status" data-status-poll="${poll}" role="status">${formatClassPollStatus(poll)}</p>
     </div>
   </details>`;
@@ -565,17 +660,21 @@ function renderThinkPhase(): string {
         ${ttsSpoken ? '<p id="tts-status" class="tts-status" role="status">🔊 이야기를 음성으로 읽어주었어요!</p>' : ''}
       </div>
 
-      <p class="teacher-talk-banner">${teacherTalkPrompts.think}</p>
+      ${renderTeacherTalkBar('think')}
 
       ${renderSimpleVisualPair(firstA, firstB, false, !spoilerPreview)}
       <div class="spoiler-hint-row">
         <button type="button" data-action="toggle-spoiler" class="secondary-btn" aria-pressed="${spoilerPreview}">
           ${spoilerPreview ? '🙈 자르기 전 모양으로 다시 가리기' : '👀 자른 눈금 힌트 살짝 미리 보기'}
         </button>
+        <button type="button" data-action="toggle-pattern" class="secondary-btn" aria-pressed="${patternMode}">
+          ${patternMode ? '🎨 기본 색상으로 보기' : '🎨 색각 안전 빗금 패턴 켜기'}
+        </button>
       </div>
 
       ${renderChoiceButtons('first', firstA, firstB)}
       ${renderInstantFeedback('first', firstA, firstB)}
+      ${renderConfidencePicker('first')}
 
       <div class="reason-section">
         <h3>💭 왜 그렇게 생각했나요? (내 생각과 가장 비슷한 말풍선 고르기)</h3>
@@ -691,7 +790,49 @@ function updateExploreSliderDOM() {
   if (fillWholeEl) fillWholeEl.innerHTML = renderFillWholeContent();
 }
 
-/** 2단계: 포개어 차이 보기 + 양쪽 분모 자유 비교 + 조각 모아 전체 1 채우기 + 깜짝 함정 실험 + 실생활 단위분수 찾기. */
+function renderAdaptiveMissionGuide(firstA: number, firstB: number): string {
+  if (myChoices.first === 'B' || reasonSelected === '0') {
+    return `🎯 <strong>맞춤 실험 미션</strong>: 분모 숫자(${firstB})가 클수록 조각도 클지 확인하기 위해 <strong>[실험 1 · 조각 포개어 비교하기]</strong>와 <strong>[실험 3 · 조각 모아 전체 1 채우기]</strong>를 먼저 해 보세요!`;
+  }
+  if (myChoices.first === 'C' || reasonSelected === '2') {
+    return `🎯 <strong>맞춤 실험 미션</strong>: 전체의 크기와 등분 조건이 왜 중요한지 <strong>[실험 4 · 공평하게 나누기(등분할) 실험]</strong>과 <strong>[깜짝 실험 · 원래 전체 크기가 다를 때]</strong>를 먼저 확인해 보세요!`;
+  }
+  if (myChoices.first === 'A' || reasonSelected === '1') {
+    return `🎯 <strong>맞춤 실험 미션</strong>: 덜 나눌수록 조각이 크다는 예상을 검증하기 위해 <strong>[실험 2 · 양쪽 분모 자유 비교]</strong>와 <strong>[실험 5 · 0~1 수직선 깃발 꽂기]</strong>에 도전해 보세요!`;
+  }
+  return `🎯 <strong>맞춤 실험 미션</strong>: 아래 <strong>[실험 1 · 조각 포개어 비교하기]</strong>부터 차례대로 눌러 눈으로 직접 조각 크기를 비교해 보세요!`;
+}
+
+function renderFlagNumberLine(): string {
+  const startX = 44;
+  const endX = 556;
+  const width = endX - startX;
+  const sorted = [...pinnedFlags].sort((a, b) => a - b);
+
+  const flagsSvg = sorted.map((d, idx) => {
+    const x = (startX + width / d).toFixed(2);
+    const poleTop = idx % 2 === 0 ? 14 : 26;
+    return `<g>
+      <line x1="${x}" y1="${poleTop}" x2="${x}" y2="54" stroke="#d9381e" stroke-width="2.2"/>
+      <circle cx="${x}" cy="54" r="4.5" fill="#d9381e"/>
+      <text x="${x}" y="${poleTop - 2}" text-anchor="middle" font-size="12" font-weight="800" fill="#d9381e">🚩1/${d}</text>
+    </g>`;
+  }).join('');
+
+  return `<figure class="flag-line-figure">
+    <svg viewBox="0 0 600 82" role="img" aria-label="0부터 1까지 수직선 위에 ${sorted.map(d => `1/${d}`).join(', ')} 깃발을 꽂아 위치를 비교한 모형">
+      <line x1="${startX}" y1="54" x2="${endX}" y2="54" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3.5"/>
+      <line x1="${startX}" y1="40" x2="${startX}" y2="66" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3"/>
+      <line x1="${endX}" y1="40" x2="${endX}" y2="66" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3"/>
+      ${flagsSvg}
+      <text x="${startX}" y="78" text-anchor="middle" font-size="13" font-weight="800" fill="var(--lesson-bar-stroke, #153a69)">0</text>
+      <text x="${endX}" y="78" text-anchor="middle" font-size="13" font-weight="800" fill="var(--lesson-bar-stroke, #153a69)">1 (전체)</text>
+    </svg>
+    <figcaption>꽂힌 단위분수 깃발(${sorted.length}개): <strong>${sorted.length > 0 ? sorted.map(d => `1/${d}`).join(' > ') : '없음'}</strong></figcaption>
+  </figure>`;
+}
+
+/** 2단계: 포개어 차이 보기 + 양쪽 분모 자유 비교 + 조각 모아 전체 1 채우기 + 등분할 조건 + 수직선 깃발 + 깜짝 함정 실험 + 실생활 단위분수 찾기. */
 function renderExplorePhase(): string {
   const [firstA, firstB] = currentUnit().denominators.first;
   const myFirstText = choiceLabel(myChoices.first, firstA, firstB, 'first');
@@ -707,6 +848,11 @@ function renderExplorePhase(): string {
     return `<button type="button" data-quick-denom="${d}" class="secondary-btn quick-denom-btn ${active ? 'quick-denom-active' : ''}" aria-pressed="${active}">👧 ${d}명이 나눌 때 (1/${d})</button>`;
   }).join('');
 
+  const flagBtns = FLAG_DENOMS.map(d => {
+    const active = pinnedFlags.includes(d);
+    return `<button type="button" data-flag-denom="${d}" class="secondary-btn ${active ? 'quick-denom-active' : ''}" aria-pressed="${active}">🚩 1/${d} 깃발</button>`;
+  }).join('');
+
   return `
     <div class="step-card">
       <h2 tabindex="-1">② 직접 실험하기 · 눈으로 확인하는 재미있는 실험</h2>
@@ -714,9 +860,10 @@ function renderExplorePhase(): string {
       <div class="hypothesis-banner" role="region" aria-label="나의 처음 생각">
         <p>💭 <strong>나의 처음 생각</strong>: <strong>${myFirstText}</strong></p>
         <p class="hypothesis-sub">${myReasonText}</p>
+        <p id="adaptive-mission-card" class="adaptive-mission-card">${renderAdaptiveMissionGuide(firstA, firstB)}</p>
       </div>
 
-      <p class="teacher-talk-banner">${teacherTalkPrompts.explore}</p>
+      ${renderTeacherTalkBar('explore')}
 
       <section class="experiment-box" aria-label="실험 1 조각 포개어 비교하기">
         <h3>실험 1 · 가위로 잘라 두 조각을 포개어 대어 보기</h3>
@@ -753,6 +900,9 @@ function renderExplorePhase(): string {
           <button type="button" data-action="base-less" class="secondary-btn" ${exploreBaseDenominator <= DENOMINATOR_MIN ? 'disabled' : ''} aria-label="기준 분모 줄이기">기준 −1</button>
           <output id="explore-base-output" aria-live="polite">기준 분수: 1/${exploreBaseDenominator} (${exploreBaseDenominator}등분)</output>
           <button type="button" data-action="base-more" class="secondary-btn" ${exploreBaseDenominator >= DENOMINATOR_MAX ? 'disabled' : ''} aria-label="기준 분모 늘리기">기준 ＋1</button>
+          <button type="button" data-action="toggle-pattern" class="secondary-btn" aria-pressed="${patternMode}">
+            ${patternMode ? '🎨 기본 색상으로 보기' : '🎨 색각 안전 빗금 패턴 켜기'}
+          </button>
         </div>
 
         <div class="quick-denom-bar" role="group" aria-label="나누는 사람 수 빠른 선택">
@@ -776,6 +926,43 @@ function renderExplorePhase(): string {
         <h3>실험 3 · 단위분수 조각을 하나씩 모아 '전체 1' 완성하기</h3>
         <p>단위분수 조각을 몇 개 모아야 원래 전체 1이 꼭 맞게 채워지는지 직접 채워 보세요!</p>
         <div id="fill-whole-box">${renderFillWholeContent()}</div>
+      </section>
+
+      <section class="experiment-box fair-cut-box" aria-label="실험 4 공평하게 똑같이 나누기 조건 실험">
+        <h3>🔪 실험 4 · 불공평하게 자른 3조각 중 1조각도 1/3일까요? (등분할 조건 실험)</h3>
+        <p>눈금이 제각각인 불공평한 3조각과 똑같은 크기로 나눈 3등분(1/3)을 비교해 보세요.</p>
+        <figure class="fair-cut-figure">
+          <svg viewBox="0 0 600 66" role="img" aria-label="${fairCutAligned ? '눈금을 똑같은 간격(200씩)으로 정렬해 바르게 3등분한 1/3 모형' : '눈금이 90, 260으로 불공평하게 잘려 크기가 제각각인 3조각 모형'}">
+            <rect x="0" y="10" width="600" height="44" rx="6" fill="var(--lesson-bar-bg, #fff)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3"/>
+            <rect x="0" y="10" width="${fairCutAligned ? 200 : 90}" height="44" rx="4" fill="${fairCutAligned ? '#ffca62' : '#fde2e2'}"/>
+            <line x1="${fairCutAligned ? 200 : 90}" y1="10" x2="${fairCutAligned ? 200 : 90}" y2="54" stroke="#d9381e" stroke-width="3"/>
+            <line x1="${fairCutAligned ? 400 : 260}" y1="10" x2="${fairCutAligned ? 400 : 260}" y2="54" stroke="#d9381e" stroke-width="3"/>
+            <text x="300" y="37" text-anchor="middle" font-size="14" font-weight="800" fill="var(--lesson-bar-stroke, #153a69)">${fairCutAligned ? '✅ 세 조각의 크기가 모두 똑같음 → 첫 조각은 진짜 1/3!' : '⚠️ 조각 크기가 제각각(불공평 분할) → 1/3이라고 부를 수 없어요!'}</text>
+          </svg>
+        </figure>
+        <button type="button" data-action="toggle-fair-cut" class="secondary-btn" aria-pressed="${fairCutAligned}">
+          ${fairCutAligned ? '🔀 불공평하게 자른 모양 다시 보기' : '📏 공평하게 똑같은 간격(등분할)으로 정렬하기'}
+        </button>
+        <p id="fair-cut-status" class="answer" role="status">${
+          fairCutAligned
+            ? '🎉 <strong>등분할 성공!</strong> 전체를 <strong>똑같은 크기</strong>로 나누었을 때만 한 조각을 <strong>1/3</strong>이라고 부르고 크기를 비교할 수 있어요!'
+            : '💡 조각의 크기가 서로 다르면 3조각 중 1조각이어도 <strong>1/3이 아닙니다</strong>. 버튼을 눌러 공평하게 똑같이 나누어 보세요!'
+        }</p>
+      </section>
+
+      <section class="experiment-box flag-line-box" aria-label="실험 5 수직선 위에 단위분수 깃발 꽂기">
+        <h3>📍 실험 5 · 0~1 수직선 위에 여러 단위분수 깃발을 동시에 꽂아 비교하기</h3>
+        <p>원하는 단위분수 깃발 버튼을 눌러 0과 1 사이 어디에 위치하는지 한눈에 비교해 보세요.</p>
+        <div class="flag-controls" role="group" aria-label="수직선 깃발 선택">
+          ${flagBtns}
+          <button type="button" data-action="flag-all" class="secondary-btn">🚩 모든 깃발 한꺼번에 꽂기</button>
+        </div>
+        ${renderFlagNumberLine()}
+        <p id="flag-line-status" class="answer" role="status">${
+          pinnedFlags.length >= 4
+            ? '🎉 <strong>한눈에 발견!</strong> 분모가 <strong>2 → 3 → 4 → 6 → 12</strong>로 커질수록 단위분수 깃발이 <strong>0 쪽으로 점점 가까워집니다!</strong>'
+            : '📍 깃발을 더 눌러 보세요! 분모가 커질수록 깃발이 0에 가까워지는지, 1에 가까워지는지 관찰해 볼까요?'
+        }</p>
       </section>
 
       <section class="experiment-box trap-box" aria-label="깜짝 실험 원래 전체 크기가 다를 때">
@@ -881,17 +1068,25 @@ function renderCheckPhase(): string {
       ? '🎉 <strong>칙칙폭폭 출발!</strong> 분모가 작은 수부터 <strong>1/2 &gt; 1/6 &gt; 1/9</strong> 순서로 완벽하게 줄을 세웠어요!'
       : '💡 <strong>다시 줄을 세워 볼까요?</strong> 분모 숫자가 작을수록 한 조각이 더 크답니다. [🔄 기차 다시 줄 세우기]를 눌러 가장 큰 조각(1/2)부터 태워 보세요!';
 
+  const mysteryCorrect = mysteryDenomPick !== null && mysteryDenomPick > 3 && mysteryDenomPick < 7;
+  const mysteryStatusHtml = mysteryDenomPick === null
+    ? '🕵️ 분모가 작을수록 조각이 크다는 규칙을 떠올려 1/3보다 작고 1/7보다 큰 단위분수의 분모 □를 골라 보세요!'
+    : mysteryCorrect
+      ? `🎉 <strong>추리 성공!</strong> 3 &lt; <strong>${mysteryDenomPick}</strong> &lt; 7이므로 <strong>1/3 &gt; 1/${mysteryDenomPick} &gt; 1/7</strong>이 성립합니다! (4, 5, 6 모두 정답이에요)`
+      : `💡 <strong>다시 추리해 볼까요?</strong> 1/${mysteryDenomPick}은 ${mysteryDenomPick <= 3 ? '1/3보다 더 크거나 같아요' : '1/7보다 더 작거나 같아요'}. 3과 7 사이에 있는 분모 숫자를 골라 보세요!`;
+
   return `
     <div class="step-card">
       <h2 tabindex="-1">③ 다시 점검하기 · 실험 후 내 생각 확인과 분수 대결</h2>
 
-      <p class="teacher-talk-banner">${teacherTalkPrompts.check}</p>
+      ${renderTeacherTalkBar('check')}
 
       <section class="check-subcard" aria-label="같은 문제 다시 선택하기">
         <h3>1) 처음 문제 다시 고르기: 같은 ${snackName()}에서 1/${firstA}과 1/${firstB} 중 어느 쪽이 더 클까요?</h3>
         <p class="first-memory-tag">💭 1단계에서 고른 내 처음 생각: <strong>${choiceLabel(myChoices.first, firstA, firstB, 'first')}</strong></p>
         ${renderChoiceButtons('again', firstA, firstB)}
         ${renderInstantFeedback('again', firstA, firstB)}
+        ${renderConfidencePicker('again')}
         ${renderOptionalClassPoll('again', firstA, firstB)}
       </section>
 
@@ -925,6 +1120,14 @@ function renderCheckPhase(): string {
           ${[0, 1, 2].map(idx => `<div class="train-car">${idx + 1}호차: <strong>${trainOrder[idx] ? `1/${trainOrder[idx]}` : '빈칸'}</strong></div>`).join('<span class="train-link" aria-hidden="true">&gt;</span>')}
         </div>
         <p id="train-status" class="answer" role="status">${trainStatusHtml}</p>
+      </section>
+
+      <section class="check-subcard mystery-quiz-box" aria-label="숨은 분모 추리 퀴즈">
+        <h3>5) 🕵️ 숨은 분모 추리 퀴즈 · <strong>1/3 &gt; 1/□ &gt; 1/7</strong>에서 빈칸 □에 들어갈 수 있는 분모는?</h3>
+        <div class="mystery-pick-row" role="group" aria-label="빈칸 분모 후보 고르기">
+          ${MYSTERY_CANDIDATES.map(d => `<button type="button" data-mystery-denom="${d}" class="secondary-btn mystery-btn ${mysteryDenomPick === d ? 'solo-choice-selected' : ''}" aria-pressed="${mysteryDenomPick === d}">□ = ${d} (1/${d})</button>`).join('')}
+        </div>
+        <p id="mystery-status" class="answer" role="status">${mysteryStatusHtml}</p>
       </section>
 
       <div class="actions next-step-bar">
@@ -979,6 +1182,20 @@ function renderResultPhase(): string {
       ? `<p id="letter-reply" class="answer feedback-hint" role="status">💡 ${story.friend}가 아직 헷갈려하고 있어요! 같은 간식을 더 많은 조각으로 나누었을 때 한 조각이 어떻게 변했는지 다시 골라 볼까요?</p>`
       : '';
 
+  const confLabels: Record<ConfidenceLevel, string> = {
+    '': '미선택',
+    low: '🌱 조금 헷갈려요',
+    mid: '🙂 어느 정도 맞을 것 같아요',
+    high: '🔥 완전히 확신해요!',
+  };
+  const metacogHtml = `<p id="metacog-summary" class="metacog-summary">🌡️ <strong>나의 확신 온도 변화</strong>: 처음 <strong>[${confLabels[confidence.first]}]</strong> → 실험 후 <strong>[${confLabels[confidence.again]}]</strong></p>`;
+
+  const bridgeStatusHtml = bridgeChoice === 'right'
+    ? '🎉 <strong>정답이에요!</strong> 분모가 같을 때는 단위분수(<strong>1/5</strong>) 한 조각의 크기가 서로 같으므로, 조각을 더 많이 모은 <strong>3/5</strong>(3조각)이 <strong>2/5</strong>(2조각)보다 더 큽니다!'
+    : bridgeChoice === 'left'
+      ? '💡 <strong>다시 살펴볼까요?</strong> 두 막대 모두 똑같은 크기의 <strong>1/5 조각</strong>을 모은 것이에요. 1/5 조각 2개와 3개 중 어느 쪽이 더 길까요?'
+      : '👆 위 두 분수(2/5와 3/5)는 똑같은 1/5 조각을 각각 2개, 3개 모은 분수예요. 어느 쪽이 더 클지 골라 보세요!';
+
   const allUnits = listUnits();
   const nextUncleared = allUnits.find(u => !clearedUnits.has(u.id)) ?? allUnits[(allUnits.findIndex(u => u.id === selectedUnitId) + 1) % allUnits.length];
   const stampsHtml = allUnits.map(u => {
@@ -993,7 +1210,7 @@ function renderResultPhase(): string {
     <div class="step-card">
       <h2 tabindex="-1">④ 오늘의 발견 · 내 생각의 성장 카드와 마스터 스탬프</h2>
 
-      <p class="teacher-talk-banner">${teacherTalkPrompts.result}</p>
+      ${renderTeacherTalkBar('result')}
 
       <div class="solo-report-card" role="region" aria-label="내 생각의 성장 카드">
         <p class="praise-badge">${growthMessage}</p>
@@ -1013,7 +1230,9 @@ function renderResultPhase(): string {
             <strong>${choiceLabel(myChoices.transfer, tA, tB, 'transfer')} ${transferCorrect ? '⭐' : ''}</strong>
           </div>
         </div>
+        ${metacogHtml}
         ${classSummaryHtml}
+        ${renderBeforeAfterPollComparison()}
       </div>
 
       <div class="notebook-summary-card" role="region" aria-label="오늘 내가 발견한 규칙">
@@ -1037,6 +1256,34 @@ function renderResultPhase(): string {
           <button type="button" data-letter-choice="wrong" class="secondary-btn letter-choice-btn ${friendLetterChoice === 'wrong' ? 'rule-card-wrong' : ''}" aria-pressed="${friendLetterChoice === 'wrong'}">💌 "분모 숫자가 크면 언제나 한 조각의 크기도 함께 커지기 때문이야!"</button>
         </div>
         ${letterReplyHtml}
+      </div>
+
+      <div class="bridge-mission-card" role="region" aria-label="다음 개념 연결 분모가 같은 진분수 비교">
+        <h3>🚀 다음 차시 심화 브릿지 · 단위분수 조각을 여러 개 모으면? (<strong>2/5 vs 3/5</strong>)</h3>
+        <p>오늘 배운 단위분수 <strong>1/5 조각을 2개 모은 2/5</strong>와 <strong>3개 모은 3/5</strong> 중 어느 쪽이 더 클까요?</p>
+        <figure class="bridge-figure">
+          <svg viewBox="0 0 600 84" role="img" aria-label="5등분 중 2조각을 칠한 2/5 막대와 3조각을 칠한 3/5 막대 비교">
+            <rect x="0" y="8" width="600" height="28" rx="4" fill="#fff" stroke="#153a69" stroke-width="2"/>
+            <rect x="0" y="8" width="240" height="28" rx="4" fill="#ffca62"/>
+            <line x1="120" y1="8" x2="120" y2="36" stroke="#153a69" stroke-width="2"/>
+            <line x1="240" y1="8" x2="240" y2="36" stroke="#153a69" stroke-width="2"/>
+            <line x1="360" y1="8" x2="360" y2="36" stroke="#153a69" stroke-width="2"/>
+            <line x1="480" y1="8" x2="480" y2="36" stroke="#153a69" stroke-width="2"/>
+            <text x="252" y="27" font-size="13" font-weight="800" fill="#153a69">2/5 (1/5 조각이 2개)</text>
+            <rect x="0" y="46" width="600" height="28" rx="4" fill="#fff" stroke="#153a69" stroke-width="2"/>
+            <rect x="0" y="46" width="360" height="28" rx="4" fill="#7cc6fe"/>
+            <line x1="120" y1="46" x2="120" y2="74" stroke="#153a69" stroke-width="2"/>
+            <line x1="240" y1="46" x2="240" y2="74" stroke="#153a69" stroke-width="2"/>
+            <line x1="360" y1="46" x2="360" y2="74" stroke="#153a69" stroke-width="2"/>
+            <line x1="480" y1="46" x2="480" y2="74" stroke="#153a69" stroke-width="2"/>
+            <text x="372" y="65" font-size="13" font-weight="800" fill="#d9381e">3/5 (1/5 조각이 3개)</text>
+          </svg>
+        </figure>
+        <div class="bridge-choice-row" role="group" aria-label="2/5와 3/5 중 더 큰 분수 고르기">
+          <button type="button" data-bridge-pick="left" class="secondary-btn ${bridgeChoice === 'left' ? 'rule-card-wrong' : ''}" aria-pressed="${bridgeChoice === 'left'}">🧩 1/5이 2개인 2/5가 더 크다</button>
+          <button type="button" data-bridge-pick="right" class="secondary-btn ${bridgeChoice === 'right' ? 'solo-choice-selected' : ''}" aria-pressed="${bridgeChoice === 'right'}">🧩 1/5이 3개인 3/5가 더 크다</button>
+        </div>
+        <p id="bridge-status" class="answer" role="status">${bridgeStatusHtml}</p>
       </div>
 
       <div class="stamp-tour-board" role="region" aria-label="분수 탐구 3대 주제 스탬프 투어">
@@ -1134,6 +1381,12 @@ function updateClassPollStatusesDOM() {
     const [dA, dB] = p === 'transfer' ? [tA, tB] : [fA, fB];
     el.outerHTML = renderLivePollChart(p, dA, dB);
   });
+  const baChart = app.querySelector<HTMLElement>('#poll-before-after-chart');
+  if (baChart) {
+    const nextBa = renderBeforeAfterPollComparison();
+    if (nextBa) baChart.outerHTML = nextBa;
+    else baChart.remove();
+  }
   app.querySelectorAll<HTMLInputElement>('input[data-participants-input]').forEach(el => {
     if (el !== document.activeElement && el.value !== participantsRaw) {
       el.value = participantsRaw;
@@ -1181,21 +1434,38 @@ app.addEventListener('input', event => {
   }
 });
 
-// 단축키 지원 (Alt+←, Alt+→)
+// 단축키 지원 (Alt+←, Alt+→ 및 1~4 숫자키로 A~D 보기 빠른 선택)
 window.addEventListener('keydown', event => {
-  if (!event.altKey) return;
   const activeTag = (document.activeElement as HTMLElement | null)?.tagName;
   if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
+
+  if (!event.altKey && !event.ctrlKey && !event.metaKey && ['1', '2', '3', '4'].includes(event.key)) {
+    if (phase === 'think' || phase === 'check') {
+      const targetPoll: Poll = phase === 'think' ? 'first' : 'again';
+      const ch = CHOICES[Number(event.key) - 1];
+      if (ch) {
+        myChoices[targetPoll] = ch;
+        error = '';
+        playSound(targetPoll !== 'first' && ch === correctChoiceForPoll(targetPoll) ? 'correct' : 'click');
+        render();
+      }
+    }
+    return;
+  }
+
+  if (!event.altKey) return;
 
   const idx = order.indexOf(phase);
   if (event.key === 'ArrowRight' && idx < order.length - 1) {
     event.preventDefault();
     stopSpeech();
+    stopTalkCountdown();
     phase = order[idx + 1];
     render(true);
   } else if (event.key === 'ArrowLeft' && idx > 0) {
     event.preventDefault();
     stopSpeech();
+    stopTalkCountdown();
     phase = order[idx - 1];
     render(true);
   }
@@ -1236,10 +1506,52 @@ app.addEventListener('click', event => {
     const idx = Number(button.dataset.stepIndex);
     if (Number.isInteger(idx) && idx >= 0 && idx < order.length) {
       stopSpeech();
+      stopTalkCountdown();
       phase = order[idx];
       error = '';
       render(true);
     }
+    return;
+  }
+
+  // 1단계·3단계 확신 온도계 선택
+  if (button.dataset.confPoll && button.dataset.confLevel) {
+    const p = button.dataset.confPoll as 'first' | 'again';
+    const lvl = button.dataset.confLevel as ConfidenceLevel;
+    confidence[p] = lvl;
+    playSound('click');
+    render();
+    return;
+  }
+
+  // 2단계 수직선 단위분수 깃발 꽂기/빼기
+  if (button.dataset.flagDenom !== undefined) {
+    const d = Number(button.dataset.flagDenom);
+    if (pinnedFlags.includes(d)) {
+      pinnedFlags = pinnedFlags.filter(x => x !== d);
+    } else {
+      pinnedFlags = [...pinnedFlags, d];
+    }
+    playSound('click');
+    render();
+    return;
+  }
+
+  // 3단계 숨은 분모 추리 퀴즈 선택
+  if (button.dataset.mysteryDenom !== undefined) {
+    const d = Number(button.dataset.mysteryDenom);
+    mysteryDenomPick = d;
+    playSound(d > 3 && d < 7 ? 'correct' : 'click');
+    render();
+    return;
+  }
+
+  // 4단계 진분수 비교 브릿지 미션 선택
+  if (button.dataset.bridgePick) {
+    const pick = button.dataset.bridgePick as DuelPick;
+    bridgeChoice = pick;
+    playSound(pick === 'right' ? 'fanfare' : 'click');
+    render();
     return;
   }
 
@@ -1377,6 +1689,45 @@ app.addEventListener('click', event => {
   } else if (action === 'toggle-spoiler') {
     spoilerPreview = !spoilerPreview;
     render();
+  } else if (action === 'toggle-pattern') {
+    patternMode = !patternMode;
+    playSound('click');
+    render();
+  } else if (action === 'toggle-fair-cut') {
+    fairCutAligned = !fairCutAligned;
+    playSound(fairCutAligned ? 'correct' : 'click');
+    render();
+  } else if (action === 'flag-all') {
+    pinnedFlags = [...FLAG_DENOMS];
+    playSound('fanfare');
+    render();
+  } else if (action === 'talk-bell') {
+    if (talkSecondsLeft > 0) {
+      stopTalkCountdown();
+      playSound('click');
+      render();
+    } else {
+      stopTalkCountdown();
+      talkSecondsLeft = 30;
+      playSound('click');
+      render();
+      talkInterval = setInterval(() => {
+        talkSecondsLeft = Math.max(0, talkSecondsLeft - 1);
+        const bellBtn = app.querySelector<HTMLButtonElement>('#talk-bell-btn');
+        if (bellBtn) {
+          bellBtn.textContent = talkSecondsLeft > 0 ? `🔔 짝 토론 진행 중 (${talkSecondsLeft}초)` : '🔔 30초 짝 토론 벨';
+          bellBtn.setAttribute('aria-pressed', String(talkSecondsLeft > 0));
+        }
+        if (talkSecondsLeft <= 0) {
+          stopTalkCountdown();
+          playSound('fanfare');
+        }
+      }, 1000);
+    }
+  } else if (action === 'pick-group') {
+    pickedGroup = ((pickedGroup ?? 0) % 6) + 1;
+    playSound('click');
+    render();
   } else if (action === 'toggle-numberline') {
     visualModel = visualModel === 'numberline' ? 'bar' : 'numberline';
     render();
@@ -1478,6 +1829,7 @@ app.addEventListener('click', event => {
     const idx = order.indexOf(phase);
     if (idx < order.length - 1) {
       stopSpeech();
+      stopTalkCountdown();
       phase = order[idx + 1];
       error = '';
       render(true);
@@ -1486,6 +1838,7 @@ app.addEventListener('click', event => {
     const idx = order.indexOf(phase);
     if (idx > 0) {
       stopSpeech();
+      stopTalkCountdown();
       phase = order[idx - 1];
       error = '';
       render(true);

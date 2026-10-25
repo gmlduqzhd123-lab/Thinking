@@ -92,23 +92,40 @@ export function createLessonAiPanel(
     { label: '💬 "전체 길이가 서로 다르면 비교가 달라져요"', text: '두 리본의 전체 길이가 서로 다르면 비교가 달라질 수 있어요.' },
   ] as const;
 
-  const coachingGuides: Record<string, { step1: string; step2: string; step3: string }> = {
+  const coachingGuides: Record<string, { step1: string; step2: string; step3: string; counter: string }> = {
     A: {
       step1: '① 공감하기: "자연수에서는 5가 3보다 크니까 1/5도 더 클 거라고 생각하기 쉬워요!"',
       step2: '② 추천 실험: 2단계 [실험 1 · 조각 포개어 비교하기]와 [실험 3 · 조각 모아 전체 1 채우기]를 함께 조작해 보세요.',
       step3: '③ 깨달음 발문: "같은 간식을 3명이 나눌 때와 5명이 나눌 때, 한 사람이 먹는 조각은 어느 쪽이 더 클까요?"',
+      counter: '💡 맞춤 반례 힌트: "만약 분모가 클수록 조각이 크다면, 피자 1판을 100명이 나눈 1/100 조각이 혼자 다 먹는 1조각보다 커야 하는데 정말 그럴까요?"',
     },
     B: {
       step1: '① 공감하기: "나누는 횟수와 한 조각의 크기 관계를 정확하게 포착했어요!"',
       step2: '② 추천 실험: 2단계 [실험 2 · 양쪽 분모 자유 비교]와 3단계 [분수 기차 줄 세우기]로 원리를 확장해 보세요.',
       step3: '③ 깨달음 발문: "그렇다면 1/6, 1/2, 1/9 중에서 가장 큰 조각과 가장 작은 조각은 무엇일지 친구에게 설명해 볼까요?"',
+      counter: '💡 심화 확장 힌트: "1/3과 1/7 사이에 들어갈 수 있는 단위분수(1/□)에는 어떤 것들이 있을지 추리해 볼까요?"',
     },
     C: {
       step1: '① 공감하기: "아주 중요한 수학적 조건(전체의 크기)을 예리하게 발견했어요!"',
       step2: '② 추천 실험: 2단계 [😮 깜짝 실험 · 원래 전체 크기가 서로 다르면 어떨까요?]를 열어 함께 확인해 보세요.',
       step3: '③ 깨달음 발문: "전체 크기가 다르면 1/4이 1/2보다 클 수도 있네요! 단위분수를 비교할 때 꼭 필요한 첫 번째 약속은 무엇일까요?"',
+      counter: '💡 조건 점검 힌트: "작은 미니 초코바의 1/2과 특대형 점보 초코바의 1/4을 비교할 수 없는 이유를 친구에게 설명해 볼까요?"',
     },
   };
+
+  const CONCEPT_KEYWORDS = ['크니까', '작으니까', '더 많이 나누', '한 조각', '전체', '길이', '분모', '다르'] as const;
+
+  function extractConceptKeywords(text: string): string[] {
+    return CONCEPT_KEYWORDS.filter(kw => text.includes(kw));
+  }
+
+  function renderKeywordHighlights(): string {
+    const matched = extractConceptKeywords(query);
+    if (matched.length === 0) {
+      return '<span class="ai-kw-empty">🔍 개념 문장을 입력하면 핵심 수학 단서(분모·한 조각·전체 등)를 자동으로 포착합니다.</span>';
+    }
+    return `<span class="ai-kw-title">🔍 포착된 개념 단서:</span> ${matched.map(kw => `<mark class="ai-kw-chip">${kw}</mark>`).join(' ')}`;
+  }
 
   function renderPanelInput(): string {
     const chipsHtml = quickChips.map((chip, idx) =>
@@ -120,6 +137,7 @@ export function createLessonAiPanel(
       </div>
       <label for="lesson-ai-query">일반적인 개념 설명</label>
       <textarea id="lesson-ai-query" maxlength="${MAX_QUERY_LENGTH}" rows="3" autocomplete="off"></textarea>
+      <div id="ai-keyword-highlights" class="ai-keyword-highlights" role="status">${renderKeywordHighlights()}</div>
       <p id="lesson-ai-count" class="char-count">${query.length}/${MAX_QUERY_LENGTH}자</p>
       <p>개인정보 필터는 보조 장치이며 완전한 익명화를 보장하지 않습니다.</p>`;
   }
@@ -146,6 +164,7 @@ export function createLessonAiPanel(
       <p class="coaching-step">${guide.step1}</p>
       <p class="coaching-step">${guide.step2}</p>
       <p class="coaching-step">${guide.step3}</p>
+      <p class="coaching-counter">${guide.counter}</p>
     </div>`;
   }
 
@@ -192,6 +211,9 @@ export function createLessonAiPanel(
     const countEl = panel.querySelector<HTMLElement>('#lesson-ai-count');
     if (countEl) countEl.textContent = `${query.length}/${MAX_QUERY_LENGTH}자`;
 
+    const kwEl = panel.querySelector<HTMLElement>('#ai-keyword-highlights');
+    if (kwEl) kwEl.innerHTML = renderKeywordHighlights();
+
     const result = panel.querySelector<HTMLElement>('#lesson-ai-result');
     if (result) {
       result.replaceChildren();
@@ -237,6 +259,8 @@ export function createLessonAiPanel(
       query = input.value;
       const countEl = panel.querySelector<HTMLElement>('#lesson-ai-count');
       if (countEl) countEl.textContent = `${query.length}/${MAX_QUERY_LENGTH}자`;
+      const kwEl = panel.querySelector<HTMLElement>('#ai-keyword-highlights');
+      if (kwEl) kwEl.innerHTML = renderKeywordHighlights();
 
       if (candidate || state === '추론 중') {
         invalidate();

@@ -921,6 +921,9 @@ button[data-reason][aria-pressed="true"] {
 }
 
 .spoiler-hint-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin: 4px 0 12px;
 }
 
@@ -1366,6 +1369,157 @@ button[data-reason][aria-pressed="true"] {
 .cert-sign-line {
   margin: 0;
   font-size: 0.92rem;
+}
+
+/* ─── 앱 고도화 전략 10대 기능 추가 스타일 ──────────────────────── */
+.teacher-talk-text {
+  margin: 0 0 8px;
+}
+
+.talk-dock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.talk-dock-btn {
+  font-size: 0.86rem;
+  padding: 6px 12px;
+}
+
+.picked-group-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--lesson-surface);
+  border: 2px solid var(--lesson-accent-gold-dark);
+  font-size: 0.9rem;
+}
+
+.confidence-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--lesson-surface);
+  border: 1px solid var(--lesson-border);
+}
+
+.confidence-label {
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.confidence-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.conf-btn {
+  font-size: 0.88rem;
+  padding: 6px 12px;
+}
+
+.adaptive-mission-card {
+  margin: 8px 0 0 !important;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--lesson-surface);
+  border: 1px dashed var(--lesson-answer-border);
+  font-size: 0.94rem;
+}
+
+.fair-cut-figure,
+.flag-line-figure,
+.bridge-figure {
+  margin: 8px 0 12px;
+}
+
+.fair-cut-figure svg,
+.flag-line-figure svg,
+.bridge-figure svg {
+  width: 100%;
+  height: auto;
+}
+
+.flag-controls,
+.mystery-pick-row,
+.bridge-choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
+.metacog-summary {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--lesson-surface);
+  border: 1px solid var(--lesson-border);
+  font-size: 0.94rem;
+}
+
+.poll-before-after-chart {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--lesson-surface);
+  border: 1px solid var(--lesson-answer-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bridge-mission-card {
+  margin: 14px 0;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--lesson-chart-bg);
+  border: 2px solid var(--lesson-border);
+}
+
+.bridge-mission-card h3 {
+  margin: 0 0 8px;
+  font-size: 1.04rem;
+}
+
+.ai-keyword-highlights {
+  margin: 6px 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--lesson-surface);
+  border: 1px dashed var(--lesson-ai-border);
+  font-size: 0.88rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-kw-title {
+  font-weight: 700;
+}
+
+.ai-kw-chip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--lesson-step-current-bg);
+  color: var(--lesson-text);
+  font-weight: 700;
+}
+
+.coaching-counter {
+  margin: 6px 0 0;
+  padding-top: 6px;
+  border-top: 1px dashed var(--lesson-border);
+  font-size: 0.9rem;
+  font-weight: 700;
 }
 
 @media (max-width: 550px) {
