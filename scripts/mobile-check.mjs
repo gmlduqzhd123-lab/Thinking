@@ -6,7 +6,7 @@
 import { chromium } from 'playwright';
 import { spawn, execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const SCREENSHOTS_DIR = process.env.SCREENSHOTS_DIR || 'test-screenshots';
@@ -35,10 +35,9 @@ async function isReachable(url) {
 
 async function ensureServer(url) {
   if (await isReachable(url)) return null;
-  const proc = spawn('npx', ['vite', 'preview', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], {
+  const proc = spawn(process.execPath, [join(ROOT, 'node_modules', 'vite', 'bin', 'vite.js'), 'preview', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], {
     cwd: ROOT,
     stdio: 'ignore',
-    shell: isWin,
   });
   const start = Date.now();
   while (Date.now() - start < 15000) {
@@ -65,7 +64,7 @@ const serverProc = await ensureServer(TEST_URL);
 
 const browserPath = process.env.M0_BROWSER_PATH || [
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
-  'C:/Program Files/Microsoft/Edge/Application/msedge.exe',
+  'C:/Program Files/Microsoft Edge/Application/msedge.exe',
 ].find(existsSync);
 
 const browser = await chromium.launch(

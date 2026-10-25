@@ -295,7 +295,7 @@ function circleFraction(denominator: number, undividedPreview = false): string {
   }).join('');
 
   const patternRing = patternMode
-    ? `<path d="${sectorPath}" fill="none" stroke="#153a69" stroke-width="3" stroke-dasharray="5 3"/>`
+    ? `<path d="${sectorPath}" fill="none" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3" stroke-dasharray="5 3"/>`
     : '';
 
   return `<figure class="fraction fraction-circle ${patternMode ? 'pattern-active' : ''}">
@@ -325,10 +325,15 @@ function numberLineFraction(denominator: number): string {
     return `<line x1="${x}" y1="${isEnd ? 22 : 28}" x2="${x}" y2="${isEnd ? 54 : 48}" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="${isEnd ? 3 : 2}"/>`;
   }).join('');
 
-  return `<figure class="fraction fraction-numberline">
+  const patternTicks = patternMode
+    ? `<line x1="${startX}" y1="35" x2="${firstX.toFixed(2)}" y2="35" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2" stroke-dasharray="4 3"/>`
+    : '';
+
+  return `<figure class="fraction fraction-numberline ${patternMode ? 'pattern-active' : ''}">
     <svg viewBox="0 0 600 78" role="img"
       aria-label="0에서 1까지를 ${denominator}등분하고 첫 눈금을 표시한 수직선 모형, 1/${denominator}">
       <rect x="${startX}" y="31" width="${stepX.toFixed(2)}" height="14" rx="4" fill="var(--lesson-bar-fill, #ffca62)"/>
+      ${patternTicks}
       <line x1="${startX}" y1="38" x2="${endX}" y2="38" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3"/>
       ${ticks}
       <circle cx="${firstX.toFixed(2)}" cy="38" r="6" fill="#d9381e"/>
@@ -353,11 +358,16 @@ function cupFraction(denominator: number): string {
     return `<line x1="${cupX + 8}" y1="${y}" x2="${cupX + cupW - 8}" y2="${y}" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="1.5" stroke-dasharray="3 3"/>`;
   }).join('');
 
-  return `<figure class="fraction fraction-cup">
+  const cupPattern = patternMode
+    ? `<line x1="${cupX + 6}" y1="${(fillY + fillH * 0.5).toFixed(2)}" x2="${cupX + cupW - 6}" y2="${(fillY + fillH * 0.5).toFixed(2)}" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2" stroke-dasharray="5 3"/>`
+    : '';
+
+  return `<figure class="fraction fraction-cup ${patternMode ? 'pattern-active' : ''}">
     <svg viewBox="0 0 160 156" role="img"
       aria-label="같은 크기의 컵을 ${denominator}등분하고 한 눈금만큼 채운 들이 모형, 1/${denominator}">
       <rect x="${cupX}" y="${cupY}" width="${cupW}" height="${cupH}" rx="6" fill="var(--lesson-bar-bg, white)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3"/>
       <rect x="${cupX + 2}" y="${fillY.toFixed(2)}" width="${cupW - 4}" height="${fillH.toFixed(2)}" rx="4" fill="var(--lesson-bar-fill, #ffca62)"/>
+      ${cupPattern}
       ${ticks}
       <rect x="${cupX}" y="${cupY}" width="${cupW}" height="${cupH}" rx="6" fill="none" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3"/>
     </svg>
@@ -402,7 +412,7 @@ function bar(denominator: number, undividedPreview = false): string {
       : `<line x1="6" y1="34" x2="${Math.max(10, segmentWidth - 6).toFixed(2)}" y2="34" stroke="#fff" stroke-opacity="0.7" stroke-width="2" stroke-dasharray="5 3"/>`;
 
   const patternOverlay = patternMode
-    ? `<line x1="4" y1="22" x2="${Math.max(6, segmentWidth - 4).toFixed(2)}" y2="22" stroke="#153a69" stroke-width="2.5" stroke-dasharray="6 4"/><line x1="4" y1="46" x2="${Math.max(6, segmentWidth - 4).toFixed(2)}" y2="46" stroke="#153a69" stroke-width="2.5" stroke-dasharray="2 5"/>`
+    ? `<line x1="4" y1="22" x2="${Math.max(6, segmentWidth - 4).toFixed(2)}" y2="22" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2.5" stroke-dasharray="6 4"/><line x1="4" y1="46" x2="${Math.max(6, segmentWidth - 4).toFixed(2)}" y2="46" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2.5" stroke-dasharray="2 5"/>`
     : '';
 
   return `<figure class="fraction ${patternMode ? 'pattern-active' : ''}">
@@ -571,8 +581,13 @@ function renderTeacherTalkBar(p: Phase): string {
   </div>`;
 }
 
+function hasPollInput(counts: RawCounts | null): boolean {
+  if (!counts) return false;
+  return CHOICES.some(ch => counts[ch].trim() !== '');
+}
+
 function renderBeforeAfterPollComparison(): string {
-  if (pollBlind || (!pollData.first && !pollData.again)) return '';
+  if (pollBlind || !hasPollInput(pollData.again)) return '';
   const [fA] = currentUnit().denominators.first;
   const firstA = Math.max(0, parseInt(pollData.first?.A ?? '0', 10) || 0);
   const againA = Math.max(0, parseInt(pollData.again?.A ?? '0', 10) || 0);
@@ -731,11 +746,15 @@ function renderFillWholeContent(): string {
     return `<line x1="${x}" y1="10" x2="${x}" y2="54" stroke="${stroke}" stroke-width="2"/>`;
   }).join('');
   const isComplete = clampedFilled === exploreDenominator;
+  const fillPattern = patternMode
+    ? `<line x1="4" y1="22" x2="${Math.max(6, filledW - 4).toFixed(2)}" y2="22" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2" stroke-dasharray="6 4"/><line x1="4" y1="42" x2="${Math.max(6, filledW - 4).toFixed(2)}" y2="42" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2" stroke-dasharray="2 5"/>`
+    : '';
 
-  return `<figure class="whole-fill-figure">
+  return `<figure class="whole-fill-figure ${patternMode ? 'pattern-active' : ''}">
       <svg viewBox="0 0 600 66" role="img" aria-label="1/${exploreDenominator} 조각을 ${clampedFilled}개 모아 ${clampedFilled}/${exploreDenominator}만큼 채운 막대">
         <rect x="0" y="10" width="600" height="44" rx="6" fill="${bg}" stroke="${stroke}" stroke-width="3"/>
         <rect x="0" y="10" width="${filledW.toFixed(2)}" height="44" rx="4" fill="${fill}"/>
+        ${fillPattern}
         ${dividers}
       </svg>
       <figcaption>1/${exploreDenominator} 조각 <strong>${clampedFilled}개</strong> 모음 = <strong>${clampedFilled}/${exploreDenominator}</strong> ${isComplete ? '(= 전체 1 완성!)' : ''}</figcaption>
@@ -816,7 +835,7 @@ function renderFlagNumberLine(): string {
   const endX = 556;
   const width = endX - startX;
   const sorted = [...pinnedFlags].sort((a, b) => a - b);
-  const poleTops = [14, 26, 38];
+  const poleTops = [18, 30, 42];
 
   const flagsSvg = sorted.map((d, idx) => {
     const x = (startX + width / d).toFixed(2);
@@ -983,11 +1002,11 @@ function renderExplorePhase(): string {
         ${showTrapExperiment ? `
           <div class="trap-experiment-content" role="region" aria-label="전체 크기가 서로 다른 두 간식 비교">
             <svg viewBox="0 0 600 84" role="img" aria-label="작은 미니 간식의 1/2 조각(길이 100)과 특대형 간식의 1/4 조각(길이 140) 비교">
-              <rect x="0" y="10" width="200" height="26" rx="4" fill="#fff" stroke="#153a69" stroke-width="2"/>
-              <rect x="0" y="10" width="100" height="26" rx="4" fill="#ffca62" stroke="#153a69" stroke-width="2"/>
+              <rect x="0" y="10" width="200" height="26" rx="4" fill="var(--lesson-bar-bg, #fff)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+              <rect x="0" y="10" width="100" height="26" rx="4" fill="#ffca62" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
               <text x="212" y="28" font-size="13" font-weight="700" fill="var(--lesson-bar-stroke, #153a69)">작은 미니 ${snackName()}의 1/2 한 조각</text>
-              <rect x="0" y="46" width="560" height="26" rx="4" fill="#fff" stroke="#153a69" stroke-width="2"/>
-              <rect x="0" y="46" width="140" height="26" rx="4" fill="#7cc6fe" stroke="#153a69" stroke-width="2"/>
+              <rect x="0" y="46" width="560" height="26" rx="4" fill="var(--lesson-bar-bg, #fff)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+              <rect x="0" y="46" width="140" height="26" rx="4" fill="#7cc6fe" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
               <text x="150" y="64" font-size="13" font-weight="700" fill="#d9381e">특대형 점보 ${snackName()}의 1/4 한 조각 (더 큼!)</text>
             </svg>
             <p class="answer">💡 <strong>깜짝 발견!</strong> 원래 전체 크기가 다르면 <strong>1/4</strong>이 <strong>1/2</strong>보다 더 클 수도 있어요! 그래서 단위분수의 크기를 비교할 때는 반드시 <strong>"원래 전체의 크기가 똑같다"</strong>는 약속이 먼저 있어야 합니다.</p>
@@ -1273,19 +1292,19 @@ function renderResultPhase(): string {
         <p>오늘 배운 단위분수 <strong>1/5 조각을 2개 모은 2/5</strong>와 <strong>3개 모은 3/5</strong> 중 어느 쪽이 더 클까요?</p>
         <figure class="bridge-figure">
           <svg viewBox="0 0 600 84" role="img" aria-label="5등분 중 2조각을 칠한 2/5 막대와 3조각을 칠한 3/5 막대 비교">
-            <rect x="0" y="8" width="600" height="28" rx="4" fill="#fff" stroke="#153a69" stroke-width="2"/>
+            <rect x="0" y="8" width="600" height="28" rx="4" fill="var(--lesson-bar-bg, #fff)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
             <rect x="0" y="8" width="240" height="28" rx="4" fill="#ffca62"/>
-            <line x1="120" y1="8" x2="120" y2="36" stroke="#153a69" stroke-width="2"/>
-            <line x1="240" y1="8" x2="240" y2="36" stroke="#153a69" stroke-width="2"/>
-            <line x1="360" y1="8" x2="360" y2="36" stroke="#153a69" stroke-width="2"/>
-            <line x1="480" y1="8" x2="480" y2="36" stroke="#153a69" stroke-width="2"/>
-            <text x="252" y="27" font-size="13" font-weight="800" fill="#153a69">2/5 (1/5 조각이 2개)</text>
-            <rect x="0" y="46" width="600" height="28" rx="4" fill="#fff" stroke="#153a69" stroke-width="2"/>
+            <line x1="120" y1="8" x2="120" y2="36" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+            <line x1="240" y1="8" x2="240" y2="36" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+            <line x1="360" y1="8" x2="360" y2="36" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+            <line x1="480" y1="8" x2="480" y2="36" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+            <text x="252" y="27" font-size="13" font-weight="800" fill="var(--lesson-bar-stroke, #153a69)">2/5 (1/5 조각이 2개)</text>
+            <rect x="0" y="46" width="600" height="28" rx="4" fill="var(--lesson-bar-bg, #fff)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
             <rect x="0" y="46" width="360" height="28" rx="4" fill="#7cc6fe"/>
-            <line x1="120" y1="46" x2="120" y2="74" stroke="#153a69" stroke-width="2"/>
-            <line x1="240" y1="46" x2="240" y2="74" stroke="#153a69" stroke-width="2"/>
-            <line x1="360" y1="46" x2="360" y2="74" stroke="#153a69" stroke-width="2"/>
-            <line x1="480" y1="46" x2="480" y2="74" stroke="#153a69" stroke-width="2"/>
+            <line x1="120" y1="46" x2="120" y2="74" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+            <line x1="240" y1="46" x2="240" y2="74" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+            <line x1="360" y1="46" x2="360" y2="74" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+            <line x1="480" y1="46" x2="480" y2="74" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
             <text x="372" y="65" font-size="13" font-weight="800" fill="#d9381e">3/5 (1/5 조각이 3개)</text>
           </svg>
         </figure>
@@ -1455,7 +1474,8 @@ window.addEventListener('keydown', event => {
 
   if (!event.altKey && !event.ctrlKey && !event.metaKey && ['1', '2', '3', '4'].includes(event.key)) {
     if (phase === 'think' || phase === 'check') {
-      const targetPoll: Poll = phase === 'think' ? 'first' : 'again';
+      const inTransfer = (document.activeElement as HTMLElement | null)?.closest('[aria-label="한 걸음 더 새로운 응용 문제"]') !== null;
+      const targetPoll: Poll = phase === 'think' ? 'first' : inTransfer ? 'transfer' : 'again';
       const ch = CHOICES[Number(event.key) - 1];
       if (ch) {
         myChoices[targetPoll] = ch;

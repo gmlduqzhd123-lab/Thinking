@@ -129,7 +129,18 @@ function stopServerProcess(proc) {
 runStep('TypeScript 타입 검사', 'node', [join(ROOT, 'node_modules', 'typescript', 'bin', 'tsc'), '--noEmit']);
 
 // 2. 단위 테스트
-runStep('단위 테스트 (node --test)', 'node', ['--test', 'tests/embedding-integrity.test.mjs', 'tests/errors.test.mjs', 'tests/judge.test.mjs', 'tests/lesson-core.test.mjs', 'tests/privacy.test.mjs', 'tests/unit-registry.test.mjs']);
+runStep('단위 테스트 (node --test)', 'node', [
+  '--test',
+  'tests/asset-integrity.test.mjs',
+  'tests/constants.test.mjs',
+  'tests/embedding-integrity.test.mjs',
+  'tests/errors.test.mjs',
+  'tests/holdout-core.test.mjs',
+  'tests/judge.test.mjs',
+  'tests/lesson-core.test.mjs',
+  'tests/privacy.test.mjs',
+  'tests/unit-registry.test.mjs',
+]);
 
 // 3. 번들 용량 가드 및 공유 도메인 보호 규칙 검사
 checkBundleSizes();

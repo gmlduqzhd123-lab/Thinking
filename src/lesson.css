@@ -1532,7 +1532,7 @@ button[data-reason][aria-pressed="true"] {
 @media print {
   body { color: #000; background: #fff; }
   header { background: #333; padding: 14px 18px; }
-  button, .buttons, .actions, .timer, nav, .teacher-talk-banner, .rule-word-cards, .letter-choice-list, .bridge-choice-row, .confidence-btns { display: none !important; }
+  button, .buttons, .actions, .timer, nav, .teacher-talk-banner, .rule-word-cards, .letter-choice-list, .bridge-choice-row, .confidence-btns, .spoiler-hint-row, .visual-toolbar, .flag-controls, .fill-whole-controls, .train-pick-row, .mystery-pick-row, #lesson-ai-panel, #error:empty { display: none !important; }
   section { page-break-inside: avoid; margin: 8px 0; padding: 12px; }
   .notice { border: 1px solid #999; }
   .answer, .memory, .comparison {
