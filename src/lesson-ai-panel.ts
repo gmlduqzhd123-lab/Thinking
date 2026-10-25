@@ -33,6 +33,8 @@ export function createLessonAiPanel(
   let candidateSimilarity: number | undefined;
   let approved = false;
   let appliedToLesson = false;
+  let coachingPreviewOpen = false;
+  let lastProgress: { percent: number; file: string } | undefined;
 
   function clearTimer() { if (timer) clearTimeout(timer); timer = undefined; }
   function invalidate() {
@@ -50,11 +52,14 @@ export function createLessonAiPanel(
     stopWorker();
     state = '미준비';
     query = '';
+    coachingPreviewOpen = false;
+    lastProgress = undefined;
     message = '이전 입력과 AI 후보를 지웠습니다.';
   }
 
   // ─── 진행률 표시 ─────────────────────────────────────────────
   function updateProgress(percent: number, file: string) {
+    lastProgress = { percent, file };
     const panel = root.querySelector<HTMLElement>('#lesson-ai-panel');
     if (!panel) return;
     const container = panel.querySelector<HTMLElement>('#lesson-ai-progress');
@@ -70,6 +75,7 @@ export function createLessonAiPanel(
   }
 
   function hideProgress() {
+    lastProgress = undefined;
     const container = root.querySelector<HTMLElement>('#lesson-ai-progress');
     if (container) container.hidden = true;
   }
@@ -144,7 +150,7 @@ export function createLessonAiPanel(
   }
 
   function renderCoachingPreview(): string {
-    return `<details class="ai-coaching-preview">
+    return `<details class="ai-coaching-preview" ${coachingPreviewOpen ? 'open' : ''}>
       <summary>👩‍🏫 교사용 3단계 발문 코칭 시나리오 보기 (공감 → 추천 실험 → 깨달음 발문)</summary>
       <div class="ai-coaching-preview-list">
         ${cards.map(c => `<div class="ai-coaching-card">
@@ -217,7 +223,15 @@ export function createLessonAiPanel(
     const input = panel.querySelector<HTMLTextAreaElement>('#lesson-ai-query')!;
     input.value = query;
 
+    if (state === '준비 중' && lastProgress) {
+      updateProgress(lastProgress.percent, lastProgress.file);
+    }
+
     syncView();
+
+    panel.querySelector<HTMLDetailsElement>('.ai-coaching-preview')?.addEventListener('toggle', event => {
+      coachingPreviewOpen = (event.currentTarget as HTMLDetailsElement).open;
+    });
 
     input.addEventListener('input', () => {
       query = input.value;

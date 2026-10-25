@@ -231,13 +231,17 @@ async function testLessonFeatures(browser) {
 
   // 3연속 번개 미니게임 클리어 & 연속 정답 콤보 & 새 랜덤 문제 뽑기 확인
   await page.click('button[data-duel-round="0"][data-duel-pick="right"]');
+  await page.click('button[data-duel-round="0"][data-duel-pick="right"]'); // 중복 클릭 시 콤보 중복 증가 방지 검증
   await page.click('button[data-duel-round="1"][data-duel-pick="left"]');
   await page.click('button[data-duel-round="2"][data-duel-pick="right"]');
   const duelBanner = await page.locator('.duel-score-banner').textContent();
   log('재미 개선 #4 & 추가 개발 #4: 번개 미니게임 퍼펙트 클리어 및 3연속 콤보 작동', (duelBanner?.includes('3 / 3') && duelBanner?.includes('3연속')) ?? false, `"${duelBanner}"`);
   await page.click('button[data-action="duel-shuffle"]');
+  const firstShuffleRound = await page.locator('.duel-round-row').first().textContent();
+  await page.click('button[data-action="duel-shuffle"]');
+  const secondShuffleRound = await page.locator('.duel-round-row').first().textContent();
   const shuffledBanner = await page.locator('.duel-score-banner').textContent();
-  log('추가 개발 #4: 새로운 랜덤 대결 3문제 뽑기 작동', shuffledBanner?.includes('0 / 3') ?? false);
+  log('추가 개발 #4: 새로운 랜덤 대결 3문제 뽑기 작동', (shuffledBanner?.includes('0 / 3') ?? false) && firstShuffleRound !== secondShuffleRound);
 
   // 4) 분수 기차 줄 세우기 퍼즐 확인 (1/2 > 1/6 > 1/9)
   await page.click('button[data-train-denom="2"]');
@@ -253,6 +257,7 @@ async function testLessonFeatures(browser) {
   log('개선 #10: 4단계 도착 즉시 내 생각의 성장 카드(3단계 여정) 표시', reportVisible && journeySteps === 3);
 
   await page.click('button[data-rule-choice="smaller"]');
+  await page.click('button[data-rule-choice="smaller"]'); // 재클릭 시에도 정답 빈칸 해제되지 않음 검증
   const blankText = await page.locator('.notebook-blank').textContent();
   log('재미 개선 #8: 단어 카드 콕콕 선택으로 규칙 빈칸 완성 작동', blankText?.includes('작아집니다') ?? false);
 
@@ -298,8 +303,10 @@ async function testLessonAiPanelFeatures(browser) {
   log('AI 보조 수업 패널 진행률 바 DOM 존재', progressExists);
 
   await page.click('.ai-coaching-preview summary');
+  await page.click('button[data-pick-poll="first"][data-pick-choice="A"]');
+  const coachingStillOpen = await page.locator('.ai-coaching-preview'). evaluate(el => el.hasAttribute('open'));
   const coachingCount = await page.locator('.ai-coaching-card').count();
-  log('추가 개발 #10: AI 보조 수업 패널 교사용 3단계 발문 코칭 시나리오 제공', coachingCount === 3, `${coachingCount}개 카드 시나리오`);
+  log('추가 개발 #10: AI 보조 수업 패널 교사용 3단계 발문 코칭 시나리오 제공 및 열림 상태 유지', coachingCount === 3 && coachingStillOpen, `${coachingCount}개 카드 시나리오`);
 
   log('AI 보조 수업 JS 에러 없음', errors.length === 0, errors.length > 0 ? errors.join('; ') : '');
 

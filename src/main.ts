@@ -495,6 +495,12 @@ function handleBatchEval() {
     sessionRevision,
     thresholds: { minSimilarity: customMinSim, minMargin: customMinMargin },
   });
+  timeout = setTimeout(() => {
+    nextRevision();
+    stopWorker();
+    setState('실패');
+    setResult(getUserMessage('INFERENCE_TIMEOUT'));
+  }, INFERENCE_TIMEOUT_MS * 3);
 }
 
 function handleCancel() {

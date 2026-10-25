@@ -83,6 +83,7 @@ const aiEnabled = app.dataset.aiEnabled === 'true';
 
 // ─── 상태 ────────────────────────────────────────────────────────
 let aiPanel: { sync(active: boolean): void; dispose(): void } | undefined;
+let sharedAudioCtx: AudioContext | undefined;
 let selectedUnitId = 'M01';
 let visualModel: VisualModel = 'bar';
 let phase: Phase = 'think';
@@ -102,12 +103,13 @@ let filledPieces = 1;
 let duelRounds: DuelRound[] = DEFAULT_DUEL_ROUNDS.map(r => ({ ...r }));
 let duelPicks: Record<number, DuelPick | null> = { 0: null, 1: null, 2: null };
 let duelStreak = 0;
+let duelShuffleCount = 0;
 let trainOrder: number[] = [];
 let ruleChoice: RuleChoice = '';
 let notebookBlankRevealed = false;
 let friendLetterChoice: LetterChoice = '';
 let clearedUnits = new Set<string>();
-let classPollOpen = false;
+let classPollOpen: Record<Poll, boolean> = { first: false, again: false, transfer: false };
 let pollBlind = false;
 let participantsRaw = '20';
 let pollData: Record<Poll, RawCounts | null> = { first: null, again: null, transfer: null };
@@ -126,23 +128,41 @@ function isLargeScale(): boolean {
   return document.documentElement.getAttribute('data-scale') === 'large';
 }
 
+function stopSpeech() {
+  try {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+  } catch {
+    // 음성 합성 미지원 환경 무시
+  }
+}
+
 function playSound(kind: 'click' | 'correct' | 'fanfare') {
   if (!soundEnabled) return;
   try {
     const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Ctx) return;
-    const ctx = new Ctx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+    if (!sharedAudioCtx || sharedAudioCtx.state === 'closed') {
+      sharedAudioCtx = new Ctx();
+    }
+    if (sharedAudioCtx.state === 'suspended') {
+      void sharedAudioCtx.resume().catch(() => {});
+    }
+    const osc = sharedAudioCtx.createOscillator();
+    const gain = sharedAudioCtx.createGain();
     osc.connect(gain);
-    gain.connect(ctx.destination);
-    const now = ctx.currentTime;
+    gain.connect(sharedAudioCtx.destination);
+    const now = sharedAudioCtx.currentTime;
     osc.frequency.setValueAtTime(kind === 'fanfare' ? 659.25 : kind === 'correct' ? 523.25 : 440, now);
     gain.gain.setValueAtTime(0.04, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
     osc.start(now);
     osc.stop(now + 0.11);
-    osc.onended = () => { void ctx.close().catch(() => {}); };
+    osc.onended = () => {
+      osc.disconnect();
+      gain.disconnect();
+    };
   } catch {
     // 오디오 컨텍스트 미지원 환경 무시
   }
@@ -150,6 +170,7 @@ function playSound(kind: 'click' | 'correct' | 'fanfare') {
 
 function resetSession(keepUnit = false, keepStamps = false) {
   aiPanel?.dispose();
+  stopSpeech();
   if (!keepUnit) selectedUnitId = 'M01';
   if (!keepStamps) clearedUnits.clear();
   visualModel = 'bar';
@@ -169,11 +190,12 @@ function resetSession(keepUnit = false, keepStamps = false) {
   duelRounds = DEFAULT_DUEL_ROUNDS.map(r => ({ ...r }));
   duelPicks = { 0: null, 1: null, 2: null };
   duelStreak = 0;
+  duelShuffleCount = 0;
   trainOrder = [];
   ruleChoice = '';
   notebookBlankRevealed = false;
   friendLetterChoice = '';
-  classPollOpen = false;
+  classPollOpen = { first: false, again: false, transfer: false };
   pollBlind = false;
   participantsRaw = '20';
   pollData = { first: null, again: null, transfer: null };
@@ -480,12 +502,12 @@ function renderOptionalClassPoll(poll: Poll, dA: number, dB: number): string {
   const labels = [`A (1/${leftD})`, `B (1/${rightD})`, 'C (같다)', 'D (모름)'];
   const participantsId = poll === 'transfer' ? 'participants-transfer' : 'participants';
 
-  return `<details class="class-poll-details" data-poll-details="${poll}" ${classPollOpen ? 'open' : ''}>
+  return `<details class="class-poll-details" data-poll-details="${poll}" ${classPollOpen[poll] ? 'open' : ''}>
     <summary>👩‍🏫 교실 수업용 거수 투표·인원수 기록하기 (필요할 때만 열기)</summary>
     <div class="class-poll-body">
       <div class="poll-top-row">
         <label>참여 인원(1~${MAX_PARTICIPANTS}명) <input id="${participantsId}" data-participants-input="${poll}" type="text" inputmode="numeric" value="${participantsRaw}" autocomplete="off"></label>
-        <button type="button" data-action="toggle-poll-blind" class="secondary-btn" aria-pressed="${pollBlind}">${pollBlind ? '👀 결과 공개하기' : '🙈 결과 잠시 가리기'}</button>
+        <button type="button" data-action="toggle-poll-blind" data-target-poll="${poll}" class="secondary-btn" aria-pressed="${pollBlind}">${pollBlind ? '👀 결과 공개하기' : '🙈 결과 잠시 가리기'}</button>
       </div>
       <div class="class-poll-inputs">
         ${CHOICES.map((ch, i) =>
@@ -786,10 +808,37 @@ function renderExplorePhase(): string {
             <div class="reallife-grid">
               <div class="reallife-item">
                 <strong>⏰ 1시간(60분) 시계판 비교</strong>
+                <div class="reallife-svg-wrap">
+                  <svg viewBox="0 0 220 90" role="img" aria-label="1시간의 1/2(30분 반원)과 1/4(15분 부채꼴) 비교 시계판">
+                    <circle cx="55" cy="45" r="34" fill="#fff" stroke="#153a69" stroke-width="2.5"/>
+                    <path d="M 55 45 L 55 11 A 34 34 0 0 1 55 79 Z" fill="#ffca62"/>
+                    <circle cx="55" cy="45" r="34" fill="none" stroke="#153a69" stroke-width="2.5"/>
+                    <text x="55" y="88" text-anchor="middle" font-size="11" font-weight="700" fill="var(--lesson-bar-stroke, #153a69)">1/2시간 = 30분</text>
+                    <circle cx="165" cy="45" r="34" fill="#fff" stroke="#153a69" stroke-width="2.5"/>
+                    <path d="M 165 45 L 165 11 A 34 34 0 0 1 199 45 Z" fill="#7cc6fe"/>
+                    <circle cx="165" cy="45" r="34" fill="none" stroke="#153a69" stroke-width="2.5"/>
+                    <text x="165" y="88" text-anchor="middle" font-size="11" font-weight="700" fill="var(--lesson-bar-stroke, #153a69)">1/4시간 = 15분</text>
+                  </svg>
+                </div>
                 <p>1시간의 <strong>1/2은 30분</strong>, <strong>1/4은 15분</strong>이에요. 시계판에서도 <strong>1/2 &gt; 1/4</strong>임을 한눈에 알 수 있어요!</p>
               </div>
               <div class="reallife-item">
                 <strong>🍫 12칸 판초콜릿 비교</strong>
+                <div class="reallife-svg-wrap">
+                  <svg viewBox="0 0 220 90" role="img" aria-label="12칸 판초콜릿의 1/3(4칸)과 1/4(3칸) 비교">
+                    <rect x="10" y="14" width="90" height="52" rx="4" fill="#fff" stroke="#5c3317" stroke-width="2"/>
+                    <rect x="10" y="14" width="30" height="52" rx="3" fill="#e08e2b"/>
+                    <line x1="40" y1="14" x2="40" y2="66" stroke="#5c3317" stroke-width="2"/>
+                    <line x1="70" y1="14" x2="70" y2="66" stroke="#5c3317" stroke-width="2"/>
+                    <text x="55" y="84" text-anchor="middle" font-size="11" font-weight="700" fill="var(--lesson-bar-stroke, #153a69)">12칸의 1/3 = 4칸</text>
+                    <rect x="120" y="14" width="90" height="52" rx="4" fill="#fff" stroke="#5c3317" stroke-width="2"/>
+                    <rect x="120" y="14" width="22.5" height="52" rx="3" fill="#7cc6fe"/>
+                    <line x1="142.5" y1="14" x2="142.5" y2="66" stroke="#5c3317" stroke-width="2"/>
+                    <line x1="165" y1="14" x2="165" y2="66" stroke="#5c3317" stroke-width="2"/>
+                    <line x1="187.5" y1="14" x2="187.5" y2="66" stroke="#5c3317" stroke-width="2"/>
+                    <text x="165" y="84" text-anchor="middle" font-size="11" font-weight="700" fill="var(--lesson-bar-stroke, #153a69)">12칸의 1/4 = 3칸</text>
+                  </svg>
+                </div>
                 <p>12칸 전체를 똑같이 나누면 <strong>1/3은 4칸</strong>, <strong>1/4은 3칸</strong>이에요. 따라서 <strong>1/3 &gt; 1/4</strong>입니다!</p>
               </div>
             </div>
@@ -903,9 +952,9 @@ function renderResultPhase(): string {
       : '🌱 끝까지 스스로 실험하고 생각하며 단위분수의 비밀을 탐구했어요!';
 
   const n = parseParticipants(participantsRaw);
-  const firstPoll = n && pollData.first ? validateCounts(pollData.first, n) : null;
-  const againPoll = n && pollData.again ? validateCounts(pollData.again, n) : null;
-  const transferPoll = n && pollData.transfer ? validateCounts(pollData.transfer, n) : null;
+  const firstPoll = !pollBlind && n && pollData.first ? validateCounts(pollData.first, n) : null;
+  const againPoll = !pollBlind && n && pollData.again ? validateCounts(pollData.again, n) : null;
+  const transferPoll = !pollBlind && n && pollData.transfer ? validateCounts(pollData.transfer, n) : null;
   const classSummaryParts: string[] = [];
   if (firstPoll && againPoll && n) {
     const diffPp = percentagePointChange(firstPoll.counts.A, againPoll.counts.A, n);
@@ -1097,7 +1146,8 @@ function updateClassPollStatusesDOM() {
 app.addEventListener('toggle', event => {
   const details = event.target as HTMLElement;
   if (details instanceof HTMLDetailsElement && details.classList.contains('class-poll-details')) {
-    classPollOpen = details.open;
+    const p = (details.dataset.pollDetails || 'first') as Poll;
+    classPollOpen[p] = details.open;
   }
 }, true);
 
@@ -1106,6 +1156,7 @@ app.addEventListener('input', event => {
 
   if (target.id === 'explore-slider') {
     exploreDenominator = Number(target.value);
+    filledPieces = 1;
     exploreMoved = true;
     updateExploreSliderDOM();
     return;
@@ -1113,7 +1164,8 @@ app.addEventListener('input', event => {
 
   if (target.id === 'participants' || target.dataset.participantsInput) {
     participantsRaw = target.value;
-    classPollOpen = true;
+    const p = (target.dataset.participantsInput || 'first') as Poll;
+    classPollOpen[p] = true;
     updateClassPollStatusesDOM();
     return;
   }
@@ -1124,7 +1176,7 @@ app.addEventListener('input', event => {
     const ch = target.dataset.count as Choice;
     pollData[p] ??= emptyCounts();
     pollData[p]![ch] = target.value;
-    classPollOpen = true;
+    classPollOpen[p] = true;
     updateClassPollStatusesDOM();
   }
 });
@@ -1138,10 +1190,12 @@ window.addEventListener('keydown', event => {
   const idx = order.indexOf(phase);
   if (event.key === 'ArrowRight' && idx < order.length - 1) {
     event.preventDefault();
+    stopSpeech();
     phase = order[idx + 1];
     render(true);
   } else if (event.key === 'ArrowLeft' && idx > 0) {
     event.preventDefault();
+    stopSpeech();
     phase = order[idx - 1];
     render(true);
   }
@@ -1154,6 +1208,7 @@ app.addEventListener('click', event => {
   // 효과음 토글, 다크 모드 & 큰 글씨 모드
   if (button.id === 'sound-toggle') {
     soundEnabled = !soundEnabled;
+    if (!soundEnabled) stopSpeech();
     button.textContent = soundEnabled ? '🔊 효과음' : '🔇 음소거';
     button.setAttribute('aria-pressed', String(soundEnabled));
     if (soundEnabled) playSound('click');
@@ -1180,6 +1235,7 @@ app.addEventListener('click', event => {
   if (button.dataset.stepIndex !== undefined) {
     const idx = Number(button.dataset.stepIndex);
     if (Number.isInteger(idx) && idx >= 0 && idx < order.length) {
+      stopSpeech();
       phase = order[idx];
       error = '';
       render(true);
@@ -1197,6 +1253,7 @@ app.addEventListener('click', event => {
   // 2단계 빠른 등분 인원 버튼 클릭
   if (button.dataset.quickDenom !== undefined) {
     exploreDenominator = Number(button.dataset.quickDenom);
+    filledPieces = 1;
     exploreMoved = true;
     playSound('click');
     updateExploreSliderDOM();
@@ -1207,6 +1264,7 @@ app.addEventListener('click', event => {
   if (button.dataset.duelRound !== undefined && button.dataset.duelPick) {
     const r = Number(button.dataset.duelRound);
     const pick = button.dataset.duelPick as DuelPick;
+    if (duelPicks[r] === pick) return;
     duelPicks[r] = pick;
     const roundObj = duelRounds.find(item => item.id === r);
     if (roundObj && roundObj.answer === pick) {
@@ -1238,7 +1296,7 @@ app.addEventListener('click', event => {
   if (button.dataset.ruleChoice) {
     const picked = button.dataset.ruleChoice as RuleChoice;
     ruleChoice = picked;
-    notebookBlankRevealed = picked === 'smaller' ? !notebookBlankRevealed : false;
+    notebookBlankRevealed = picked === 'smaller';
     if (notebookBlankRevealed) playSound('correct');
     render();
     return;
@@ -1271,7 +1329,7 @@ app.addEventListener('click', event => {
     if (!parsedN || totalNow > parsedN) {
       participantsRaw = String(Math.max(1, Math.min(MAX_PARTICIPANTS, totalNow)));
     }
-    classPollOpen = true;
+    classPollOpen[p] = true;
     render();
     return;
   }
@@ -1336,7 +1394,8 @@ app.addEventListener('click', event => {
     render();
   } else if (action === 'toggle-poll-blind') {
     pollBlind = !pollBlind;
-    classPollOpen = true;
+    const p = (button.dataset.targetPoll || 'first') as Poll;
+    classPollOpen[p] = true;
     render();
   } else if (action === 'base-less' || action === 'base-more') {
     exploreBaseDenominator = Math.max(
@@ -1350,6 +1409,7 @@ app.addEventListener('click', event => {
       DENOMINATOR_MIN,
       Math.min(DENOMINATOR_MAX, exploreDenominator + (action === 'more' ? 1 : -1)),
     );
+    filledPieces = 1;
     exploreMoved = true;
     updateExploreSliderDOM();
   } else if (action === 'fill-piece-add') {
@@ -1368,10 +1428,11 @@ app.addEventListener('click', event => {
     const fillWholeEl = app.querySelector<HTMLElement>('#fill-whole-box');
     if (fillWholeEl) fillWholeEl.innerHTML = renderFillWholeContent();
   } else if (action === 'duel-shuffle') {
+    duelShuffleCount++;
     const pool = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
     duelRounds = [0, 1, 2].map(id => {
-      const i1 = (id * 3 + duelStreak + 1) % pool.length;
-      const i2 = (i1 + id + 2) % pool.length;
+      const i1 = (id * 3 + duelShuffleCount * 2 + duelStreak) % pool.length;
+      const i2 = (i1 + id + (duelShuffleCount % 4) + 2) % pool.length;
       const leftDenom = pool[i1];
       const rightDenom = pool[i2] === leftDenom ? pool[(i2 + 1) % pool.length] : pool[i2];
       return {
@@ -1388,7 +1449,7 @@ app.addEventListener('click', event => {
     trainOrder = [];
     render();
   } else if (action === 'toggle-notebook-blank') {
-    notebookBlankRevealed = !notebookBlankRevealed;
+    notebookBlankRevealed = true;
     render();
   } else if (action === 'fill-zeros') {
     const p = (button.dataset.targetPoll || 'first') as Poll;
@@ -1396,7 +1457,7 @@ app.addEventListener('click', event => {
     for (const ch of CHOICES) {
       if (pollData[p]![ch].trim() === '') pollData[p]![ch] = '0';
     }
-    classPollOpen = true;
+    classPollOpen[p] = true;
     render();
   } else if (action === 'fill-sample') {
     const p = (button.dataset.targetPoll || 'first') as Poll;
@@ -1411,11 +1472,12 @@ app.addEventListener('click', event => {
     nextCounts[correctCh] = String(major);
     nextCounts[wrongCh] = String(minor);
     pollData[p] = nextCounts;
-    classPollOpen = true;
+    classPollOpen[p] = true;
     render();
   } else if (action === 'next') {
     const idx = order.indexOf(phase);
     if (idx < order.length - 1) {
+      stopSpeech();
       phase = order[idx + 1];
       error = '';
       render(true);
@@ -1423,6 +1485,7 @@ app.addEventListener('click', event => {
   } else if (action === 'back') {
     const idx = order.indexOf(phase);
     if (idx > 0) {
+      stopSpeech();
       phase = order[idx - 1];
       error = '';
       render(true);

@@ -1174,6 +1174,14 @@ button[data-reason][aria-pressed="true"] {
   line-height: 1.5;
 }
 
+.reallife-svg-wrap svg {
+  width: 100%;
+  max-width: 230px;
+  height: auto;
+  display: block;
+  margin: 6px auto;
+}
+
 .duel-header-row {
   display: flex;
   flex-wrap: wrap;
