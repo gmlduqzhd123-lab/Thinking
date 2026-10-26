@@ -34,27 +34,27 @@ const phaseLabels: Record<Phase, string> = {
 
 const storyDilemmas: Record<string, { badge: string; lead: string; friend: string }> = {
   M01: {
-    badge: '🍫 민수의 초코바 고민',
-    lead: '초코바를 아주 좋아하는 민수는 <strong>"3보다 5가 더 큰 숫자니까 나는 1/5 조각을 먹을래!"</strong>라고 골랐어요. 과연 민수는 1/3 조각보다 더 큰 초코바를 먹게 될까요?',
+    badge: '🍫 민수의 고민',
+    lead: '<strong>"3보다 5가 더 크니까 1/5 조각이 1/3보다 더 크지 않을까?"</strong>',
     friend: '민수',
   },
   M02: {
-    badge: '🍕 서연이의 피자 고민',
-    lead: '피자 파티에서 서연이는 <strong>"4보다 7이 더 큰 숫자니까 1/7 피자 조각이 더 크겠지?"</strong>라고 생각했어요. 과연 1/4 조각과 1/7 조각 중 어느 쪽이 더 클까요?',
+    badge: '🍕 서연이의 고민',
+    lead: '<strong>"4보다 7이 더 크니까 1/7 조각이 1/4보다 더 크지 않을까?"</strong>',
     friend: '서연이',
   },
   M03: {
-    badge: '🎀 준호의 색테이프 고민',
-    lead: '만들기 시간에 준호는 <strong>"숫자 6이 2보다 훨씬 크니까 1/6 색테이프가 더 길 거야!"</strong>라고 말했어요. 과연 1/2 조각과 1/6 조각 중 어느 쪽이 더 길까요?',
+    badge: '🎀 준호의 고민',
+    lead: '<strong>"2보다 6이 더 크니까 1/6 색테이프가 1/2보다 더 길지 않을까?"</strong>',
     friend: '준호',
   },
 };
 
 const teacherTalkPrompts: Record<Phase, string> = {
-  think: '🙋 선생님 질문 톡: "짝에게 내가 고른 답과 이유를 30초 동안 설명해 볼까요? 숫자(분모)가 커지면 조각은 어떻게 될까요?"',
-  explore: '🙋 선생님 질문 톡: "나누는 사람 수(분모)가 3명에서 12명으로 늘어날수록 내가 먹는 한 조각이 왜 작아지는지 짝에게 말해 보세요!"',
-  check: '🙋 선생님 질문 톡: "처음 생각과 지금 생각이 같나요, 바뀌었나요? 무엇을 보고 확신하게 되었는지 이야기해 볼까요?"',
-  result: '🙋 선생님 질문 톡: "오늘 발견한 단위분수의 비밀을 한 문장으로 다 함께 읽어 보고, 다른 간식 이야기에도 도전해 봐요!"',
+  think: '🙋 선생님 질문 톡: "짝에게 내가 고른 답과 이유를 30초 동안 설명해 볼까요?"',
+  explore: '🙋 선생님 질문 톡: "나누는 수가 커질수록 한 조각이 왜 작아지는지 짝에게 말해 보세요!"',
+  check: '🙋 선생님 질문 톡: "처음 생각과 지금 생각이 어떻게 달라졌는지 이야기해 볼까요?"',
+  result: '🙋 선생님 질문 톡: "오늘 발견한 단위분수의 규칙을 한 문장으로 함께 읽어 봐요!"',
 };
 
 const DEFAULT_DUEL_ROUNDS: DuelRound[] = [
@@ -75,9 +75,9 @@ const reasonCards = [
 ] as const;
 
 const reasonStudentBubbles = [
-  '💬 "분모 숫자가 더 크니까 한 조각도 더 클 것 같아요!"',
-  '💬 "같은 전체를 더 많이 나누면 한 조각은 더 작아질 것 같아요!"',
-  '💬 "두 간식의 원래 전체 크기가 똑같은지 먼저 확인해야 해요!"',
+  '💬 "분모 숫자가 클수록 조각도 커요"',
+  '💬 "많이 나눌수록 한 조각은 작아져요"',
+  '💬 "원래 전체 크기가 같은지 봐야 해요"',
 ] as const;
 
 // ─── DOM ─────────────────────────────────────────────────────────
@@ -101,6 +101,7 @@ let aiLinkedCardTitle = '';
 let showOverlap = false;
 let showTrapExperiment = false;
 let showRealLife = false;
+let exploreTab: 'all' | 'core' | 'concept' | 'life' = 'all';
 let fairCutAligned = false;
 let pinnedFlags: number[] = [2, 4];
 let exploreBaseDenominator = 3;
@@ -206,6 +207,7 @@ function resetSession(keepUnit = false, keepStamps = false) {
   showOverlap = false;
   showTrapExperiment = false;
   showRealLife = false;
+  exploreTab = 'all';
   fairCutAligned = false;
   pinnedFlags = [2, 4];
   exploreBaseDenominator = currentUnit().denominators.first[0];
@@ -266,9 +268,9 @@ function circleFraction(denominator: number, undividedPreview = false): string {
         <circle cx="${cx}" cy="${cy}" r="${r - 8}" fill="none" stroke="${stroke}" stroke-width="1.2" stroke-opacity="0.4"/>
         ${previewPattern}
         <text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="14" font-weight="800" fill="var(--lesson-bar-stroke, #153a69)">똑같은 전체 1</text>
-        <text x="${cx}" y="${cy + 16}" text-anchor="middle" font-size="13" font-weight="700" fill="#d9381e">? (${denominator}등분 중 1조각)</text>
+        <text x="${cx}" y="${cy + 16}" text-anchor="middle" font-size="13" font-weight="700" fill="#d9381e">✂️ 1/${denominator}은?</text>
       </svg>
-      <figcaption>상상하기: 똑같은 ${snackName()}를 <strong>${denominator}명</strong>이 나눈 한 조각 (<strong>1/${denominator}</strong>)</figcaption>
+      <figcaption><strong>1/${denominator}</strong> (${denominator}명 중 1조각)</figcaption>
     </figure>`;
   }
 
@@ -308,7 +310,7 @@ function circleFraction(denominator: number, undividedPreview = false): string {
       ${dividers}
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${stroke}" stroke-width="3"/>
     </svg>
-    <figcaption>같은 ${snackName()}의 <strong>1/${denominator}</strong> (${denominator}조각 중 한 조각)</figcaption>
+    <figcaption><strong>1/${denominator}</strong> (${denominator}조각 중 1조각)</figcaption>
   </figure>`;
 }
 
@@ -341,7 +343,7 @@ function numberLineFraction(denominator: number): string {
       <text x="${firstX.toFixed(2)}" y="18" text-anchor="middle" font-size="14" font-weight="700" fill="#d9381e">1/${denominator}</text>
       <text x="${endX}" y="70" text-anchor="middle" font-size="14" font-weight="700" fill="var(--lesson-bar-stroke, #153a69)">1</text>
     </svg>
-    <figcaption>0~1 수직선의 <strong>1/${denominator}</strong> 눈금</figcaption>
+    <figcaption>0~1 수직선 <strong>1/${denominator}</strong></figcaption>
   </figure>`;
 }
 
@@ -371,7 +373,7 @@ function cupFraction(denominator: number): string {
       ${ticks}
       <rect x="${cupX}" y="${cupY}" width="${cupW}" height="${cupH}" rx="6" fill="none" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3"/>
     </svg>
-    <figcaption>같은 컵의 <strong>1/${denominator}컵</strong></figcaption>
+    <figcaption><strong>1/${denominator}컵</strong></figcaption>
   </figure>`;
 }
 
@@ -392,9 +394,9 @@ function bar(denominator: number, undividedPreview = false): string {
         <rect x="0" y="10" width="600" height="48" rx="8" fill="${fill}" fill-opacity="0.22" stroke="${stroke}" stroke-width="3" stroke-dasharray="8 5"/>
         <line x1="14" y1="34" x2="586" y2="34" stroke="${stroke}" stroke-width="1.2" stroke-opacity="0.35" stroke-dasharray="4 4"/>
         ${previewPattern}
-        <text x="300" y="39" text-anchor="middle" font-size="15" font-weight="800" fill="var(--lesson-bar-stroke, #153a69)">전체 크기가 똑같은 ${snackName()} 1개 · ✂️ ${denominator}조각으로 나누면 1/${denominator}은?</text>
+        <text x="300" y="39" text-anchor="middle" font-size="15" font-weight="800" fill="var(--lesson-bar-stroke, #153a69)">똑같은 ${snackName()} 1개 · ✂️ 1/${denominator}은?</text>
       </svg>
-      <figcaption>상상하기: 같은 ${snackName()}를 <strong>${denominator}명</strong>이 똑같이 나눈 한 조각 (<strong>1/${denominator}</strong>)</figcaption>
+      <figcaption><strong>1/${denominator}</strong> (${denominator}명 중 1조각)</figcaption>
     </figure>`;
   }
 
@@ -424,17 +426,17 @@ function bar(denominator: number, undividedPreview = false): string {
       ${patternOverlay}
       ${dividers}
     </svg>
-    <figcaption>같은 ${snackName()}의 <strong>1/${denominator}</strong> (${denominator}조각 중 한 조각)</figcaption>
+    <figcaption><strong>1/${denominator}</strong> (${denominator}조각 중 1조각)</figcaption>
   </figure>`;
 }
 
 function renderSimpleVisualPair(dA: number, dB: number, allowExtraModels = false, undividedPreview = false): string {
   const extraBtns = allowExtraModels
-    ? `<button type="button" data-action="toggle-numberline" class="secondary-btn visual-btn" aria-pressed="${visualModel === 'numberline'}">📐 수직선으로 보기</button>
-       <button type="button" data-action="toggle-cup" class="secondary-btn visual-btn" aria-pressed="${visualModel === 'cup'}">🥤 주스 컵으로 보기</button>`
+    ? `<button type="button" data-action="toggle-numberline" class="secondary-btn visual-btn" aria-pressed="${visualModel === 'numberline'}">📐 수직선</button>
+       <button type="button" data-action="toggle-cup" class="secondary-btn visual-btn" aria-pressed="${visualModel === 'cup'}">🥤 주스 컵</button>`
     : '';
   return `<div class="visual-toolbar" role="group" aria-label="분수 모양 바꾸기">
-      <button type="button" data-action="toggle-model" class="secondary-btn visual-btn" aria-pressed="${visualModel === 'circle'}">${visualModel === 'circle' ? '📏 막대 모양으로 보기' : '🍕 둥근 피자 모양으로 보기'}</button>
+      <button type="button" data-action="toggle-model" class="secondary-btn visual-btn" aria-pressed="${visualModel === 'circle'}">${visualModel === 'circle' ? '📏 막대 모양' : '🍕 원형 모양'}</button>
       ${extraBtns}
     </div>
     <div class="bar-pair">${bar(dA, undividedPreview)}${bar(dB, undividedPreview)}</div>`;
@@ -466,10 +468,10 @@ function renderChoiceButtons(poll: Poll, dA: number, dB: number): string {
   const selected = myChoices[poll];
   const [leftD, rightD] = isTransferReversed(poll) ? [dB, dA] : [dA, dB];
   const labels = [
-    `A. 1/${leftD} 조각이 더 크다`,
-    `B. 1/${rightD} 조각이 더 크다`,
-    'C. 두 조각의 크기가 같다',
-    'D. 아직 잘 모르겠다',
+    `A. 1/${leftD}이 더 크다`,
+    `B. 1/${rightD}이 더 크다`,
+    'C. 크기가 같다',
+    'D. 잘 모르겠다',
   ];
   return `<div class="solo-choice-grid" role="group" aria-label="생각 선택 보기">
     ${CHOICES.map((ch, i) =>
@@ -482,19 +484,19 @@ function renderInstantFeedback(poll: Poll, dA: number, dB: number): string {
   const selected = myChoices[poll];
   if (!selected) return '';
   if (poll === 'first') {
-    return `<p id="poll-note" class="solo-feedback-box" role="status">✅ 내 처음 생각으로 <strong>"${choiceLabel(selected, dA, dB, poll)}"</strong>을(를) 골랐어요! 이제 2단계에서 직접 잘라 확인해 볼까요?</p>`;
+    return `<p id="poll-note" class="solo-feedback-box" role="status">✅ 내 처음 생각: <strong>"${choiceLabel(selected, dA, dB, poll)}"</strong> · 2단계에서 직접 확인해 볼까요?</p>`;
   }
   const correctCh = correctChoiceForPoll(poll);
   if (selected === correctCh) {
-    return `<p class="answer feedback-correct" role="status">🎉 <strong>정답이에요!</strong> 같은 전체를 더 적게 나눈 <strong>1/${dA}</strong> 한 조각이 <strong>1/${dB}</strong> 한 조각보다 더 큽니다.</p>`;
+    return `<p class="answer feedback-correct" role="status">🎉 <strong>정답이에요!</strong> 덜 나눈 <strong>1/${dA}</strong>이 <strong>1/${dB}</strong>보다 더 큽니다.</p>`;
   }
   if (selected === 'C') {
-    return `<p class="answer feedback-hint" role="status">💡 <strong>다시 살펴볼까요?</strong> 나눈 조각 수가 ${dA}등분과 ${dB}등분으로 서로 다르기 때문에 한 조각의 크기도 달라요. 덜 나눈 <strong>1/${dA}</strong>이 더 큽니다.</p>`;
+    return `<p class="answer feedback-hint" role="status">💡 <strong>다시 살펴볼까요?</strong> ${dA}등분과 ${dB}등분은 조각 크기가 달라요. 덜 나눈 <strong>1/${dA}</strong>이 더 큽니다.</p>`;
   }
   if (selected === 'D') {
-    return `<p class="answer feedback-hint" role="status">🌱 <strong>괜찮아요!</strong> 같은 전체를 덜 나눈 조각일수록 한 조각의 크기가 더 커요. 따라서 <strong>1/${dA}</strong> 조각이 <strong>1/${dB}</strong> 조각보다 더 큽니다.</p>`;
+    return `<p class="answer feedback-hint" role="status">🌱 <strong>괜찮아요!</strong> 덜 나눌수록 한 조각이 커져서 <strong>1/${dA}</strong>이 더 큽니다.</p>`;
   }
-  return `<p class="answer feedback-hint" role="status">💡 <strong>다시 살펴볼까요?</strong> 분모 숫자 ${dB}이 ${dA}보다 크지만, 같은 전체를 더 여러 조각으로 나누면 한 조각의 크기는 오히려 작아져요! 따라서 <strong>1/${dA}</strong>(${correctCh}번)이 더 큽니다.</p>`;
+  return `<p class="answer feedback-hint" role="status">💡 <strong>다시 살펴볼까요?</strong> 더 많이 나눌수록 한 조각은 작아져요! <strong>1/${dA}</strong>(${correctCh}번)이 더 큽니다.</p>`;
 }
 
 function formatClassPollStatus(poll: Poll): string {
@@ -554,12 +556,12 @@ function renderLivePollChart(poll: Poll, dA: number, dB: number): string {
 function renderConfidencePicker(poll: 'first' | 'again'): string {
   const current = confidence[poll];
   const levels: { key: ConfidenceLevel; label: string }[] = [
-    { key: 'low', label: '🌱 조금 헷갈려요' },
-    { key: 'mid', label: '🙂 어느 정도 맞을 것 같아요' },
-    { key: 'high', label: '🔥 완전히 확신해요!' },
+    { key: 'low', label: '🌱 헷갈려요' },
+    { key: 'mid', label: '🙂 비슷해요' },
+    { key: 'high', label: '🔥 확신해요!' },
   ];
   return `<div class="confidence-picker" role="group" aria-label="내 생각 확신 온도계">
-    <span class="confidence-label">🌡️ 내 생각 확신 온도계:</span>
+    <span class="confidence-label">🌡️ 확신 온도:</span>
     <div class="confidence-btns">
       ${levels.map(l => `<button type="button" data-conf-poll="${poll}" data-conf-level="${l.key}" class="secondary-btn conf-btn ${current === l.key ? 'solo-choice-selected' : ''}" aria-pressed="${current === l.key}">${l.label}</button>`).join('')}
     </div>
@@ -567,15 +569,15 @@ function renderConfidencePicker(poll: 'first' | 'again'): string {
 }
 
 function renderTeacherTalkBar(p: Phase): string {
-  const bellLabel = talkSecondsLeft > 0 ? `🔔 짝 토론 진행 중 (${talkSecondsLeft}초)` : '🔔 30초 짝 토론 벨';
+  const bellLabel = talkSecondsLeft > 0 ? `🔔 짝 토론 (${talkSecondsLeft}초)` : '🔔 30초 짝 토론';
   const groupBadge = pickedGroup !== null
-    ? `<span id="picked-group-badge" class="picked-group-badge" role="status">🎤 이번 발표: <strong>${pickedGroup}모둠</strong>!</span>`
+    ? `<span id="picked-group-badge" class="picked-group-badge" role="status">🎤 발표: <strong>${pickedGroup}모둠</strong>!</span>`
     : '';
   return `<div class="teacher-talk-banner">
     <p class="teacher-talk-text">${teacherTalkPrompts[p]}</p>
     <div class="talk-dock" role="group" aria-label="짝 토론 및 발표 모둠 도구">
       <button type="button" id="talk-bell-btn" data-action="talk-bell" class="secondary-btn talk-dock-btn" aria-pressed="${talkSecondsLeft > 0}">${bellLabel}</button>
-      <button type="button" data-action="pick-group" class="secondary-btn talk-dock-btn">🎲 발표 모둠 뽑기</button>
+      <button type="button" data-action="pick-group" class="secondary-btn talk-dock-btn">🎲 모둠 뽑기</button>
       ${groupBadge}
     </div>
   </div>`;
@@ -620,7 +622,7 @@ function renderOptionalClassPoll(poll: Poll, dA: number, dB: number): string {
   const participantsId = poll === 'transfer' ? 'participants-transfer' : 'participants';
 
   return `<details class="class-poll-details" data-poll-details="${poll}" ${classPollOpen[poll] ? 'open' : ''}>
-    <summary>👩‍🏫 교실 수업용 거수 투표·인원수 기록하기 (필요할 때만 열기)</summary>
+    <summary>👩‍🏫 교실 거수 투표·인원 기록 (선택)</summary>
     <div class="class-poll-body">
       <div class="poll-top-row">
         <label>참여 인원(1~${MAX_PARTICIPANTS}명) <input id="${participantsId}" data-participants-input="${poll}" type="text" inputmode="numeric" value="${participantsRaw}" autocomplete="off"></label>
@@ -650,7 +652,7 @@ function renderOptionalClassPoll(poll: Poll, dA: number, dB: number): string {
 
 // ─── 4단계 화면별 본문 ───────────────────────────────────────────
 
-/** 1단계: 스토리 딜레마(#1) + TTS 읽어주기 + 정답 스포일러 없는 상상 모형(#2) + 1클릭 선택 & 말풍선(#3, #4). */
+/** 1단계: 캡슐형 주제 탭 + 한 줄 질문 배너 + 시각 모형 + 1클릭 선택 & 점진적 후속 질문 + 하단 교사 독. */
 function renderThinkPhase(): string {
   const unit = currentUnit();
   const [firstA, firstB] = unit.denominators.first;
@@ -659,10 +661,10 @@ function renderThinkPhase(): string {
   const unitCards = listUnits().map(u => {
     const active = u.id === selectedUnitId;
     const isCleared = clearedUnits.has(u.id);
+    const shortTitle = u.title.replace(' · ', ' (') + ')';
     return `<button type="button" data-unit-id="${u.id}" class="unit-card-btn ${active ? 'unit-card-active' : ''}" aria-pressed="${active}">
-      <span class="unit-stamp-tag">${isCleared ? '⭐ 클리어 완료!' : active ? '🔍 지금 탐구 중' : '👆 눌러서 시작'}</span>
-      <strong>${u.title}</strong>
-      <span>${u.description}</span>
+      <strong>${shortTitle}</strong>
+      <span class="unit-stamp-tag">${isCleared ? '⭐ 완료' : active ? '🔍 탐구 중' : '시작'}</span>
     </button>`;
   }).join('');
 
@@ -675,43 +677,49 @@ function renderThinkPhase(): string {
       <h2 tabindex="-1">① 처음 생각 고르기 · 1/${firstA}과 1/${firstB} 비교</h2>
 
       <div class="story-dilemma-card" role="region" aria-label="${story.badge}">
-        <div class="story-card-header">
-          <span class="story-badge">${story.badge}</span>
-          <button type="button" data-action="speak-story" class="secondary-btn tts-btn">🔊 이야기 읽어주기</button>
-        </div>
+        <span class="story-badge">${story.badge}</span>
         <p class="question-lead">${story.lead}</p>
-        ${ttsSpoken ? '<p id="tts-status" class="tts-status" role="status">🔊 이야기를 음성으로 읽어주었어요!</p>' : ''}
+        <button type="button" data-action="speak-story" class="secondary-btn tts-btn">🔊 읽어주기</button>
+        ${ttsSpoken ? '<p id="tts-status" class="tts-status" role="status">🔊 음성으로 읽어주었어요!</p>' : ''}
       </div>
 
-      ${renderTeacherTalkBar('think')}
-
-      ${renderSimpleVisualPair(firstA, firstB, false, !spoilerPreview)}
-      <div class="spoiler-hint-row">
-        <button type="button" data-action="toggle-spoiler" class="secondary-btn" aria-pressed="${spoilerPreview}">
-          ${spoilerPreview ? '🙈 자르기 전 모양으로 다시 가리기' : '👀 자른 눈금 힌트 살짝 미리 보기'}
-        </button>
-        <button type="button" data-action="toggle-pattern" class="secondary-btn" aria-pressed="${patternMode}">
-          ${patternMode ? '🎨 기본 색상으로 보기' : '🎨 색각 안전 빗금 패턴 켜기'}
-        </button>
+      <div class="visual-controls-bar">
+        <div class="visual-toolbar" role="group" aria-label="분수 모양 바꾸기">
+          <button type="button" data-action="toggle-model" class="secondary-btn visual-btn" aria-pressed="${visualModel === 'circle'}">${visualModel === 'circle' ? '📏 막대 모양' : '🍕 원형 모양'}</button>
+        </div>
+        <div class="spoiler-hint-row">
+          <button type="button" data-action="toggle-spoiler" class="secondary-btn" aria-pressed="${spoilerPreview}">
+            ${spoilerPreview ? '🙈 눈금 가리기' : '👀 눈금 힌트'}
+          </button>
+          <button type="button" data-action="toggle-pattern" class="secondary-btn" aria-pressed="${patternMode}">
+            ${patternMode ? '🎨 기본 색상' : '🎨 빗금 패턴'}
+          </button>
+        </div>
       </div>
+      <div class="bar-pair">${bar(firstA, !spoilerPreview)}${bar(firstB, !spoilerPreview)}</div>
 
       ${renderChoiceButtons('first', firstA, firstB)}
       ${renderInstantFeedback('first', firstA, firstB)}
-      ${renderConfidencePicker('first')}
 
-      <div class="reason-section">
-        <h3>💭 왜 그렇게 생각했나요? (내 생각과 가장 비슷한 말풍선 고르기)</h3>
-        <div class="actions reason-bubble-list">
-          ${reasonCards.map((label, i) =>
-            `<button type="button" data-reason="${i}" class="reason-bubble-btn" aria-label="${label}" aria-pressed="${reasonSelected === String(i)}">
-              <span class="student-bubble">${reasonStudentBubbles[i]}</span>
-            </button>`
-          ).join('')}
+      <div class="followup-zone ${myChoices.first ? 'followup-ready' : ''}">
+        ${renderConfidencePicker('first')}
+        <div class="reason-section">
+          <h3>💭 왜 그렇게 생각했나요?</h3>
+          <div class="actions reason-bubble-list">
+            ${reasonCards.map((label, i) =>
+              `<button type="button" data-reason="${i}" class="reason-bubble-btn" aria-label="${label}" aria-pressed="${reasonSelected === String(i)}">
+                <span class="student-bubble">${reasonStudentBubbles[i]}</span>
+              </button>`
+            ).join('')}
+          </div>
+          ${aiLinkedCardTitle ? `<p class="ai-linked-badge">🤖 AI 추천 연결: <strong>${aiLinkedCardTitle}</strong></p>` : ''}
         </div>
-        ${aiLinkedCardTitle ? `<p class="ai-linked-badge">🤖 로컬 AI 추천 탐구 연결됨: <strong>${aiLinkedCardTitle}</strong></p>` : ''}
       </div>
 
-      ${renderOptionalClassPoll('first', firstA, firstB)}
+      <div class="teacher-dock-zone" role="region" aria-label="선생님 수업 도구">
+        ${renderTeacherTalkBar('think')}
+        ${renderOptionalClassPoll('first', firstA, firstB)}
+      </div>
 
       <div class="actions next-step-bar">
         <button type="button" data-action="next" class="primary-next-btn">② 직접 실험하러 가기 →</button>
@@ -757,17 +765,17 @@ function renderFillWholeContent(): string {
         ${fillPattern}
         ${dividers}
       </svg>
-      <figcaption>1/${exploreDenominator} 조각 <strong>${clampedFilled}개</strong> 모음 = <strong>${clampedFilled}/${exploreDenominator}</strong> ${isComplete ? '(= 전체 1 완성!)' : ''}</figcaption>
+      <figcaption>1/${exploreDenominator} 조각 <strong>${clampedFilled}개</strong> = <strong>${clampedFilled}/${exploreDenominator}</strong> ${isComplete ? '(= 전체 1 완성!)' : ''}</figcaption>
     </figure>
     <div class="fill-whole-controls" role="group" aria-label="단위분수 조각 모아 전체 1 채우기 조작">
-      <button type="button" data-action="fill-piece-add" class="secondary-btn" ${isComplete ? 'disabled' : ''}>➕ 1/${exploreDenominator} 조각 더 채우기</button>
-      <button type="button" data-action="fill-piece-full" class="secondary-btn" ${isComplete ? 'disabled' : ''}>⚡ 끝까지 채우기 (${exploreDenominator}/${exploreDenominator} = 1)</button>
-      <button type="button" data-action="fill-piece-reset" class="secondary-btn" ${clampedFilled <= 1 ? 'disabled' : ''}>🔄 1조각으로 비우기</button>
+      <button type="button" data-action="fill-piece-add" class="secondary-btn" ${isComplete ? 'disabled' : ''}>➕ 1/${exploreDenominator} 추가</button>
+      <button type="button" data-action="fill-piece-full" class="secondary-btn" ${isComplete ? 'disabled' : ''}>⚡ 끝까지 채우기</button>
+      <button type="button" data-action="fill-piece-reset" class="secondary-btn" ${clampedFilled <= 1 ? 'disabled' : ''}>🔄 비우기</button>
     </div>
     <p id="fill-whole-status" class="answer" role="status">${
       isComplete
-        ? `🎉 <strong>전체 1 완성!</strong> <strong>1/${exploreDenominator}</strong> 조각을 <strong>${exploreDenominator}개</strong> 모으니 전체 1(${exploreDenominator}/${exploreDenominator})이 꼭 맞게 채워졌어요! 한 조각이 작을수록 전체 1을 채우는 데 더 많은 조각이 필요합니다.`
-        : `🧩 현재 <strong>1/${exploreDenominator}</strong> 조각 <strong>${clampedFilled}개(${clampedFilled}/${exploreDenominator})</strong>를 채웠어요. 전체 1이 되려면 조각 <strong>${exploreDenominator - clampedFilled}개</strong>가 더 필요해요!`
+        ? `🎉 <strong>전체 1 완성!</strong> <strong>1/${exploreDenominator}</strong> 조각 <strong>${exploreDenominator}개</strong>로 전체 1을 채웠어요!`
+        : `🧩 현재 <strong>${clampedFilled}/${exploreDenominator}</strong> · 전체 1까지 <strong>${exploreDenominator - clampedFilled}개</strong> 남았어요!`
     }</p>`;
 }
 
@@ -817,17 +825,17 @@ function updateExploreSliderDOM() {
   if (fillWholeEl) fillWholeEl.innerHTML = renderFillWholeContent();
 }
 
-function renderAdaptiveMissionGuide(firstA: number, firstB: number): string {
+function renderAdaptiveMissionGuide(_firstA: number, firstB: number): string {
   if (myChoices.first === 'B' || reasonSelected === '0') {
-    return `🎯 <strong>맞춤 실험 미션</strong>: 분모 숫자(${firstB})가 클수록 조각도 클지 확인하기 위해 <strong>[실험 1 · 조각 포개어 비교하기]</strong>와 <strong>[실험 3 · 조각 모아 전체 1 채우기]</strong>를 먼저 해 보세요!`;
+    return `🎯 <strong>맞춤 실험 미션</strong>: 분모(${firstB})가 클수록 조각도 클까요? <strong>[실험 1 · 조각 포개기]</strong>와 <strong>[실험 3 · 전체 1 채우기]</strong>를 해 보세요!`;
   }
   if (myChoices.first === 'C' || reasonSelected === '2') {
-    return `🎯 <strong>맞춤 실험 미션</strong>: 전체의 크기와 등분 조건이 왜 중요한지 <strong>[실험 4 · 공평하게 나누기(등분할) 실험]</strong>과 <strong>[깜짝 실험 · 원래 전체 크기가 다를 때]</strong>를 먼저 확인해 보세요!`;
+    return `🎯 <strong>맞춤 실험 미션</strong>: <strong>[실험 4 · 등분할 조건]</strong>과 <strong>[실험 6 · 전체 크기가 다를 때]</strong>를 먼저 확인해 보세요!`;
   }
   if (myChoices.first === 'A' || reasonSelected === '1') {
-    return `🎯 <strong>맞춤 실험 미션</strong>: 덜 나눌수록 조각이 크다는 예상을 검증하기 위해 <strong>[실험 2 · 양쪽 분모 자유 비교]</strong>와 <strong>[실험 5 · 0~1 수직선 깃발 꽂기]</strong>에 도전해 보세요!`;
+    return `🎯 <strong>맞춤 실험 미션</strong>: <strong>[실험 2 · 분모 자유 비교]</strong>와 <strong>[실험 5 · 수직선 깃발]</strong>에 도전해 보세요!`;
   }
-  return `🎯 <strong>맞춤 실험 미션</strong>: 아래 <strong>[실험 1 · 조각 포개어 비교하기]</strong>부터 차례대로 눌러 눈으로 직접 조각 크기를 비교해 보세요!`;
+  return `🎯 <strong>맞춤 실험 미션</strong>: 아래 <strong>[실험 1 · 조각 포개기]</strong>부터 차례대로 눌러 조각 크기를 비교해 보세요!`;
 }
 
 function renderFlagNumberLine(): string {
@@ -856,15 +864,15 @@ function renderFlagNumberLine(): string {
       <text x="${startX}" y="80" text-anchor="middle" font-size="13" font-weight="800" fill="var(--lesson-bar-stroke, #153a69)">0</text>
       <text x="${endX}" y="80" text-anchor="middle" font-size="13" font-weight="800" fill="var(--lesson-bar-stroke, #153a69)">1 (전체)</text>
     </svg>
-    <figcaption>꽂힌 단위분수 깃발(${sorted.length}개): <strong>${sorted.length > 0 ? sorted.map(d => `1/${d}`).join(' > ') : '없음'}</strong></figcaption>
+    <figcaption>꽂힌 깃발(${sorted.length}개): <strong>${sorted.length > 0 ? sorted.map(d => `1/${d}`).join(' > ') : '없음'}</strong></figcaption>
   </figure>`;
 }
 
-/** 2단계: 포개어 차이 보기 + 양쪽 분모 자유 비교 + 조각 모아 전체 1 채우기 + 등분할 조건 + 수직선 깃발 + 깜짝 함정 실험 + 실생활 단위분수 찾기. */
+/** 2단계: 탭형 카테고리 필터 + 2열 컴팩트 그리드 실험 + 하단 교사 독. */
 function renderExplorePhase(): string {
   const [firstA, firstB] = currentUnit().denominators.first;
   const myFirstText = choiceLabel(myChoices.first, firstA, firstB, 'first');
-  const myReasonText = reasonSelected !== '' ? reasonStudentBubbles[Number(reasonSelected)] : '내 처음 생각을 직접 실험으로 확인해 볼까요?';
+  const myReasonText = reasonSelected !== '' ? reasonStudentBubbles[Number(reasonSelected)] : '직접 실험으로 확인하기';
 
   const wA = 600 / firstA;
   const wB = 600 / firstB;
@@ -873,194 +881,212 @@ function renderExplorePhase(): string {
 
   const quickDenomBtns = QUICK_DENOMS.map(d => {
     const active = exploreDenominator === d;
-    return `<button type="button" data-quick-denom="${d}" class="secondary-btn quick-denom-btn ${active ? 'quick-denom-active' : ''}" aria-pressed="${active}">👧 ${d}명이 나눌 때 (1/${d})</button>`;
+    return `<button type="button" data-quick-denom="${d}" class="secondary-btn quick-denom-btn ${active ? 'quick-denom-active' : ''}" aria-pressed="${active}">👧 ${d}명 (1/${d})</button>`;
   }).join('');
 
   const flagBtns = FLAG_DENOMS.map(d => {
     const active = pinnedFlags.includes(d);
-    return `<button type="button" data-flag-denom="${d}" class="secondary-btn ${active ? 'quick-denom-active' : ''}" aria-pressed="${active}">🚩 1/${d} 깃발</button>`;
+    return `<button type="button" data-flag-denom="${d}" class="secondary-btn ${active ? 'quick-denom-active' : ''}" aria-pressed="${active}">🚩 1/${d}</button>`;
   }).join('');
+
+  const showCore = exploreTab === 'all' || exploreTab === 'core';
+  const showConcept = exploreTab === 'all' || exploreTab === 'concept';
+  const showLife = exploreTab === 'all' || exploreTab === 'life';
 
   return `
     <div class="step-card">
-      <h2 tabindex="-1">② 직접 실험하기 · 눈으로 확인하는 재미있는 실험</h2>
+      <h2 tabindex="-1">② 직접 실험하기 · 눈으로 확인하는 분수 실험</h2>
 
       <div class="hypothesis-banner" role="region" aria-label="나의 처음 생각">
-        <p>💭 <strong>나의 처음 생각</strong>: <strong>${myFirstText}</strong></p>
-        <p class="hypothesis-sub">${myReasonText}</p>
+        <p>💭 <strong>처음 생각</strong>: <strong>${myFirstText}</strong> <span class="hypothesis-sub">(${myReasonText})</span></p>
         <p id="adaptive-mission-card" class="adaptive-mission-card">${renderAdaptiveMissionGuide(firstA, firstB)}</p>
       </div>
 
-      ${renderTeacherTalkBar('explore')}
+      <div class="exp-tab-bar" role="group" aria-label="실험 묶음 선택">
+        <button type="button" data-explore-tab="all" class="secondary-btn exp-tab-btn ${exploreTab === 'all' ? 'quick-denom-active' : ''}" aria-pressed="${exploreTab === 'all'}">🌟 전체 보기</button>
+        <button type="button" data-explore-tab="core" class="secondary-btn exp-tab-btn ${exploreTab === 'core' ? 'quick-denom-active' : ''}" aria-pressed="${exploreTab === 'core'}">✂️ 핵심 비교 (실험 1·2)</button>
+        <button type="button" data-explore-tab="concept" class="secondary-btn exp-tab-btn ${exploreTab === 'concept' ? 'quick-denom-active' : ''}" aria-pressed="${exploreTab === 'concept'}">🧩 원리 실험 (실험 3·4)</button>
+        <button type="button" data-explore-tab="life" class="secondary-btn exp-tab-btn ${exploreTab === 'life' ? 'quick-denom-active' : ''}" aria-pressed="${exploreTab === 'life'}">🚩 수직선·실생활 (실험 5·6·7)</button>
+      </div>
 
-      <section class="experiment-box" aria-label="실험 1 조각 포개어 비교하기">
-        <h3>실험 1 · 가위로 잘라 두 조각을 포개어 대어 보기</h3>
-        <p>1/${firstA} 조각과 1/${firstB} 조각의 왼쪽 끝을 똑같이 맞추어 포개어 볼까요?</p>
-        <button type="button" data-action="toggle-overlap" class="overlap-trigger-btn" aria-pressed="${showOverlap}">
-          ${showOverlap ? '✂️ 포개어 비교한 결과 닫기' : '✂️ 1/' + firstA + ' 조각과 1/' + firstB + ' 조각 포개어 비교하기'}
-        </button>
-
-        ${showOverlap ? `
-          <div class="overlap-comparison" role="region" aria-label="조각 포개어 겹쳐 비교하기">
-            <svg viewBox="0 0 600 92" role="img" aria-label="1/${firstA} 조각과 1/${firstB} 조각을 겹쳐 길이 차이를 비교한 그림">
-              <rect x="0" y="8" width="600" height="74" rx="6" fill="var(--lesson-bar-bg, white)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="1.5" stroke-dasharray="4 4"/>
-              <rect x="0" y="14" width="${wA.toFixed(2)}" height="26" rx="4" fill="var(--lesson-bar-fill, #ffca62)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
-              <text x="${Math.min(535, wA + 8).toFixed(2)}" y="32" font-size="14" font-weight="700" fill="var(--lesson-bar-stroke, #153a69)">1/${firstA} 한 조각</text>
-              <rect x="0" y="46" width="${wB.toFixed(2)}" height="26" rx="4" fill="#7cc6fe" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
-              <rect x="${wB.toFixed(2)}" y="46" width="${diffW.toFixed(2)}" height="26" rx="4" fill="#fde2e2" stroke="#d9381e" stroke-width="2" stroke-dasharray="4 2"/>
-              <text x="${Math.min(430, wA + 8).toFixed(2)}" y="64" font-size="13" font-weight="800" fill="#d9381e">← 이만큼 1/${firstA}이 더 길어요!</text>
-              <line x1="${wB.toFixed(2)}" y1="10" x2="${wB.toFixed(2)}" y2="78" stroke="#d9381e" stroke-width="2.5" stroke-dasharray="4 3"/>
-            </svg>
-            <p class="answer">💡 <strong>발견 1</strong>: 왼쪽 끝을 맞추어 포개어 보니, 덜 나눈 <strong>1/${firstA}</strong> 조각이 <strong>1/${firstB}</strong> 조각보다 빨간 점선 칸만큼 확실히 더 깁니다!</p>
-          </div>
-        ` : ''}
-      </section>
-
-      <section class="experiment-box" aria-label="실험 2 나누는 조각 수 바꿔 보기">
-        <h3>실험 2 · 양쪽 단위분수의 나누는 사람 수(분모)를 2명~12명 사이에서 자유롭게 비교하기</h3>
-        <p>위쪽 기준 분수와 아래쪽 실험 분수를 원하는 등분 수로 바꾸어 어떤 분수끼리든 직접 비교해 보세요.</p>
-
-        <div class="visual-toolbar" role="group" aria-label="분수 모양 바꾸기">
-          <button type="button" data-action="toggle-model" class="secondary-btn visual-btn" aria-pressed="${visualModel === 'circle'}">${visualModel === 'circle' ? '📏 막대 모양으로 보기' : '🍕 둥근 피자 모양으로 보기'}</button>
-        </div>
-
-        <div class="base-denom-controls" role="group" aria-label="위쪽 기준 분수 분모 조절">
-          <button type="button" data-action="base-less" class="secondary-btn" ${exploreBaseDenominator <= DENOMINATOR_MIN ? 'disabled' : ''} aria-label="기준 분모 줄이기">기준 −1</button>
-          <output id="explore-base-output" aria-live="polite">기준 분수: 1/${exploreBaseDenominator} (${exploreBaseDenominator}등분)</output>
-          <button type="button" data-action="base-more" class="secondary-btn" ${exploreBaseDenominator >= DENOMINATOR_MAX ? 'disabled' : ''} aria-label="기준 분모 늘리기">기준 ＋1</button>
-          <button type="button" data-action="toggle-pattern" class="secondary-btn" aria-pressed="${patternMode}">
-            ${patternMode ? '🎨 기본 색상으로 보기' : '🎨 색각 안전 빗금 패턴 켜기'}
+      ${showCore ? `
+        <section class="experiment-box" aria-label="실험 1 조각 포개어 비교하기">
+          <h3>✂️ 실험 1 · 두 조각 포개어 대어 보기</h3>
+          <button type="button" data-action="toggle-overlap" class="overlap-trigger-btn" aria-pressed="${showOverlap}">
+            ${showOverlap ? '✂️ 포개어 비교한 결과 닫기' : '✂️ 1/' + firstA + ' 조각과 1/' + firstB + ' 조각 포개어 비교하기'}
           </button>
-        </div>
 
-        <div class="quick-denom-bar" role="group" aria-label="나누는 사람 수 빠른 선택">
-          ${quickDenomBtns}
-        </div>
+          ${showOverlap ? `
+            <div class="overlap-comparison" role="region" aria-label="조각 포개어 겹쳐 비교하기">
+              <svg viewBox="0 0 600 92" role="img" aria-label="1/${firstA} 조각과 1/${firstB} 조각을 겹쳐 길이 차이를 비교한 그림">
+                <rect x="0" y="8" width="600" height="74" rx="6" fill="var(--lesson-bar-bg, white)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="1.5" stroke-dasharray="4 4"/>
+                <rect x="0" y="14" width="${wA.toFixed(2)}" height="26" rx="4" fill="var(--lesson-bar-fill, #ffca62)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+                <text x="${Math.min(535, wA + 8).toFixed(2)}" y="32" font-size="14" font-weight="700" fill="var(--lesson-bar-stroke, #153a69)">1/${firstA} 한 조각</text>
+                <rect x="0" y="46" width="${wB.toFixed(2)}" height="26" rx="4" fill="#7cc6fe" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+                <rect x="${wB.toFixed(2)}" y="46" width="${diffW.toFixed(2)}" height="26" rx="4" fill="#fde2e2" stroke="#d9381e" stroke-width="2" stroke-dasharray="4 2"/>
+                <text x="${Math.min(430, wA + 8).toFixed(2)}" y="64" font-size="13" font-weight="800" fill="#d9381e">← 이만큼 1/${firstA}이 더 길어요!</text>
+                <line x1="${wB.toFixed(2)}" y1="10" x2="${wB.toFixed(2)}" y2="78" stroke="#d9381e" stroke-width="2.5" stroke-dasharray="4 3"/>
+              </svg>
+              <p class="answer">💡 <strong>발견 1</strong>: 덜 나눈 <strong>1/${firstA}</strong> 조각이 <strong>1/${firstB}</strong> 조각보다 빨간 점선 칸만큼 확실히 더 깁니다!</p>
+            </div>
+          ` : ''}
+        </section>
 
-        <div id="explore-exp2-bars" class="bar-pair">${barsHtml}</div>
+        <section class="experiment-box" aria-label="실험 2 나누는 조각 수 바꿔 보기">
+          <h3>🎚️ 실험 2 · 양쪽 분모(2~12등분) 자유 비교</h3>
 
-        <div class="slider-experiment-controls">
-          <button type="button" data-action="less" ${exploreDenominator <= DENOMINATOR_MIN ? 'disabled' : ''} aria-label="등분 수 줄이기">−</button>
-          <input id="explore-slider" type="range" min="${DENOMINATOR_MIN}" max="${DENOMINATOR_MAX}" value="${exploreDenominator}" aria-label="나누는 조각 수 슬라이더">
-          <output id="explore-denom-output" aria-live="polite">${exploreDenominator}등분 (1/${exploreDenominator})</output>
-          <button type="button" data-action="more" ${exploreDenominator >= DENOMINATOR_MAX ? 'disabled' : ''} aria-label="등분 수 늘리기">＋</button>
-        </div>
-
-        <p id="explore-cmp-badge" class="comparison-badge" aria-live="polite">${badgeHtml}</p>
-        <div id="explore-discovery-2" aria-live="polite">${discoveryHtml}</div>
-      </section>
-
-      <section class="experiment-box" aria-label="실험 3 단위분수 조각 모아 전체 1 채우기">
-        <h3>실험 3 · 단위분수 조각을 하나씩 모아 '전체 1' 완성하기</h3>
-        <p>단위분수 조각을 몇 개 모아야 원래 전체 1이 꼭 맞게 채워지는지 직접 채워 보세요!</p>
-        <div id="fill-whole-box">${renderFillWholeContent()}</div>
-      </section>
-
-      <section class="experiment-box fair-cut-box" aria-label="실험 4 공평하게 똑같이 나누기 조건 실험">
-        <h3>🔪 실험 4 · 불공평하게 자른 3조각 중 1조각도 1/3일까요? (등분할 조건 실험)</h3>
-        <p>눈금이 제각각인 불공평한 3조각과 똑같은 크기로 나눈 3등분(1/3)을 비교해 보세요.</p>
-        <figure class="fair-cut-figure">
-          <svg viewBox="0 0 600 66" role="img" aria-label="${fairCutAligned ? '눈금을 똑같은 간격(200씩)으로 정렬해 바르게 3등분한 1/3 모형' : '눈금이 90, 260으로 불공평하게 잘려 크기가 제각각인 3조각 모형'}">
-            <rect x="0" y="10" width="600" height="44" rx="6" fill="var(--lesson-bar-bg, #fff)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3"/>
-            <rect x="0" y="10" width="${fairCutAligned ? 200 : 90}" height="44" rx="4" fill="${fairCutAligned ? '#ffca62' : '#fde2e2'}"/>
-            <line x1="${fairCutAligned ? 200 : 90}" y1="10" x2="${fairCutAligned ? 200 : 90}" y2="54" stroke="#d9381e" stroke-width="3"/>
-            <line x1="${fairCutAligned ? 400 : 260}" y1="10" x2="${fairCutAligned ? 400 : 260}" y2="54" stroke="#d9381e" stroke-width="3"/>
-            <text x="300" y="37" text-anchor="middle" font-size="14" font-weight="800" fill="var(--lesson-bar-stroke, #153a69)">${fairCutAligned ? '✅ 세 조각의 크기가 모두 똑같음 → 첫 조각은 진짜 1/3!' : '⚠️ 조각 크기가 제각각(불공평 분할) → 1/3이라고 부를 수 없어요!'}</text>
-          </svg>
-        </figure>
-        <button type="button" data-action="toggle-fair-cut" class="secondary-btn" aria-pressed="${fairCutAligned}">
-          ${fairCutAligned ? '🔀 불공평하게 자른 모양 다시 보기' : '📏 공평하게 똑같은 간격(등분할)으로 정렬하기'}
-        </button>
-        <p id="fair-cut-status" class="answer" role="status">${
-          fairCutAligned
-            ? '🎉 <strong>등분할 성공!</strong> 전체를 <strong>똑같은 크기</strong>로 나누었을 때만 한 조각을 <strong>1/3</strong>이라고 부르고 크기를 비교할 수 있어요!'
-            : '💡 조각의 크기가 서로 다르면 3조각 중 1조각이어도 <strong>1/3이 아닙니다</strong>. 버튼을 눌러 공평하게 똑같이 나누어 보세요!'
-        }</p>
-      </section>
-
-      <section class="experiment-box flag-line-box" aria-label="실험 5 수직선 위에 단위분수 깃발 꽂기">
-        <h3>📍 실험 5 · 0~1 수직선 위에 여러 단위분수 깃발을 동시에 꽂아 비교하기</h3>
-        <p>원하는 단위분수 깃발 버튼을 눌러 0과 1 사이 어디에 위치하는지 한눈에 비교해 보세요.</p>
-        <div class="flag-controls" role="group" aria-label="수직선 깃발 선택">
-          ${flagBtns}
-          <button type="button" data-action="flag-all" class="secondary-btn">🚩 모든 깃발 한꺼번에 꽂기</button>
-          <button type="button" data-action="flag-reset" class="secondary-btn">🔄 기본 깃발만 남기기</button>
-        </div>
-        ${renderFlagNumberLine()}
-        <p id="flag-line-status" class="answer" role="status">${
-          pinnedFlags.length >= 4
-            ? '🎉 <strong>한눈에 발견!</strong> 분모가 <strong>2 → 3 → 4 → 6 → 12</strong>로 커질수록 단위분수 깃발이 <strong>0 쪽으로 점점 가까워집니다!</strong>'
-            : '📍 깃발을 더 눌러 보세요! 분모가 커질수록 깃발이 0에 가까워지는지, 1에 가까워지는지 관찰해 볼까요?'
-        }</p>
-      </section>
-
-      <section class="experiment-box trap-box" aria-label="깜짝 실험 원래 전체 크기가 다를 때">
-        <h3>😮 깜짝 실험 · 만약 원래 ${snackName()} 전체 크기가 서로 다르면 어떨까요?</h3>
-        <button type="button" data-action="toggle-trap" class="secondary-btn" aria-pressed="${showTrapExperiment}">
-          ${showTrapExperiment ? '😮 깜짝 함정 실험 닫기' : '😮 깜짝 실험 열어 보기: 미니 간식의 1/2 vs 특대형 간식의 1/4'}
-        </button>
-        ${showTrapExperiment ? `
-          <div class="trap-experiment-content" role="region" aria-label="전체 크기가 서로 다른 두 간식 비교">
-            <svg viewBox="0 0 600 84" role="img" aria-label="작은 미니 간식의 1/2 조각(길이 100)과 특대형 간식의 1/4 조각(길이 140) 비교">
-              <rect x="0" y="10" width="200" height="26" rx="4" fill="var(--lesson-bar-bg, #fff)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
-              <rect x="0" y="10" width="100" height="26" rx="4" fill="#ffca62" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
-              <text x="212" y="28" font-size="13" font-weight="700" fill="var(--lesson-bar-stroke, #153a69)">작은 미니 ${snackName()}의 1/2 한 조각</text>
-              <rect x="0" y="46" width="560" height="26" rx="4" fill="var(--lesson-bar-bg, #fff)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
-              <rect x="0" y="46" width="140" height="26" rx="4" fill="#7cc6fe" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
-              <text x="150" y="64" font-size="13" font-weight="700" fill="#d9381e">특대형 점보 ${snackName()}의 1/4 한 조각 (더 큼!)</text>
-            </svg>
-            <p class="answer">💡 <strong>깜짝 발견!</strong> 원래 전체 크기가 다르면 <strong>1/4</strong>이 <strong>1/2</strong>보다 더 클 수도 있어요! 그래서 단위분수의 크기를 비교할 때는 반드시 <strong>"원래 전체의 크기가 똑같다"</strong>는 약속이 먼저 있어야 합니다.</p>
-          </div>
-        ` : ''}
-      </section>
-
-      <section class="experiment-box reallife-box" aria-label="생활 속 숨은 단위분수 찾기">
-        <h3>🕒 생활 속 실험 · 시계판(60분)과 판초콜릿(12칸)에서 단위분수 찾기</h3>
-        <button type="button" data-action="toggle-reallife" class="secondary-btn" aria-pressed="${showRealLife}">
-          ${showRealLife ? '🕒 생활 속 단위분수 실험 닫기' : '🕒 생활 속 단위분수 열기: 1시간의 1/2(30분) vs 1/4(15분) & 12칸 초콜릿'}
-        </button>
-        ${showRealLife ? `
-          <div class="reallife-content" role="region" aria-label="시계판과 12칸 초콜릿 단위분수 비교">
-            <div class="reallife-grid">
-              <div class="reallife-item">
-                <strong>⏰ 1시간(60분) 시계판 비교</strong>
-                <div class="reallife-svg-wrap">
-                  <svg viewBox="0 0 220 90" role="img" aria-label="1시간의 1/2(30분 반원)과 1/4(15분 부채꼴) 비교 시계판">
-                    <circle cx="55" cy="45" r="34" fill="#fff" stroke="#153a69" stroke-width="2.5"/>
-                    <path d="M 55 45 L 55 11 A 34 34 0 0 1 55 79 Z" fill="#ffca62"/>
-                    <circle cx="55" cy="45" r="34" fill="none" stroke="#153a69" stroke-width="2.5"/>
-                    <text x="55" y="88" text-anchor="middle" font-size="11" font-weight="700" fill="var(--lesson-bar-stroke, #153a69)">1/2시간 = 30분</text>
-                    <circle cx="165" cy="45" r="34" fill="#fff" stroke="#153a69" stroke-width="2.5"/>
-                    <path d="M 165 45 L 165 11 A 34 34 0 0 1 199 45 Z" fill="#7cc6fe"/>
-                    <circle cx="165" cy="45" r="34" fill="none" stroke="#153a69" stroke-width="2.5"/>
-                    <text x="165" y="88" text-anchor="middle" font-size="11" font-weight="700" fill="var(--lesson-bar-stroke, #153a69)">1/4시간 = 15분</text>
-                  </svg>
-                </div>
-                <p>1시간의 <strong>1/2은 30분</strong>, <strong>1/4은 15분</strong>이에요. 시계판에서도 <strong>1/2 &gt; 1/4</strong>임을 한눈에 알 수 있어요!</p>
-              </div>
-              <div class="reallife-item">
-                <strong>🍫 12칸 판초콜릿 비교</strong>
-                <div class="reallife-svg-wrap">
-                  <svg viewBox="0 0 220 90" role="img" aria-label="12칸 판초콜릿의 1/3(4칸)과 1/4(3칸) 비교">
-                    <rect x="10" y="14" width="90" height="52" rx="4" fill="#fff" stroke="#5c3317" stroke-width="2"/>
-                    <rect x="10" y="14" width="30" height="52" rx="3" fill="#e08e2b"/>
-                    <line x1="40" y1="14" x2="40" y2="66" stroke="#5c3317" stroke-width="2"/>
-                    <line x1="70" y1="14" x2="70" y2="66" stroke="#5c3317" stroke-width="2"/>
-                    <text x="55" y="84" text-anchor="middle" font-size="11" font-weight="700" fill="var(--lesson-bar-stroke, #153a69)">12칸의 1/3 = 4칸</text>
-                    <rect x="120" y="14" width="90" height="52" rx="4" fill="#fff" stroke="#5c3317" stroke-width="2"/>
-                    <rect x="120" y="14" width="22.5" height="52" rx="3" fill="#7cc6fe"/>
-                    <line x1="142.5" y1="14" x2="142.5" y2="66" stroke="#5c3317" stroke-width="2"/>
-                    <line x1="165" y1="14" x2="165" y2="66" stroke="#5c3317" stroke-width="2"/>
-                    <line x1="187.5" y1="14" x2="187.5" y2="66" stroke="#5c3317" stroke-width="2"/>
-                    <text x="165" y="84" text-anchor="middle" font-size="11" font-weight="700" fill="var(--lesson-bar-stroke, #153a69)">12칸의 1/4 = 3칸</text>
-                  </svg>
-                </div>
-                <p>12칸 전체를 똑같이 나누면 <strong>1/3은 4칸</strong>, <strong>1/4은 3칸</strong>이에요. 따라서 <strong>1/3 &gt; 1/4</strong>입니다!</p>
-              </div>
+          <div class="visual-controls-bar">
+            <div class="visual-toolbar" role="group" aria-label="분수 모양 바꾸기">
+              <button type="button" data-action="toggle-model" class="secondary-btn visual-btn" aria-pressed="${visualModel === 'circle'}">${visualModel === 'circle' ? '📏 막대 모양' : '🍕 원형 모양'}</button>
+            </div>
+            <div class="base-denom-controls" role="group" aria-label="위쪽 기준 분수 분모 조절">
+              <button type="button" data-action="base-less" class="secondary-btn" ${exploreBaseDenominator <= DENOMINATOR_MIN ? 'disabled' : ''} aria-label="기준 분모 줄이기">기준 −1</button>
+              <output id="explore-base-output" aria-live="polite">기준 분수: 1/${exploreBaseDenominator} (${exploreBaseDenominator}등분)</output>
+              <button type="button" data-action="base-more" class="secondary-btn" ${exploreBaseDenominator >= DENOMINATOR_MAX ? 'disabled' : ''} aria-label="기준 분모 늘리기">기준 ＋1</button>
+              <button type="button" data-action="toggle-pattern" class="secondary-btn" aria-pressed="${patternMode}">
+                ${patternMode ? '🎨 기본 색상' : '🎨 빗금 패턴'}
+              </button>
             </div>
           </div>
-        ` : ''}
-      </section>
+
+          <div class="quick-denom-bar" role="group" aria-label="나누는 사람 수 빠른 선택">
+            ${quickDenomBtns}
+          </div>
+
+          <div id="explore-exp2-bars" class="bar-pair">${barsHtml}</div>
+
+          <div class="slider-experiment-controls">
+            <button type="button" data-action="less" ${exploreDenominator <= DENOMINATOR_MIN ? 'disabled' : ''} aria-label="등분 수 줄이기">−</button>
+            <input id="explore-slider" type="range" min="${DENOMINATOR_MIN}" max="${DENOMINATOR_MAX}" value="${exploreDenominator}" aria-label="나누는 조각 수 슬라이더">
+            <output id="explore-denom-output" aria-live="polite">${exploreDenominator}등분 (1/${exploreDenominator})</output>
+            <button type="button" data-action="more" ${exploreDenominator >= DENOMINATOR_MAX ? 'disabled' : ''} aria-label="등분 수 늘리기">＋</button>
+          </div>
+
+          <p id="explore-cmp-badge" class="comparison-badge" aria-live="polite">${badgeHtml}</p>
+          <div id="explore-discovery-2" aria-live="polite">${discoveryHtml}</div>
+        </section>
+      ` : ''}
+
+      ${showConcept ? `
+        <div class="exp-grid-2col">
+          <section class="experiment-box" aria-label="실험 3 단위분수 조각 모아 전체 1 채우기">
+            <h3>🧩 실험 3 · 조각 모아 '전체 1' 채우기</h3>
+            <div id="fill-whole-box">${renderFillWholeContent()}</div>
+          </section>
+
+          <section class="experiment-box fair-cut-box" aria-label="실험 4 공평하게 똑같이 나누기 조건 실험">
+            <h3>🔪 실험 4 · 공평하게 나누기(등분할) 조건</h3>
+            <figure class="fair-cut-figure">
+              <svg viewBox="0 0 600 66" role="img" aria-label="${fairCutAligned ? '눈금을 똑같은 간격(200씩)으로 정렬해 바르게 3등분한 1/3 모형' : '눈금이 90, 260으로 불공평하게 잘려 크기가 제각각인 3조각 모형'}">
+                <rect x="0" y="10" width="600" height="44" rx="6" fill="var(--lesson-bar-bg, #fff)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3"/>
+                <rect x="0" y="10" width="${fairCutAligned ? 200 : 90}" height="44" rx="4" fill="${fairCutAligned ? '#ffca62' : '#fde2e2'}"/>
+                <line x1="${fairCutAligned ? 200 : 90}" y1="10" x2="${fairCutAligned ? 200 : 90}" y2="54" stroke="#d9381e" stroke-width="3"/>
+                <line x1="${fairCutAligned ? 400 : 260}" y1="10" x2="${fairCutAligned ? 400 : 260}" y2="54" stroke="#d9381e" stroke-width="3"/>
+                <text x="300" y="37" text-anchor="middle" font-size="14" font-weight="800" fill="var(--lesson-bar-stroke, #153a69)">${fairCutAligned ? '✅ 세 조각의 크기가 모두 똑같음 → 진짜 1/3!' : '⚠️ 조각 크기가 제각각(불공평 분할) → 1/3이 아니에요!'}</text>
+              </svg>
+            </figure>
+            <button type="button" data-action="toggle-fair-cut" class="secondary-btn" aria-pressed="${fairCutAligned}">
+              ${fairCutAligned ? '🔀 불공평 분할 보기' : '📏 똑같은 간격(등분할) 정렬'}
+            </button>
+            <p id="fair-cut-status" class="answer" role="status">${
+              fairCutAligned
+                ? '🎉 <strong>등분할 성공!</strong> 전체를 <strong>똑같은 크기</strong>로 나누었을 때만 <strong>1/3</strong>이라고 부를 수 있어요!'
+                : '💡 조각 크기가 다르면 3조각 중 1조각이어도 <strong>1/3이 아닙니다</strong>. 똑같이 나누어 보세요!'
+            }</p>
+          </section>
+        </div>
+      ` : ''}
+
+      ${showLife ? `
+        <section class="experiment-box flag-line-box" aria-label="실험 5 수직선 위에 단위분수 깃발 꽂기">
+          <h3>📍 실험 5 · 0~1 수직선 단위분수 깃발 꽂기</h3>
+          <div class="flag-controls" role="group" aria-label="수직선 깃발 선택">
+            ${flagBtns}
+            <button type="button" data-action="flag-all" class="secondary-btn">🚩 모두 꽂기</button>
+            <button type="button" data-action="flag-reset" class="secondary-btn">🔄 기본 깃발</button>
+          </div>
+          ${renderFlagNumberLine()}
+          <p id="flag-line-status" class="answer" role="status">${
+            pinnedFlags.length >= 4
+              ? '🎉 <strong>한눈에 발견!</strong> 분모가 <strong>2 → 3 → 4 → 6 → 12</strong>로 커질수록 깃발이 <strong>0 쪽으로 가까워집니다!</strong>'
+              : '📍 깃발을 더 눌러 분모가 커질수록 0과 1 중 어디에 가까워지는지 비교해 보세요!'
+          }</p>
+        </section>
+
+        <div class="exp-grid-2col">
+          <section class="experiment-box trap-box" aria-label="깜짝 실험 원래 전체 크기가 다를 때">
+            <h3>😮 실험 6 · 원래 ${snackName()} 전체 크기가 다르면?</h3>
+            <button type="button" data-action="toggle-trap" class="secondary-btn" aria-pressed="${showTrapExperiment}">
+              ${showTrapExperiment ? '😮 깜짝 실험 닫기' : '😮 미니 간식의 1/2 vs 특대형 간식의 1/4 보기'}
+            </button>
+            ${showTrapExperiment ? `
+              <div class="trap-experiment-content" role="region" aria-label="전체 크기가 서로 다른 두 간식 비교">
+                <svg viewBox="0 0 600 84" role="img" aria-label="작은 미니 간식의 1/2 조각(길이 100)과 특대형 간식의 1/4 조각(길이 140) 비교">
+                  <rect x="0" y="10" width="200" height="26" rx="4" fill="var(--lesson-bar-bg, #fff)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+                  <rect x="0" y="10" width="100" height="26" rx="4" fill="#ffca62" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+                  <text x="212" y="28" font-size="13" font-weight="700" fill="var(--lesson-bar-stroke, #153a69)">작은 미니 ${snackName()}의 1/2</text>
+                  <rect x="0" y="46" width="560" height="26" rx="4" fill="var(--lesson-bar-bg, #fff)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+                  <rect x="0" y="46" width="140" height="26" rx="4" fill="#7cc6fe" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+                  <text x="150" y="64" font-size="13" font-weight="700" fill="#d9381e">특대형 ${snackName()}의 1/4 (더 큼!)</text>
+                </svg>
+                <p class="answer">💡 <strong>깜짝 발견!</strong> 원래 전체 크기가 다르면 <strong>1/4</strong>이 <strong>1/2</strong>보다 클 수도 있어요! 반드시 <strong>"전체 크기가 같다"</strong>는 약속이 필요합니다.</p>
+              </div>
+            ` : ''}
+          </section>
+
+          <section class="experiment-box reallife-box" aria-label="생활 속 숨은 단위분수 찾기">
+            <h3>🕒 실험 7 · 시계(60분)·판초콜릿(12칸) 분수</h3>
+            <button type="button" data-action="toggle-reallife" class="secondary-btn" aria-pressed="${showRealLife}">
+              ${showRealLife ? '🕒 생활 속 실험 닫기' : '🕒 1시간의 1/2(30분) vs 1/4(15분) & 12칸 초콜릿'}
+            </button>
+            ${showRealLife ? `
+              <div class="reallife-content" role="region" aria-label="시계판과 12칸 초콜릿 단위분수 비교">
+                <div class="reallife-grid">
+                  <div class="reallife-item">
+                    <strong>⏰ 1시간(60분) 시계판</strong>
+                    <div class="reallife-svg-wrap">
+                      <svg viewBox="0 0 220 90" role="img" aria-label="1시간의 1/2(30분 반원)과 1/4(15분 부채꼴) 비교 시계판">
+                        <circle cx="55" cy="45" r="34" fill="#fff" stroke="#153a69" stroke-width="2.5"/>
+                        <path d="M 55 45 L 55 11 A 34 34 0 0 1 55 79 Z" fill="#ffca62"/>
+                        <circle cx="55" cy="45" r="34" fill="none" stroke="#153a69" stroke-width="2.5"/>
+                        <text x="55" y="88" text-anchor="middle" font-size="11" font-weight="700" fill="var(--lesson-bar-stroke, #153a69)">1/2시간 = 30분</text>
+                        <circle cx="165" cy="45" r="34" fill="#fff" stroke="#153a69" stroke-width="2.5"/>
+                        <path d="M 165 45 L 165 11 A 34 34 0 0 1 199 45 Z" fill="#7cc6fe"/>
+                        <circle cx="165" cy="45" r="34" fill="none" stroke="#153a69" stroke-width="2.5"/>
+                        <text x="165" y="88" text-anchor="middle" font-size="11" font-weight="700" fill="var(--lesson-bar-stroke, #153a69)">1/4시간 = 15분</text>
+                      </svg>
+                    </div>
+                    <p><strong>1/2시간(30분) &gt; 1/4시간(15분)</strong></p>
+                  </div>
+                  <div class="reallife-item">
+                    <strong>🍫 12칸 판초콜릿</strong>
+                    <div class="reallife-svg-wrap">
+                      <svg viewBox="0 0 220 90" role="img" aria-label="12칸 판초콜릿의 1/3(4칸)과 1/4(3칸) 비교">
+                        <rect x="10" y="14" width="90" height="52" rx="4" fill="#fff" stroke="#5c3317" stroke-width="2"/>
+                        <rect x="10" y="14" width="30" height="52" rx="3" fill="#e08e2b"/>
+                        <line x1="40" y1="14" x2="40" y2="66" stroke="#5c3317" stroke-width="2"/>
+                        <line x1="70" y1="14" x2="70" y2="66" stroke="#5c3317" stroke-width="2"/>
+                        <text x="55" y="84" text-anchor="middle" font-size="11" font-weight="700" fill="var(--lesson-bar-stroke, #153a69)">12칸의 1/3 = 4칸</text>
+                        <rect x="120" y="14" width="90" height="52" rx="4" fill="#fff" stroke="#5c3317" stroke-width="2"/>
+                        <rect x="120" y="14" width="22.5" height="52" rx="3" fill="#7cc6fe"/>
+                        <line x1="142.5" y1="14" x2="142.5" y2="66" stroke="#5c3317" stroke-width="2"/>
+                        <line x1="165" y1="14" x2="165" y2="66" stroke="#5c3317" stroke-width="2"/>
+                        <line x1="187.5" y1="14" x2="187.5" y2="66" stroke="#5c3317" stroke-width="2"/>
+                        <text x="165" y="84" text-anchor="middle" font-size="11" font-weight="700" fill="var(--lesson-bar-stroke, #153a69)">12칸의 1/4 = 3칸</text>
+                      </svg>
+                    </div>
+                    <p><strong>1/3(4칸) &gt; 1/4(3칸)</strong></p>
+                  </div>
+                </div>
+              </div>
+            ` : ''}
+          </section>
+        </div>
+      ` : ''}
+
+      <div class="teacher-dock-zone" role="region" aria-label="선생님 수업 도구">
+        ${renderTeacherTalkBar('explore')}
+      </div>
 
       <div class="actions next-step-bar">
         <button type="button" data-action="back" class="secondary-btn">← 이전 단계</button>
@@ -1069,7 +1095,7 @@ function renderExplorePhase(): string {
     </div>`;
 }
 
-/** 3단계: 처음 문제 재확인 + 함정 없는 응용 문제(B가 정답) + 무한 번개 미니게임 + 분수 기차 줄 세우기. */
+/** 3단계: 2열 컴팩트 점검 카드 + 번개 미니게임 + 기차/추리 2열 퍼즐 + 하단 교사 독. */
 function renderCheckPhase(): string {
   const [firstA, firstB] = currentUnit().denominators.first;
   const [transferA, transferB] = currentUnit().denominators.transfer;
@@ -1085,79 +1111,84 @@ function renderCheckPhase(): string {
         <span class="duel-vs">VS</span>
         <button type="button" data-duel-round="${r.id}" data-duel-pick="right" class="secondary-btn duel-card-btn ${picked === 'right' ? 'solo-choice-selected' : ''}" aria-pressed="${picked === 'right'}">1/${r.rightDenom} 조각</button>
       </div>
-      <span class="duel-result-tag" role="status">${picked === null ? '👆 더 큰 쪽을 터치!' : isCorrect ? '🎉 정답!' : `💡 1/${Math.min(r.leftDenom, r.rightDenom)}이 더 커요!`}</span>
+      <span class="duel-result-tag" role="status">${picked === null ? '👆 터치!' : isCorrect ? '🎉 정답!' : `💡 1/${Math.min(r.leftDenom, r.rightDenom)}이 더 커요!`}</span>
     </div>`;
   }).join('');
 
   const trainComplete = trainOrder.length === TRAIN_POOL.length;
   const trainCorrect = trainComplete && trainOrder[0] === 2 && trainOrder[1] === 6 && trainOrder[2] === 9;
   const trainStatusHtml = !trainComplete
-    ? '👆 위 분수 버튼을 가장 큰 조각부터 차례대로 눌러 1호차 → 2호차 → 3호차에 태워 보세요!'
+    ? '👆 가장 큰 조각부터 차례대로 눌러 1호차 → 2호차 → 3호차에 태워 보세요!'
     : trainCorrect
-      ? '🎉 <strong>칙칙폭폭 출발!</strong> 분모가 작은 수부터 <strong>1/2 &gt; 1/6 &gt; 1/9</strong> 순서로 완벽하게 줄을 세웠어요!'
-      : '💡 <strong>다시 줄을 세워 볼까요?</strong> 분모 숫자가 작을수록 한 조각이 더 크답니다. [🔄 기차 다시 줄 세우기]를 눌러 가장 큰 조각(1/2)부터 태워 보세요!';
+      ? '🎉 <strong>칙칙폭폭 출발!</strong> <strong>1/2 &gt; 1/6 &gt; 1/9</strong> 순서로 완벽하게 줄을 세웠어요!'
+      : '💡 <strong>다시 줄을 세워 볼까요?</strong> 분모가 작을수록 조각이 더 커요. 가장 큰 조각(1/2)부터 태워 보세요!';
 
   const mysteryCorrect = mysteryDenomPick !== null && mysteryDenomPick > 3 && mysteryDenomPick < 7;
   const mysteryStatusHtml = mysteryDenomPick === null
-    ? '🕵️ 분모가 작을수록 조각이 크다는 규칙을 떠올려 1/3보다 작고 1/7보다 큰 단위분수의 분모 □를 골라 보세요!'
+    ? '🕵️ 1/3보다 작고 1/7보다 큰 단위분수의 분모 □를 골라 보세요!'
     : mysteryCorrect
-      ? `🎉 <strong>추리 성공!</strong> 3 &lt; <strong>${mysteryDenomPick}</strong> &lt; 7이므로 <strong>1/3 &gt; 1/${mysteryDenomPick} &gt; 1/7</strong>이 성립합니다! (4, 5, 6 모두 정답이에요)`
-      : `💡 <strong>다시 추리해 볼까요?</strong> 1/${mysteryDenomPick}은 ${mysteryDenomPick <= 3 ? '1/3보다 더 크거나 같아요' : '1/7보다 더 작거나 같아요'}. 3과 7 사이에 있는 분모 숫자를 골라 보세요!`;
+      ? `🎉 <strong>추리 성공!</strong> 3 &lt; <strong>${mysteryDenomPick}</strong> &lt; 7이므로 <strong>1/3 &gt; 1/${mysteryDenomPick} &gt; 1/7</strong>이 성립합니다!`
+      : `💡 <strong>다시 추리해 볼까요?</strong> 3과 7 사이에 있는 분모 숫자를 골라 보세요!`;
 
   return `
     <div class="step-card">
-      <h2 tabindex="-1">③ 다시 점검하기 · 실험 후 내 생각 확인과 분수 대결</h2>
+      <h2 tabindex="-1">③ 다시 점검하기 · 내 생각 확인과 분수 대결</h2>
 
-      ${renderTeacherTalkBar('check')}
+      <div class="check-grid-2col">
+        <section class="check-subcard" aria-label="같은 문제 다시 선택하기">
+          <h3>1) 처음 문제 다시 고르기 (1/${firstA} vs 1/${firstB})</h3>
+          <p class="first-memory-tag">💭 1단계 처음 생각: <strong>${choiceLabel(myChoices.first, firstA, firstB, 'first')}</strong></p>
+          ${renderChoiceButtons('again', firstA, firstB)}
+          ${renderInstantFeedback('again', firstA, firstB)}
+          ${renderConfidencePicker('again')}
+          ${renderOptionalClassPoll('again', firstA, firstB)}
+        </section>
 
-      <section class="check-subcard" aria-label="같은 문제 다시 선택하기">
-        <h3>1) 처음 문제 다시 고르기: 같은 ${snackName()}에서 1/${firstA}과 1/${firstB} 중 어느 쪽이 더 클까요?</h3>
-        <p class="first-memory-tag">💭 1단계에서 고른 내 처음 생각: <strong>${choiceLabel(myChoices.first, firstA, firstB, 'first')}</strong></p>
-        ${renderChoiceButtons('again', firstA, firstB)}
-        ${renderInstantFeedback('again', firstA, firstB)}
-        ${renderConfidencePicker('again')}
-        ${renderOptionalClassPoll('again', firstA, firstB)}
-      </section>
-
-      <section class="check-subcard" aria-label="한 걸음 더 새로운 응용 문제">
-        <h3>2) 한 걸음 더! 새로운 문제: 같은 전체에서 <strong>1/${transferB}</strong>과 <strong>1/${transferA}</strong> 중 어느 쪽이 더 클까요?</h3>
-        <p class="transfer-caution-note">🔍 보기 순서를 잘 보고 더 큰 조각을 골라 보세요!</p>
-        ${renderSimpleVisualPair(transferB, transferA, true)}
-        ${renderChoiceButtons('transfer', transferA, transferB)}
-        ${renderInstantFeedback('transfer', transferA, transferB)}
-        ${renderOptionalClassPoll('transfer', transferA, transferB)}
-      </section>
+        <section class="check-subcard" aria-label="한 걸음 더 새로운 응용 문제">
+          <h3>2) 응용 문제 도전 (<strong>1/${transferB}</strong> vs <strong>1/${transferA}</strong>)</h3>
+          ${renderSimpleVisualPair(transferB, transferA, true)}
+          ${renderChoiceButtons('transfer', transferA, transferB)}
+          ${renderInstantFeedback('transfer', transferA, transferB)}
+          ${renderOptionalClassPoll('transfer', transferA, transferB)}
+        </section>
+      </div>
 
       <section class="check-subcard duel-game-box" aria-label="번개 미니게임 더 큰 단위분수 찾기">
         <div class="duel-header-row">
-          <h3>3) ⚡ 번개 미니게임 · 어느 조각이 더 클까요? (더 큰 분수 카드를 콕 찍어 보세요!)</h3>
-          <button type="button" data-action="duel-shuffle" class="secondary-btn">🎲 새로운 랜덤 대결 3문제 뽑기</button>
+          <h3>3) ⚡ 번개 미니게임 · 더 큰 분수 고르기</h3>
+          <button type="button" data-action="duel-shuffle" class="secondary-btn">🎲 랜덤 3문제</button>
         </div>
         <div class="duel-rounds-list">
           ${duelRowsHtml}
         </div>
-        <p class="duel-score-banner" role="status">🎯 미니게임 현재 점수: <strong>${duelScore} / ${duelRounds.length}</strong> 정답 ${duelScore === duelRounds.length ? '🏆 퍼펙트 클리어!' : ''} · <span id="duel-streak-badge">🔥 연속 정답 콤보: ${duelStreak}연속</span></p>
+        <p class="duel-score-banner" role="status">🎯 점수: <strong>${duelScore} / ${duelRounds.length}</strong> ${duelScore === duelRounds.length ? '🏆 퍼펙트!' : ''} · <span id="duel-streak-badge">🔥 콤보: ${duelStreak}연속</span></p>
       </section>
 
-      <section class="check-subcard train-puzzle-box" aria-label="분수 기차 줄 세우기 퍼즐">
-        <h3>4) 🚂 분수 기차 줄 세우기 · 가장 큰 조각부터 순서대로 기차에 태워 보세요!</h3>
-        <div class="train-pick-row" role="group" aria-label="기차에 태울 단위분수 고르기">
-          ${TRAIN_POOL.map(d => `<button type="button" data-train-denom="${d}" class="secondary-btn train-pick-btn" ${trainOrder.includes(d) ? 'disabled' : ''}>🚂 1/${d} 조각 태우기</button>`).join('')}
-          <button type="button" data-action="train-reset" class="secondary-btn">🔄 기차 다시 줄 세우기</button>
-        </div>
-        <div class="train-cars" role="group" aria-label="분수 기차 칸">
-          ${[0, 1, 2].map(idx => `<div class="train-car">${idx + 1}호차: <strong>${trainOrder[idx] ? `1/${trainOrder[idx]}` : '빈칸'}</strong></div>`).join('<span class="train-link" aria-hidden="true">&gt;</span>')}
-        </div>
-        <p id="train-status" class="answer" role="status">${trainStatusHtml}</p>
-      </section>
+      <div class="check-grid-2col">
+        <section class="check-subcard train-puzzle-box" aria-label="분수 기차 줄 세우기 퍼즐">
+          <h3>4) 🚂 분수 기차 (큰 조각부터 태우기)</h3>
+          <div class="train-pick-row" role="group" aria-label="기차에 태울 단위분수 고르기">
+            ${TRAIN_POOL.map(d => `<button type="button" data-train-denom="${d}" class="secondary-btn train-pick-btn" ${trainOrder.includes(d) ? 'disabled' : ''}>🚂 1/${d} 태우기</button>`).join('')}
+            <button type="button" data-action="train-reset" class="secondary-btn">🔄 다시</button>
+          </div>
+          <div class="train-cars" role="group" aria-label="분수 기차 칸">
+            ${[0, 1, 2].map(idx => `<div class="train-car">${idx + 1}호차: <strong>${trainOrder[idx] ? `1/${trainOrder[idx]}` : '빈칸'}</strong></div>`).join('<span class="train-link" aria-hidden="true">&gt;</span>')}
+          </div>
+          <p id="train-status" class="answer" role="status">${trainStatusHtml}</p>
+        </section>
 
-      <section class="check-subcard mystery-quiz-box" aria-label="숨은 분모 추리 퀴즈">
-        <h3>5) 🕵️ 숨은 분모 추리 퀴즈 · <strong>1/3 &gt; 1/□ &gt; 1/7</strong>에서 빈칸 □에 들어갈 수 있는 분모는?</h3>
-        <div class="mystery-pick-row" role="group" aria-label="빈칸 분모 후보 고르기">
-          ${MYSTERY_CANDIDATES.map(d => `<button type="button" data-mystery-denom="${d}" class="secondary-btn mystery-btn ${mysteryDenomPick === d ? 'solo-choice-selected' : ''}" aria-pressed="${mysteryDenomPick === d}">□ = ${d} (1/${d})</button>`).join('')}
-        </div>
-        <p id="mystery-status" class="answer" role="status">${mysteryStatusHtml}</p>
-      </section>
+        <section class="check-subcard mystery-quiz-box" aria-label="숨은 분모 추리 퀴즈">
+          <h3>5) 🕵️ 숨은 분모 추리 (<strong>1/3 &gt; 1/□ &gt; 1/7</strong>)</h3>
+          <div class="mystery-pick-row" role="group" aria-label="빈칸 분모 후보 고르기">
+            ${MYSTERY_CANDIDATES.map(d => `<button type="button" data-mystery-denom="${d}" class="secondary-btn mystery-btn ${mysteryDenomPick === d ? 'solo-choice-selected' : ''}" aria-pressed="${mysteryDenomPick === d}">□ = ${d} (1/${d})</button>`).join('')}
+          </div>
+          <p id="mystery-status" class="answer" role="status">${mysteryStatusHtml}</p>
+        </section>
+      </div>
+
+      <div class="teacher-dock-zone" role="region" aria-label="선생님 수업 도구">
+        ${renderTeacherTalkBar('check')}
+      </div>
 
       <div class="actions next-step-bar">
         <button type="button" data-action="back" class="secondary-btn">← 이전 단계</button>
@@ -1166,7 +1197,7 @@ function renderCheckPhase(): string {
     </div>`;
 }
 
-/** 4단계: 성장 카드 + 단어 카드 콕콕 규칙 퀴즈 + 친구에게 보내는 설명 편지 + 3개 주제 스탬프 투어 + 인증서 인쇄. */
+/** 4단계: 성장 카드 + 2열 규칙/편지 + 2열 브릿지/스탬프 + 하단 교사 독. */
 function renderResultPhase(): string {
   clearedUnits.add(selectedUnitId);
   const unit = currentUnit();
@@ -1178,10 +1209,10 @@ function renderResultPhase(): string {
   const againCorrect = myChoices.again === correctChoiceForPoll('again');
   const transferCorrect = myChoices.transfer === correctChoiceForPoll('transfer');
   const growthMessage = againCorrect && transferCorrect
-    ? '🏆 최고예요! 직접 실험을 통해 단위분수의 크기 비교 원리를 완벽하게 내 것으로 만들었어요!'
+    ? '🏆 최고예요! 단위분수의 크기 비교 원리를 완벽하게 마스터했어요!'
     : againCorrect || transferCorrect
-      ? '🌟 참 잘했어요! 실험을 통해 같은 전체를 더 많이 나눌수록 한 조각이 작아진다는 점을 발견했어요!'
-      : '🌱 끝까지 스스로 실험하고 생각하며 단위분수의 비밀을 탐구했어요!';
+      ? '🌟 참 잘했어요! 더 많이 나눌수록 한 조각이 작아진다는 점을 발견했어요!'
+      : '🌱 끝까지 스스로 실험하며 단위분수의 비밀을 탐구했어요!';
 
   const n = parseParticipants(participantsRaw);
   const firstPoll = !pollBlind && n && pollData.first ? validateCounts(pollData.first, n) : null;
@@ -1196,19 +1227,19 @@ function renderResultPhase(): string {
     classSummaryParts.push(`응용 문제 정답(1/${tA}, B번) 인원: <strong>${transferPoll.counts.B}/${n}명</strong>`);
   }
   const classSummaryHtml = classSummaryParts.length > 0
-    ? `<p class="comparison">👩‍🏫 <strong>학급 전체 집계 요약</strong>: ${classSummaryParts.join(' · ')}</p>`
+    ? `<p class="comparison">👩‍🏫 <strong>학급 집계 요약</strong>: ${classSummaryParts.join(' · ')}</p>`
     : '';
 
   const ruleFeedbackHtml = notebookBlankRevealed
-    ? '<p class="answer feedback-correct" role="status">🎉 <strong>정답이에요!</strong> 같은 전체를 똑같이 더 많이 나눌수록 한 조각의 크기는 <strong>점점 작아집니다!</strong></p>'
+    ? '<p class="answer feedback-correct" role="status">🎉 <strong>정답이에요!</strong> 더 많이 나눌수록 한 조각의 크기는 <strong>점점 작아집니다!</strong></p>'
     : ruleChoice === 'bigger' || ruleChoice === 'same'
-      ? '<p class="answer feedback-hint" role="status">💡 <strong>다시 골라 볼까요?</strong> 2단계 실험에서 나누는 사람 수를 12명으로 늘렸을 때 한 조각의 크기가 어떻게 변했는지 떠올려 보세요!</p>'
+      ? '<p class="answer feedback-hint" role="status">💡 <strong>다시 골라 볼까요?</strong> 나누는 사람 수를 늘렸을 때 한 조각 크기가 어떻게 변했나요?</p>'
       : '';
 
   const letterReplyHtml = friendLetterChoice === 'correct'
-    ? `<p id="letter-reply" class="answer feedback-correct" role="status">📬 <strong>${story.friend}의 답장</strong>: "아하! 똑같은 간식을 더 많은 사람이 나누어 먹을수록 한 조각이 작아진다는 걸 생각하니 왜 분모가 작은 단위분수가 더 큰지 완전히 이해됐어. 친절하게 알려줘서 정말 고마워!"</p>`
+    ? `<p id="letter-reply" class="answer feedback-correct" role="status">📬 <strong>${story.friend}의 답장</strong>: "아하! 더 많은 사람이 나눌수록 한 조각이 작아지니까 분모가 작은 단위분수가 더 크구나. 고마워!"</p>`
     : friendLetterChoice === 'wrong'
-      ? `<p id="letter-reply" class="answer feedback-hint" role="status">💡 ${story.friend}가 아직 헷갈려하고 있어요! 같은 간식을 더 많은 조각으로 나누었을 때 한 조각이 어떻게 변했는지 다시 골라 볼까요?</p>`
+      ? `<p id="letter-reply" class="answer feedback-hint" role="status">💡 ${story.friend}가 아직 헷갈려해요! 더 많이 나눌수록 한 조각이 어떻게 변했는지 다시 골라 볼까요?</p>`
       : '';
 
   const confLabels: Record<ConfidenceLevel, string> = {
@@ -1217,13 +1248,13 @@ function renderResultPhase(): string {
     mid: '🙂 어느 정도 맞을 것 같아요',
     high: '🔥 완전히 확신해요!',
   };
-  const metacogHtml = `<p id="metacog-summary" class="metacog-summary">🌡️ <strong>나의 확신 온도 변화</strong>: 처음 <strong>[${confLabels[confidence.first]}]</strong> → 실험 후 <strong>[${confLabels[confidence.again]}]</strong></p>`;
+  const metacogHtml = `<p id="metacog-summary" class="metacog-summary">🌡️ <strong>확신 온도 변화</strong>: 처음 <strong>[${confLabels[confidence.first]}]</strong> → 실험 후 <strong>[${confLabels[confidence.again]}]</strong></p>`;
 
   const bridgeStatusHtml = bridgeChoice === 'right'
-    ? '🎉 <strong>정답이에요!</strong> 분모가 같을 때는 단위분수(<strong>1/5</strong>) 한 조각의 크기가 서로 같으므로, 조각을 더 많이 모은 <strong>3/5</strong>(3조각)이 <strong>2/5</strong>(2조각)보다 더 큽니다!'
+    ? '🎉 <strong>정답이에요!</strong> 같은 <strong>1/5</strong> 조각을 더 많이 모은 <strong>3/5</strong>(3개)이 <strong>2/5</strong>(2개)보다 더 큽니다!'
     : bridgeChoice === 'left'
-      ? '💡 <strong>다시 살펴볼까요?</strong> 두 막대 모두 똑같은 크기의 <strong>1/5 조각</strong>을 모은 것이에요. 1/5 조각 2개와 3개 중 어느 쪽이 더 길까요?'
-      : '👆 위 두 분수(2/5와 3/5)는 똑같은 1/5 조각을 각각 2개, 3개 모은 분수예요. 어느 쪽이 더 클지 골라 보세요!';
+      ? '💡 <strong>다시 살펴볼까요?</strong> 똑같은 <strong>1/5 조각</strong> 2개와 3개 중 어느 쪽이 더 길까요?'
+      : '👆 똑같은 1/5 조각을 2개 모은 2/5와 3개 모은 3/5 중 더 큰 쪽을 골라 보세요!';
 
   const allUnits = listUnits();
   const nextUncleared = allUnits.find(u => !clearedUnits.has(u.id)) ?? allUnits[(allUnits.findIndex(u => u.id === selectedUnitId) + 1) % allUnits.length];
@@ -1237,20 +1268,18 @@ function renderResultPhase(): string {
 
   return `
     <div class="step-card">
-      <h2 tabindex="-1">④ 오늘의 발견 · 내 생각의 성장 카드와 마스터 스탬프</h2>
-
-      ${renderTeacherTalkBar('result')}
+      <h2 tabindex="-1">④ 오늘의 발견 · 성장 카드와 마스터 스탬프</h2>
 
       <div class="solo-report-card" role="region" aria-label="내 생각의 성장 카드">
         <p class="praise-badge">${growthMessage}</p>
         <div class="growth-journey-grid">
           <div class="journey-step">
-            <span class="journey-label">① 처음 내 생각 (1/${fA} vs 1/${fB})</span>
+            <span class="journey-label">① 처음 생각 (1/${fA} vs 1/${fB})</span>
             <strong>${choiceLabel(myChoices.first, fA, fB, 'first')}</strong>
           </div>
           <div class="journey-arrow" aria-hidden="true">→</div>
           <div class="journey-step ${againCorrect ? 'journey-correct' : ''}">
-            <span class="journey-label">② 실험 후 내 생각 (1/${fA} vs 1/${fB})</span>
+            <span class="journey-label">② 실험 후 (1/${fA} vs 1/${fB})</span>
             <strong>${choiceLabel(myChoices.again, fA, fB, 'again')} ${againCorrect ? '⭐' : ''}</strong>
           </div>
           <div class="journey-arrow" aria-hidden="true">→</div>
@@ -1264,61 +1293,63 @@ function renderResultPhase(): string {
         ${renderBeforeAfterPollComparison()}
       </div>
 
-      <div class="notebook-summary-card" role="region" aria-label="오늘 내가 발견한 규칙">
-        <h3>🧩 단어 카드를 골라 오늘의 단위분수 규칙을 완성해 보세요!</h3>
-        <div class="notebook-line">
-          <p>"크기가 같은 전체를 똑같이 더 많이 나눌수록(분모가 커질수록), 한 조각의 크기는 <strong class="notebook-blank">[ ${blankText} ]</strong>"</p>
+      <div class="result-grid-2col">
+        <div class="notebook-summary-card" role="region" aria-label="오늘 내가 발견한 규칙">
+          <h3>🧩 오늘의 단위분수 규칙 완성하기</h3>
+          <div class="notebook-line">
+            <p>"같은 전체를 똑같이 더 많이 나눌수록(분모가 커질수록), 한 조각의 크기는 <strong class="notebook-blank">[ ${blankText} ]</strong>"</p>
+          </div>
+          <div class="rule-word-cards" role="group" aria-label="빈칸에 들어갈 알맞은 말 고르기">
+            <button type="button" data-rule-choice="bigger" class="secondary-btn rule-card-btn ${ruleChoice === 'bigger' ? 'rule-card-wrong' : ''}" aria-pressed="${ruleChoice === 'bigger'}">📈 커집니다</button>
+            <button type="button" data-rule-choice="smaller" data-action="toggle-notebook-blank" class="secondary-btn rule-card-btn ${notebookBlankRevealed ? 'solo-choice-selected' : ''}" aria-pressed="${notebookBlankRevealed}">📉 작아집니다!</button>
+            <button type="button" data-rule-choice="same" class="secondary-btn rule-card-btn ${ruleChoice === 'same' ? 'rule-card-wrong' : ''}" aria-pressed="${ruleChoice === 'same'}">🟰 같습니다</button>
+          </div>
+          ${ruleFeedbackHtml}
         </div>
-        <div class="rule-word-cards" role="group" aria-label="빈칸에 들어갈 알맞은 말 고르기">
-          <button type="button" data-rule-choice="bigger" class="secondary-btn rule-card-btn ${ruleChoice === 'bigger' ? 'rule-card-wrong' : ''}" aria-pressed="${ruleChoice === 'bigger'}">📈 점점 커집니다</button>
-          <button type="button" data-rule-choice="smaller" data-action="toggle-notebook-blank" class="secondary-btn rule-card-btn ${notebookBlankRevealed ? 'solo-choice-selected' : ''}" aria-pressed="${notebookBlankRevealed}">📉 작아집니다!</button>
-          <button type="button" data-rule-choice="same" class="secondary-btn rule-card-btn ${ruleChoice === 'same' ? 'rule-card-wrong' : ''}" aria-pressed="${ruleChoice === 'same'}">🟰 항상 똑같습니다</button>
+
+        <div class="friend-letter-card" role="region" aria-label="고민하던 친구에게 보내는 설명 편지">
+          <h3>💌 ${story.friend}에게 설명 편지 보내기</h3>
+          <div class="letter-choice-list" role="group" aria-label="친구에게 보낼 설명 고르기">
+            <button type="button" data-letter-choice="correct" class="secondary-btn letter-choice-btn ${friendLetterChoice === 'correct' ? 'solo-choice-selected' : ''}" aria-pressed="${friendLetterChoice === 'correct'}">💌 "같은 전체를 더 많이 나눌수록 한 조각의 크기는 작아지기 때문이야!"</button>
+            <button type="button" data-letter-choice="wrong" class="secondary-btn letter-choice-btn ${friendLetterChoice === 'wrong' ? 'rule-card-wrong' : ''}" aria-pressed="${friendLetterChoice === 'wrong'}">💌 "분모 숫자가 크면 한 조각의 크기도 항상 커지기 때문이야!"</button>
+          </div>
+          ${letterReplyHtml}
         </div>
-        ${ruleFeedbackHtml}
       </div>
 
-      <div class="friend-letter-card" role="region" aria-label="고민하던 친구에게 보내는 설명 편지">
-        <h3>💌 1단계에서 고민하던 ${story.friend}에게 친절한 설명 편지를 보내 볼까요?</h3>
-        <p>"분모 숫자가 클수록 조각도 더 클 거야!"라고 생각했던 ${story.friend}에게 어떤 설명을 보내면 좋을까요?</p>
-        <div class="letter-choice-list" role="group" aria-label="친구에게 보낼 설명 고르기">
-          <button type="button" data-letter-choice="correct" class="secondary-btn letter-choice-btn ${friendLetterChoice === 'correct' ? 'solo-choice-selected' : ''}" aria-pressed="${friendLetterChoice === 'correct'}">💌 "같은 전체를 더 많은 조각으로 나눌수록 한 조각의 크기는 오히려 작아지기 때문이야!"</button>
-          <button type="button" data-letter-choice="wrong" class="secondary-btn letter-choice-btn ${friendLetterChoice === 'wrong' ? 'rule-card-wrong' : ''}" aria-pressed="${friendLetterChoice === 'wrong'}">💌 "분모 숫자가 크면 언제나 한 조각의 크기도 함께 커지기 때문이야!"</button>
+      <div class="result-grid-2col">
+        <div class="bridge-mission-card" role="region" aria-label="다음 개념 연결 분모가 같은 진분수 비교">
+          <h3>🚀 다음 차시 브릿지 · <strong>2/5 vs 3/5</strong></h3>
+          <figure class="bridge-figure">
+            <svg viewBox="0 0 600 84" role="img" aria-label="5등분 중 2조각을 칠한 2/5 막대와 3조각을 칠한 3/5 막대 비교">
+              <rect x="0" y="8" width="600" height="28" rx="4" fill="var(--lesson-bar-bg, #fff)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+              <rect x="0" y="8" width="240" height="28" rx="4" fill="#ffca62"/>
+              <line x1="120" y1="8" x2="120" y2="36" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+              <line x1="240" y1="8" x2="240" y2="36" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+              <line x1="360" y1="8" x2="360" y2="36" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+              <line x1="480" y1="8" x2="480" y2="36" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+              <text x="252" y="27" font-size="13" font-weight="800" fill="var(--lesson-bar-stroke, #153a69)">2/5 (1/5이 2개)</text>
+              <rect x="0" y="46" width="600" height="28" rx="4" fill="var(--lesson-bar-bg, #fff)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+              <rect x="0" y="46" width="360" height="28" rx="4" fill="#7cc6fe"/>
+              <line x1="120" y1="46" x2="120" y2="74" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+              <line x1="240" y1="46" x2="240" y2="74" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+              <line x1="360" y1="46" x2="360" y2="74" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+              <line x1="480" y1="46" x2="480" y2="74" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
+              <text x="372" y="65" font-size="13" font-weight="800" fill="#d9381e">3/5 (1/5이 3개)</text>
+            </svg>
+          </figure>
+          <div class="bridge-choice-row" role="group" aria-label="2/5와 3/5 중 더 큰 분수 고르기">
+            <button type="button" data-bridge-pick="left" class="secondary-btn ${bridgeChoice === 'left' ? 'rule-card-wrong' : ''}" aria-pressed="${bridgeChoice === 'left'}">🧩 2/5가 더 크다</button>
+            <button type="button" data-bridge-pick="right" class="secondary-btn ${bridgeChoice === 'right' ? 'solo-choice-selected' : ''}" aria-pressed="${bridgeChoice === 'right'}">🧩 3/5가 더 크다</button>
+          </div>
+          <p id="bridge-status" class="answer" role="status">${bridgeStatusHtml}</p>
         </div>
-        ${letterReplyHtml}
-      </div>
 
-      <div class="bridge-mission-card" role="region" aria-label="다음 개념 연결 분모가 같은 진분수 비교">
-        <h3>🚀 다음 차시 심화 브릿지 · 단위분수 조각을 여러 개 모으면? (<strong>2/5 vs 3/5</strong>)</h3>
-        <p>오늘 배운 단위분수 <strong>1/5 조각을 2개 모은 2/5</strong>와 <strong>3개 모은 3/5</strong> 중 어느 쪽이 더 클까요?</p>
-        <figure class="bridge-figure">
-          <svg viewBox="0 0 600 84" role="img" aria-label="5등분 중 2조각을 칠한 2/5 막대와 3조각을 칠한 3/5 막대 비교">
-            <rect x="0" y="8" width="600" height="28" rx="4" fill="var(--lesson-bar-bg, #fff)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
-            <rect x="0" y="8" width="240" height="28" rx="4" fill="#ffca62"/>
-            <line x1="120" y1="8" x2="120" y2="36" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
-            <line x1="240" y1="8" x2="240" y2="36" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
-            <line x1="360" y1="8" x2="360" y2="36" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
-            <line x1="480" y1="8" x2="480" y2="36" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
-            <text x="252" y="27" font-size="13" font-weight="800" fill="var(--lesson-bar-stroke, #153a69)">2/5 (1/5 조각이 2개)</text>
-            <rect x="0" y="46" width="600" height="28" rx="4" fill="var(--lesson-bar-bg, #fff)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
-            <rect x="0" y="46" width="360" height="28" rx="4" fill="#7cc6fe"/>
-            <line x1="120" y1="46" x2="120" y2="74" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
-            <line x1="240" y1="46" x2="240" y2="74" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
-            <line x1="360" y1="46" x2="360" y2="74" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
-            <line x1="480" y1="46" x2="480" y2="74" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2"/>
-            <text x="372" y="65" font-size="13" font-weight="800" fill="#d9381e">3/5 (1/5 조각이 3개)</text>
-          </svg>
-        </figure>
-        <div class="bridge-choice-row" role="group" aria-label="2/5와 3/5 중 더 큰 분수 고르기">
-          <button type="button" data-bridge-pick="left" class="secondary-btn ${bridgeChoice === 'left' ? 'rule-card-wrong' : ''}" aria-pressed="${bridgeChoice === 'left'}">🧩 1/5이 2개인 2/5가 더 크다</button>
-          <button type="button" data-bridge-pick="right" class="secondary-btn ${bridgeChoice === 'right' ? 'solo-choice-selected' : ''}" aria-pressed="${bridgeChoice === 'right'}">🧩 1/5이 3개인 3/5가 더 크다</button>
-        </div>
-        <p id="bridge-status" class="answer" role="status">${bridgeStatusHtml}</p>
-      </div>
-
-      <div class="stamp-tour-board" role="region" aria-label="분수 탐구 3대 주제 스탬프 투어">
-        <h3>🎖️ 분수 탐구 스탬프 투어 (${clearedUnits.size} / ${allUnits.length} 이야기 클리어!)</h3>
-        <div class="stamp-grid">
-          ${stampsHtml}
+        <div class="stamp-tour-board" role="region" aria-label="분수 탐구 3대 주제 스탬프 투어">
+          <h3>🎖️ 분수 탐구 스탬프 투어 (${clearedUnits.size} / ${allUnits.length} 클리어!)</h3>
+          <div class="stamp-grid">
+            ${stampsHtml}
+          </div>
         </div>
       </div>
 
@@ -1327,11 +1358,15 @@ function renderResultPhase(): string {
         <p class="cert-sign-line">학번·이름: ____________________ &nbsp;|&nbsp; 오늘 나의 한 줄 소감: ________________________________________</p>
       </div>
 
+      <div class="teacher-dock-zone" role="region" aria-label="선생님 수업 도구">
+        ${renderTeacherTalkBar('result')}
+      </div>
+
       <div class="actions next-step-bar">
         <button type="button" data-action="back" class="secondary-btn">← 이전 단계</button>
-        <button type="button" data-action="print-summary" class="secondary-btn">🖨️ 결과 인쇄하기</button>
-        <button type="button" data-action="next-unit" data-next-unit-id="${nextUncleared.id}" class="primary-next-btn">🚀 다음 이야기(${nextUncleared.title.split('·')[0].trim()}) 도전하기 →</button>
-        <button type="button" data-action="restart" class="secondary-btn">🔄 처음부터 다시 하기</button>
+        <button type="button" data-action="print-summary" class="secondary-btn">🖨️ 결과 인쇄</button>
+        <button type="button" data-action="next-unit" data-next-unit-id="${nextUncleared.id}" class="primary-next-btn">🚀 다음 이야기(${nextUncleared.title.split('·')[0].trim()}) →</button>
+        <button type="button" data-action="restart" class="secondary-btn">🔄 다시 하기</button>
       </div>
     </div>`;
 }
@@ -1345,15 +1380,16 @@ function body(): string {
   }
 }
 
-// ─── 상단 헤더 및 4단계 진행 바 ──────────────────────────────────
+// ─── 상단 초슬림 헤더 및 4단계 진행 바 ────────────────────────────
 
 function renderPageHeader(): string {
   const dark = isDarkTheme();
   const large = isLargeScale();
-  return `<header>
-    <p class="eyebrow">${aiEnabled ? '로컬 AI 보조 수업' : '초등 수학 분수 탐구'} · 단위분수 크기 비교</p>
-    <h1>생각의 갈림길 AI</h1>
-    <p>직접 나누고 겹쳐 보며 분수의 크기를 스스로 깨닫는 4단계 탐구</p>
+  return `<header class="slim-header">
+    <div class="header-brand">
+      <h1>🧭 생각의 갈림길 AI</h1>
+      <span class="eyebrow">${aiEnabled ? '로컬 AI 수업' : '단위분수 탐구'}</span>
+    </div>
     <div class="header-controls">
       <button id="sound-toggle" class="scale-toggle" aria-label="효과음 전환" aria-pressed="${soundEnabled}" type="button">${soundEnabled ? '🔊 효과음' : '🔇 음소거'}</button>
       <button id="scale-toggle" class="scale-toggle" aria-label="큰 글씨 모드 전환" aria-pressed="${large}" type="button">${large ? '🔍 기본' : '🔍 큰글씨'}</button>
@@ -1386,7 +1422,7 @@ function render(focus = false) {
     renderProgressNav(),
     `<section id="step" role="region" aria-label="${currentLabel}">${body()}<p id="error" role="alert">${error}</p></section>`,
     `<div id="step-announce" class="sr-only" aria-live="assertive" role="status"></div>`,
-    '<footer>이 화면의 활동 내용은 현재 브라우저 메모리에만 머물며 외부로 전송·저장되지 않습니다.</footer>',
+    '<footer>🔒 활동 내용은 현재 브라우저 메모리에만 머물며 외부로 전송·저장되지 않습니다.</footer>',
   ].join('');
 
   aiPanel?.sync(phase === 'think');
@@ -1553,6 +1589,14 @@ app.addEventListener('click', event => {
     const p = button.dataset.confPoll as 'first' | 'again';
     const lvl = button.dataset.confLevel as ConfidenceLevel;
     confidence[p] = lvl;
+    playSound('click');
+    render();
+    return;
+  }
+
+  // 2단계 실험 카테고리 탭 전환
+  if (button.dataset.exploreTab) {
+    exploreTab = button.dataset.exploreTab as 'all' | 'core' | 'concept' | 'life';
     playSound('click');
     render();
     return;
@@ -1753,7 +1797,7 @@ app.addEventListener('click', event => {
         talkSecondsLeft = Math.max(0, talkSecondsLeft - 1);
         const bellBtn = app.querySelector<HTMLButtonElement>('#talk-bell-btn');
         if (bellBtn) {
-          bellBtn.textContent = talkSecondsLeft > 0 ? `🔔 짝 토론 진행 중 (${talkSecondsLeft}초)` : '🔔 30초 짝 토론 벨';
+          bellBtn.textContent = talkSecondsLeft > 0 ? `🔔 짝 토론 (${talkSecondsLeft}초)` : '🔔 30초 짝 토론';
           bellBtn.setAttribute('aria-pressed', String(talkSecondsLeft > 0));
         }
         if (talkSecondsLeft <= 0) {

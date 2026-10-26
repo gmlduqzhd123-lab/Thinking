@@ -190,11 +190,17 @@ async function testLessonFeatures(browser) {
 
   await page.click('button[data-reason="0"]');
 
-  // #6. 2단계 이동 시 내가 고른 처음 생각과 이유 말풍선이 상단 배너로 연결됨 + 맞춤형 실험 처방(#1)
+  // #6. 2단계 이동 시 내가 고른 처음 생각과 이유 말풍선이 상단 배너로 연결됨 + 맞춤형 실험 처방(#1) + 실험 카테고리 탭 전환
   await page.click('button[data-action="next"]');
   const hypothesisText = await page.locator('.hypothesis-banner').textContent();
   const adaptiveMissionText = await page.locator('#adaptive-mission-card').textContent();
   log('개선 #6 & 고도화 #1: 처음 생각·이유 연결 및 오개념 맞춤형 실험 미션 처방', (hypothesisText?.includes('1/5이 더 크다') ?? false) && (adaptiveMissionText?.includes('맞춤 실험 미션') ?? false));
+
+  await page.click('button[data-explore-tab="core"]');
+  const coreExpCount = await page.locator('.experiment-box').count();
+  await page.click('button[data-explore-tab="all"]');
+  const allExpCount = await page.locator('.experiment-box').count();
+  log('디자인 통합 개편: 2단계 실험 묶음 탭 필터(핵심 비교 2개 ↔ 전체 7개) 작동', coreExpCount === 2 && allExpCount === 7, `core=${coreExpCount}, all=${allExpCount}`);
 
   // #5 & #6. 조각 포개어 차이 보기 + 양쪽 분모 자유 비교(#2) + 조각 모아 전체 1 채우기(#1) + 실생활 분수(#6)
   await page.click('button[data-action="toggle-overlap"]');

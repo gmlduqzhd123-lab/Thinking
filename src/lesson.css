@@ -183,28 +183,44 @@
 body { margin: 0; }
 main { max-width: 1050px; margin: auto; padding: 20px; }
 
-/* ─── Header ─────────────────────────────────────────────────── */
+/* ─── Slim Header (Proposal 1) ───────────────────────────────── */
 header {
   background: var(--lesson-accent-blue);
   color: white;
-  border-radius: 18px;
-  padding: 28px;
+  border-radius: 14px;
+  padding: 12px 18px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.header-brand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
 }
 
 h1 {
-  font-size: clamp(2rem, 4vw, 3rem);
-  margin: .25em 0;
+  font-size: clamp(1.3rem, 2.5vw, 1.65rem);
+  margin: 0;
 }
 
-.eyebrow { font-weight: 700; }
+.eyebrow {
+  font-weight: 700;
+  font-size: 0.84rem;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+}
 
 /* ─── Header controls (#1, #8) ───────────────────────────────── */
 .header-controls {
-  position: absolute;
-  top: 16px;
-  right: 16px;
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
   align-items: center;
 }
 
@@ -217,7 +233,7 @@ h1 {
   min-width: 44px;
   min-height: 44px;
   padding: 0 12px;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -227,20 +243,19 @@ h1 {
 .theme-toggle {
   width: 44px;
   padding: 0;
-  font-size: 1.2rem;
+  font-size: 1.15rem;
 }
 .theme-toggle:hover,
 .scale-toggle:hover,
 .board-toggle:hover { background: rgba(255, 255, 255, 0.25); }
-header { position: relative; padding-right: 320px; }
 
 /* ─── Sections / Layout ──────────────────────────────────────── */
 section, aside, nav {
   background: var(--lesson-surface);
   border: 1px solid var(--lesson-border);
   border-radius: 14px;
-  padding: 20px;
-  margin: 16px 0;
+  padding: 16px 18px;
+  margin: 10px 0;
 }
 
 .notice {
@@ -472,8 +487,7 @@ footer { color: var(--lesson-text-muted); padding: 12px; }
 @media (max-width: 550px) {
   main { padding: 10px; }
 
-  header, section, aside, nav { padding: 16px; }
-  header { padding-top: 64px; padding-right: 16px; }
+  header, section, aside, nav { padding: 14px; }
 
   .bar-pair { display: block; }
 
@@ -523,20 +537,23 @@ footer { color: var(--lesson-text-muted); padding: 12px; }
   height: auto;
 }
 
-/* ─── 이유 카드 말풍선 대화체 ────────────────────────────────── */
+/* ─── 이유 카드 말풍선 3열 그리드 (Proposal 2) ────────────────── */
 .reason-bubble-list {
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+  gap: 8px;
   align-items: stretch;
 }
 
 .reason-bubble-btn {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
   gap: 4px;
-  text-align: left;
-  padding: 12px 16px;
-  border-radius: 14px;
+  text-align: center;
+  padding: 10px 12px;
+  border-radius: 12px;
   background: var(--lesson-secondary-bg);
   color: var(--lesson-secondary-text);
   border: 2px solid transparent;
@@ -553,14 +570,14 @@ button[data-reason][aria-pressed="true"] {
 }
 
 .student-bubble {
-  font-size: 1.02rem;
+  font-size: 0.94rem;
   font-weight: 700;
 }
 
 /* ─── 배움 공책 한 줄 정리 ───────────────────────────────────── */
 .notebook-summary-card {
-  margin: 14px 0;
-  padding: 16px;
+  margin: 10px 0;
+  padding: 14px;
   background: var(--lesson-notice-bg);
   border: 2px solid var(--lesson-notice-border);
   border-radius: 12px;
@@ -595,14 +612,14 @@ button[data-reason][aria-pressed="true"] {
 /* ─── 4지선다 보기 및 성장 카드 ──────────────────────────────── */
 .solo-choice-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 10px;
-  margin: 8px 0 12px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px;
+  margin: 8px 0 10px;
 }
 
 .solo-choice-btn {
   text-align: left;
-  padding: 12px 16px;
+  padding: 10px 14px;
   border-radius: 12px;
   background: var(--lesson-secondary-bg);
   color: var(--lesson-secondary-text);
@@ -630,8 +647,8 @@ button[data-reason][aria-pressed="true"] {
 }
 
 .solo-report-card {
-  margin: 14px 0;
-  padding: 16px;
+  margin: 10px 0;
+  padding: 14px;
   background: var(--lesson-chart-bg);
   border: 2px solid var(--lesson-answer-border);
   border-radius: 12px;
@@ -665,33 +682,35 @@ button[data-reason][aria-pressed="true"] {
 }
 
 .unit-card-bar {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 10px;
-  margin-bottom: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .unit-card-btn {
+  flex: 1 1 200px;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   text-align: left;
-  padding: 12px 14px;
-  border-radius: 12px;
+  padding: 8px 14px;
+  border-radius: 999px;
   background: var(--lesson-secondary-bg);
   color: var(--lesson-secondary-text);
   border: 2px solid transparent;
 }
 
 .unit-card-btn strong {
-  font-size: 0.98rem;
+  font-size: 0.94rem;
 }
 
 .unit-card-btn span {
-  font-size: 0.84rem;
-  opacity: 0.9;
-  font-weight: 500;
+  font-size: 0.78rem;
+  opacity: 0.95;
+  font-weight: 700;
 }
 
 .unit-card-active {
@@ -701,25 +720,42 @@ button[data-reason][aria-pressed="true"] {
 }
 
 .question-lead {
-  font-size: 1.08rem;
+  flex: 1 1 220px;
+  font-size: 1.02rem;
   font-weight: 600;
-  margin: 8px 0 12px;
+  margin: 0;
+}
+
+.followup-zone {
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--lesson-chart-bg);
+  border: 1px dashed var(--lesson-border);
+  opacity: 0.88;
+  transition: opacity 0.2s, border-color 0.2s;
+}
+
+.followup-zone.followup-ready {
+  opacity: 1;
+  border: 2px solid var(--lesson-answer-border);
+  background: var(--lesson-surface);
 }
 
 .reason-section {
-  margin-top: 20px;
-  padding-top: 16px;
+  margin-top: 8px;
+  padding-top: 8px;
   border-top: 1px dashed var(--lesson-border);
 }
 
 .reason-section h3 {
-  margin: 0 0 10px;
-  font-size: 1.02rem;
+  margin: 0 0 8px;
+  font-size: 0.96rem;
 }
 
 .hypothesis-banner {
-  margin: 10px 0 16px;
-  padding: 12px 16px;
+  margin: 8px 0 12px;
+  padding: 10px 14px;
   background: var(--lesson-notice-bg);
   border-left: 5px solid var(--lesson-notice-border);
   border-radius: 10px;
@@ -730,14 +766,63 @@ button[data-reason][aria-pressed="true"] {
 }
 
 .hypothesis-sub {
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   color: var(--lesson-text-muted);
+}
+
+.visual-controls-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.visual-controls-bar .visual-toolbar,
+.visual-controls-bar .spoiler-hint-row,
+.visual-controls-bar .base-denom-controls {
+  margin: 0;
+}
+
+.exp-tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 10px;
+}
+
+.exp-tab-btn {
+  flex: 1 1 140px;
+  font-size: 0.9rem;
+  padding: 8px 12px;
+}
+
+.exp-grid-2col,
+.check-grid-2col,
+.result-grid-2col {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 12px;
+  margin: 10px 0;
+}
+
+.exp-grid-2col > *,
+.check-grid-2col > *,
+.result-grid-2col > * {
+  margin: 0;
+}
+
+.teacher-dock-zone {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--lesson-border);
 }
 
 .experiment-box,
 .check-subcard {
-  margin: 14px 0;
-  padding: 16px;
+  margin: 10px 0;
+  padding: 14px;
   background: var(--lesson-chart-bg);
   border: 1px solid var(--lesson-chart-border);
   border-radius: 12px;
@@ -746,7 +831,7 @@ button[data-reason][aria-pressed="true"] {
 .experiment-box h3,
 .check-subcard h3 {
   margin: 0 0 8px;
-  font-size: 1.05rem;
+  font-size: 1rem;
 }
 
 .overlap-trigger-btn {
@@ -779,28 +864,28 @@ button[data-reason][aria-pressed="true"] {
 }
 
 .next-step-bar {
-  margin-top: 20px;
-  padding-top: 14px;
+  margin-top: 14px;
+  padding-top: 12px;
   border-top: 1px solid var(--lesson-border);
   justify-content: flex-end;
 }
 
 .primary-next-btn {
-  font-size: 1.02rem;
-  padding: 12px 22px;
+  font-size: 1rem;
+  padding: 10px 20px;
 }
 
 .growth-journey-grid {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  margin: 12px 0;
+  gap: 8px;
+  margin: 10px 0;
 }
 
 .journey-step {
-  flex: 1 1 180px;
-  padding: 12px 14px;
+  flex: 1 1 160px;
+  padding: 10px 12px;
   border-radius: 10px;
   background: var(--lesson-surface);
   border: 1px solid var(--lesson-border);
@@ -815,19 +900,19 @@ button[data-reason][aria-pressed="true"] {
 }
 
 .journey-label {
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   color: var(--lesson-text-muted);
 }
 
 .journey-arrow {
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   font-weight: 700;
   color: var(--lesson-text-muted);
 }
 
 .class-poll-details {
-  margin: 14px 0;
-  padding: 10px 14px;
+  margin: 8px 0 0;
+  padding: 8px 12px;
   border-radius: 10px;
   background: var(--lesson-chart-bg);
   border: 1px dashed var(--lesson-border);
@@ -836,7 +921,7 @@ button[data-reason][aria-pressed="true"] {
 .class-poll-details summary {
   cursor: pointer;
   font-weight: 600;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   color: var(--lesson-text-muted);
 }
 
@@ -897,11 +982,16 @@ button[data-reason][aria-pressed="true"] {
   background: var(--lesson-surface);
   color: var(--lesson-accent-blue);
   border: 1px solid var(--lesson-border);
+  white-space: nowrap;
 }
 
 .story-dilemma-card {
-  margin: 10px 0 12px;
-  padding: 14px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 10px;
+  padding: 10px 14px;
   background: var(--lesson-notice-bg);
   border: 2px solid var(--lesson-notice-border);
   border-radius: 12px;
@@ -909,22 +999,27 @@ button[data-reason][aria-pressed="true"] {
 
 .story-badge {
   display: inline-block;
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   font-weight: 800;
   padding: 3px 10px;
   border-radius: 999px;
   background: var(--lesson-surface);
   color: var(--lesson-text);
-  margin-bottom: 6px;
+  white-space: nowrap;
 }
 
 .teacher-talk-banner {
-  margin: 8px 0 14px;
-  padding: 10px 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 8px 12px;
   border-radius: 10px;
   background: var(--lesson-answer-bg);
   border-left: 4px solid var(--lesson-answer-border);
-  font-size: 0.94rem;
+  font-size: 0.9rem;
   font-weight: 600;
 }
 
@@ -932,7 +1027,7 @@ button[data-reason][aria-pressed="true"] {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 4px 0 12px;
+  margin: 4px 0 8px;
 }
 
 .quick-denom-bar {
@@ -1383,7 +1478,7 @@ button[data-reason][aria-pressed="true"] {
 
 /* ─── 앱 고도화 전략 10대 기능 추가 스타일 ──────────────────────── */
 .teacher-talk-text {
-  margin: 0 0 8px;
+  margin: 0;
 }
 
 .talk-dock {
@@ -1412,8 +1507,8 @@ button[data-reason][aria-pressed="true"] {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin: 10px 0;
-  padding: 10px 12px;
+  margin: 0;
+  padding: 8px 12px;
   border-radius: 10px;
   background: var(--lesson-surface);
   border: 1px solid var(--lesson-border);
@@ -1488,7 +1583,7 @@ button[data-reason][aria-pressed="true"] {
 
 .bridge-mission-card {
   margin: 14px 0;
-  padding: 16px;
+  padding: 14px;
   border-radius: 12px;
   background: var(--lesson-chart-bg);
   border: 2px solid var(--lesson-border);
@@ -1496,7 +1591,7 @@ button[data-reason][aria-pressed="true"] {
 
 .bridge-mission-card h3 {
   margin: 0 0 8px;
-  font-size: 1.04rem;
+  font-size: 1rem;
 }
 
 .ai-keyword-highlights {
@@ -1532,6 +1627,14 @@ button[data-reason][aria-pressed="true"] {
   font-weight: 700;
 }
 
+@media (max-width: 650px) {
+  .exp-grid-2col,
+  .check-grid-2col,
+  .result-grid-2col {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 550px) {
   .journey-arrow { display: none; }
   .duel-btn-pair { width: 100%; }
@@ -1542,7 +1645,7 @@ button[data-reason][aria-pressed="true"] {
 @media print {
   body { color: #000; background: #fff; }
   header { background: #333; padding: 14px 18px; }
-  button, .buttons, .actions, .timer, nav, .teacher-talk-banner, .rule-word-cards, .letter-choice-list, .bridge-choice-row, .confidence-btns, .spoiler-hint-row, .visual-toolbar, .flag-controls, .fill-whole-controls, .train-pick-row, .mystery-pick-row, #lesson-ai-panel, #error:empty { display: none !important; }
+  button, .buttons, .actions, .timer, nav, .teacher-dock-zone, .teacher-talk-banner, .exp-tab-bar, .rule-word-cards, .letter-choice-list, .bridge-choice-row, .confidence-btns, .spoiler-hint-row, .visual-toolbar, .flag-controls, .fill-whole-controls, .train-pick-row, .mystery-pick-row, #lesson-ai-panel, #error:empty { display: none !important; }
   section { page-break-inside: avoid; margin: 8px 0; padding: 12px; }
   .notice { border: 1px solid #999; }
   .answer, .memory, .comparison {
