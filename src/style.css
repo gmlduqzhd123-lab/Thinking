@@ -463,3 +463,18 @@ header { position: relative; padding-right: 150px; }
   .notice { border: 1px solid #999; }
   .similarity-fill { background: #999; }
 }
+
+.progress-svg,
+.similarity-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.progress-fill {
+  fill: var(--color-btn-bg);
+}
+
+.similarity-fill {
+  fill: var(--color-accent-gold-dark);
+}

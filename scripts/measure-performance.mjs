@@ -10,7 +10,7 @@ const origin = new URL(url).origin;
 const manifest = JSON.parse(readFileSync(new URL('../model-assets.json', import.meta.url), 'utf8'));
 const browserPath = process.env.M0_BROWSER_PATH || [
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
-  'C:/Program Files/Microsoft/Edge/Application/msedge.exe',
+  'C:/Program Files/Microsoft Edge/Application/msedge.exe',
 ].find(existsSync);
 const browser = await chromium.launch(browserPath ? { executablePath: browserPath, headless: true } : { channel: 'msedge', headless: true });
 

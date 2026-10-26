@@ -544,7 +544,7 @@ function renderLivePollChart(poll: Poll, dA: number, dB: number): string {
       const pct = Math.min(100, Math.round((v / denom) * 100));
       return `<div class="poll-bar-row">
         <span class="poll-bar-label">${labels[ch]}</span>
-        <div class="poll-bar-track"><div class="poll-bar-fill ${ch === correctCh ? 'poll-bar-correct' : ''}" style="width: ${pct}%"></div></div>
+        <div class="poll-bar-track"><svg class="poll-bar-svg" viewBox="0 0 100 14" preserveAspectRatio="none" aria-hidden="true"><rect class="poll-bar-fill ${ch === correctCh ? 'poll-bar-correct' : ''}" x="0" y="0" width="${pct}" height="14" rx="7"/></svg></div>
         <span class="poll-bar-val">${v}명 (${pct}%)</span>
       </div>`;
     }).join('')}
@@ -601,12 +601,12 @@ function renderBeforeAfterPollComparison(): string {
     <strong>📈 실험 전(1단계) vs 실험 후(3단계) 정답(1/${fA}) 인원 변화 (${deltaSign})</strong>
     <div class="poll-bar-row">
       <span class="poll-bar-label">1단계 처음</span>
-      <div class="poll-bar-track"><div class="poll-bar-fill" style="width: ${firstPct}%"></div></div>
+      <div class="poll-bar-track"><svg class="poll-bar-svg" viewBox="0 0 100 14" preserveAspectRatio="none" aria-hidden="true"><rect class="poll-bar-fill" x="0" y="0" width="${firstPct}" height="14" rx="7"/></svg></div>
       <span class="poll-bar-val">${firstA}명 (${firstPct}%)</span>
     </div>
     <div class="poll-bar-row">
       <span class="poll-bar-label">3단계 실험 후</span>
-      <div class="poll-bar-track"><div class="poll-bar-fill poll-bar-correct" style="width: ${againPct}%"></div></div>
+      <div class="poll-bar-track"><svg class="poll-bar-svg" viewBox="0 0 100 14" preserveAspectRatio="none" aria-hidden="true"><rect class="poll-bar-fill poll-bar-correct" x="0" y="0" width="${againPct}" height="14" rx="7"/></svg></div>
       <span class="poll-bar-val">${againA}명 (${againPct}%)</span>
     </div>
   </div>`;
@@ -1663,7 +1663,7 @@ app.addEventListener('click', event => {
     const delta = Number(button.dataset.voteDelta);
     pollData[p] ??= { A: '0', B: '0', C: '0', D: '0' };
     for (const c of CHOICES) {
-      if (pollData[p]![c].trim() === '') pollData[p]![c] = '0';
+      if (!/^(?:0|[1-9]\d*)$/.test(pollData[p]![c].trim())) pollData[p]![c] = '0';
     }
     const otherSum = CHOICES.filter(c => c !== ch).reduce((acc, c) => acc + (parseInt(pollData[p]![c], 10) || 0), 0);
     const currentVal = parseInt(pollData[p]![ch], 10) || 0;
@@ -1844,7 +1844,7 @@ app.addEventListener('click', event => {
     const p = (button.dataset.targetPoll || 'first') as Poll;
     pollData[p] ??= emptyCounts();
     for (const ch of CHOICES) {
-      if (pollData[p]![ch].trim() === '') pollData[p]![ch] = '0';
+      if (!/^(?:0|[1-9]\d*)$/.test(pollData[p]![ch].trim())) pollData[p]![ch] = '0';
     }
     classPollOpen[p] = true;
     render();

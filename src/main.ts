@@ -99,7 +99,7 @@ function updateProgress(percent: number, file: string) {
   if (!container || !fill || !text) return;
 
   container.hidden = false;
-  fill.style.width = `${percent}%`;
+  fill.setAttribute('width', String(percent));
   fill.setAttribute('aria-valuenow', String(percent));
 
   const fileName = file ? file.split('/').pop() || '' : '';
@@ -155,8 +155,7 @@ function renderInputSection(): string {
     <p id="state" role="status">모델 상태: 미준비</p>
     <div id="progress" class="progress-container" hidden>
       <div class="progress-track">
-        <div id="progress-fill" class="progress-fill" role="progressbar"
-          aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="width: 0%"></div>
+        <svg class="progress-svg" viewBox="0 0 100 12" preserveAspectRatio="none"><rect id="progress-fill" class="progress-fill" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" x="0" y="0" width="0" height="12" rx="6"/></svg>
       </div>
       <p id="progress-text" class="progress-text"></p>
     </div>
@@ -247,10 +246,20 @@ function renderRecommendation(
 
     const barTrack = document.createElement('div');
     barTrack.className = 'similarity-track';
-    const barFill = document.createElement('div');
-    barFill.className = 'similarity-fill';
-    barFill.style.width = `${Math.max(0, Math.min(100, score.similarity * 100))}%`;
-    barTrack.append(barFill);
+    const barSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    barSvg.setAttribute('class', 'similarity-svg');
+    barSvg.setAttribute('viewBox', '0 0 100 16');
+    barSvg.setAttribute('preserveAspectRatio', 'none');
+    barSvg.setAttribute('aria-hidden', 'true');
+    const barFill = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    barFill.setAttribute('class', 'similarity-fill');
+    barFill.setAttribute('x', '0');
+    barFill.setAttribute('y', '0');
+    barFill.setAttribute('width', String(Math.max(2, Math.min(100, score.similarity * 100))));
+    barFill.setAttribute('height', '16');
+    barFill.setAttribute('rx', '8');
+    barSvg.append(barFill);
+    barTrack.append(barSvg);
     item.append(barTrack);
 
     const value = document.createElement('span');

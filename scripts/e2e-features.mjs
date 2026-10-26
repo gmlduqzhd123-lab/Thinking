@@ -18,6 +18,7 @@ async function testM0Features(browser) {
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
+  page.on('console', m => { if (m.type() === 'error' && !m.text().includes('404 (Not Found)')) errors.push(m.text()); });
 
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
 
@@ -108,6 +109,7 @@ async function testLessonFeatures(browser) {
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
+  page.on('console', m => { if (m.type() === 'error' && !m.text().includes('404 (Not Found)')) errors.push(m.text()); });
 
   await page.goto(`${BASE}lesson.html`, { waitUntil: 'domcontentloaded' });
 
@@ -179,7 +181,8 @@ async function testLessonFeatures(browser) {
   const voteInputA = await page.locator('input[data-count="A"][data-count-poll="first"]').inputValue();
   log('재미 개선 #7: 스마트보드 +1 원터치 거수 투표 카운터 작동', voteInputA === '1', `A="${voteInputA}"`);
   const pollBarsCount = await page.locator('.live-poll-chart[data-chart-poll="first"] .poll-bar-row').count();
-  log('추가 개발 #8: 교사용 거수 투표 실시간 가로 막대그래프 시각화', pollBarsCount === 4, `${pollBarsCount}개 막대`);
+  const firstBarWidth = await page.locator('.live-poll-chart[data-chart-poll="first"] .poll-bar-fill').first().getAttribute('width');
+  log('추가 개발 #8: 교사용 거수 투표 실시간 가로 막대그래프 시각화', pollBarsCount === 4 && Number(firstBarWidth) > 0, `${pollBarsCount}개 막대 (A 폭=${firstBarWidth}%)`);
   await page.click('button[data-action="toggle-poll-blind"]');
   const blindStatus = await page.locator('.class-poll-status').textContent();
   log('재미 개선 #7: 투표 결과 잠시 가리기 작동', blindStatus?.includes('가려 두었습니다') ?? false);
@@ -325,6 +328,7 @@ async function testLessonAiPanelFeatures(browser) {
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
+  page.on('console', m => { if (m.type() === 'error' && !m.text().includes('404 (Not Found)')) errors.push(m.text()); });
 
   // 1단계(think)에서 바로 로컬 AI 패널이 활성화됨
   await page.goto(`${BASE}lesson-ai.html`, { waitUntil: 'domcontentloaded' });

@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { examples } from '../src/cards.ts';
 const browserPath = process.env.M0_BROWSER_PATH || [
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
-  'C:/Program Files/Microsoft/Edge/Application/msedge.exe',
+  'C:/Program Files/Microsoft Edge/Application/msedge.exe',
 ].find(existsSync);
 const browser = await chromium.launch(browserPath ? { executablePath: browserPath, headless: true } : { channel: 'msedge', headless: true });
 const page = await browser.newPage();

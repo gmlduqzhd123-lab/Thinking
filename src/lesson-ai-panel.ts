@@ -68,7 +68,7 @@ export function createLessonAiPanel(
     if (!container || !fill || !text) return;
 
     container.hidden = false;
-    fill.style.width = `${percent}%`;
+    fill.setAttribute('width', String(percent));
     fill.setAttribute('aria-valuenow', String(percent));
     const fileName = file ? file.split('/').pop() || '' : '';
     text.textContent = fileName ? `${fileName} · ${percent}%` : `${percent}%`;
@@ -151,8 +151,7 @@ export function createLessonAiPanel(
     <p id="lesson-ai-state" role="status">모델 상태: ${state}</p>
     <div id="lesson-ai-progress" class="progress-container" hidden>
       <div class="progress-track">
-        <div id="lesson-ai-progress-fill" class="progress-fill" role="progressbar"
-          aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="width: 0%"></div>
+        <svg class="progress-svg" viewBox="0 0 100 12" preserveAspectRatio="none"><rect id="lesson-ai-progress-fill" class="progress-fill" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" x="0" y="0" width="0" height="12" rx="6"/></svg>
       </div>
       <p id="lesson-ai-progress-text" class="progress-text"></p>
     </div>`;
