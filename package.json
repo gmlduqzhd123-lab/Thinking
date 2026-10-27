@@ -22,7 +22,7 @@
     "test:lesson-share": "node scripts/lesson-share-check.mjs"
   },
   "dependencies": {
-    "@huggingface/transformers": "3.8.1",
+    "@huggingface/transformers": "4.3.1",
     "qrcode-generator": "^2.0.4"
   },
   "devDependencies": {
