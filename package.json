@@ -18,12 +18,15 @@
     "test:pages": "node scripts/check-pages.mjs",
     "test:e2e": "node scripts/e2e-features.mjs",
     "test:mobile": "node scripts/mobile-check.mjs",
-    "test:all": "node scripts/run-all-checks.mjs"
+    "test:all": "node scripts/run-all-checks.mjs",
+    "test:lesson-share": "node scripts/lesson-share-check.mjs"
   },
   "dependencies": {
-    "@huggingface/transformers": "3.8.1"
+    "@huggingface/transformers": "3.8.1",
+    "qrcode-generator": "^2.0.4"
   },
   "devDependencies": {
+    "jsqr": "^1.4.0",
     "playwright": "^1.64.1",
     "typescript": "~5.9.3",
     "vite": "~7.1.0"

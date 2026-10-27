@@ -6,6 +6,7 @@ export default defineConfig({
   build: {
     target: 'es2022',
     rollupOptions: {
+      output: { manualChunks: { 'qr-encoder': ['qrcode-generator'] } },
       input: {
         main: resolve(import.meta.dirname, 'index.html'),
         lesson: resolve(import.meta.dirname, 'lesson.html'),

@@ -138,6 +138,7 @@ runStep('단위 테스트 (node --test)', 'node', [
   'tests/holdout-core.test.mjs',
   'tests/judge.test.mjs',
   'tests/lesson-core.test.mjs',
+  'tests/lesson-share.test.mjs',
   'tests/privacy.test.mjs',
   'tests/unit-registry.test.mjs',
 ]);
@@ -155,6 +156,7 @@ const serverProc = spawn(process.execPath, [join(ROOT, 'node_modules', 'vite', '
 
 try {
   await waitForServer(BASE_URL);
+  runStep('수업 QR 및 복사 E2E', 'node', ['scripts/lesson-share-check.mjs'], { TEST_URL: BASE_URL });
   runStep('수업 기본 흐름 E2E (lesson-check)', 'node', ['scripts/lesson-check.mjs'], { TEST_URL: BASE_URL });
   runStep('4단계 단순화 및 핵심 기능 E2E (e2e-features)', 'node', ['scripts/e2e-features.mjs'], { BASE_URL });
   runStep('모바일·태블릿 5종 뷰포트 호환성 E2E (mobile-check)', 'node', ['scripts/mobile-check.mjs'], { TEST_URL: BASE_URL.replace(/\/$/, '') });
