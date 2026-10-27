@@ -1667,8 +1667,8 @@ button[data-reason][aria-pressed="true"] {
 }
 
 .qr-code-svg {
-  width: 82px;
-  height: 82px;
+  width: 180px;
+  height: 180px;
   flex-shrink: 0;
 }
 

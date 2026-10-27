@@ -5,6 +5,7 @@ import m01 from './units/m01';
 import m02 from './units/m02';
 import m03 from './units/m03';
 import './lesson.css';
+import { createLessonQrSvg, copyLessonUrl } from './lesson-share';
 
 // ─── 단원 레지스트리 초기 등록 ───────────────────────────────────
 if (listUnits().length === 0) {
@@ -147,7 +148,8 @@ let talkSecondsLeft = 0;
 let talkInterval: ReturnType<typeof setInterval> | undefined;
 let pickedGroup: number | null = null;
 let qrModalOpen = false;
-let urlCopied = false;
+let copyStatus: 'idle' | 'copying' | 'copied' | 'failed' = 'idle';
+let copyRequest = 0;
 let error = '';
 
 // ─── 헬퍼 ────────────────────────────────────────────────────────
@@ -260,7 +262,8 @@ function resetSession(keepUnit = false, keepStamps = false, keepCustomPair = fal
   bridgeChoice = '';
   pickedGroup = null;
   qrModalOpen = false;
-  urlCopied = false;
+  copyStatus = 'idle';
+  copyRequest++;
   classPollOpen = { first: false, again: false, transfer: false };
   pollBlind = false;
   participantsRaw = '20';
@@ -622,31 +625,22 @@ function currentShareUrl(): string {
 function renderQrModalBox(): string {
   if (!qrModalOpen) return '';
   const url = currentShareUrl();
-  let hash = 2166136261;
-  for (let i = 0; i < url.length; i++) {
-    hash = Math.imul(hash ^ url.charCodeAt(i), 16777619);
+  let qrSvg: string;
+  try {
+    qrSvg = createLessonQrSvg(url);
+  } catch {
+    qrSvg = '<p role="status">QR을 만들지 못했습니다. 아래 수업 주소를 직접 복사해 주세요.</p>';
   }
-  const cells: string[] = [];
-  for (let r = 0; r < 11; r++) {
-    for (let c = 0; c < 11; c++) {
-      const inFinder = (r < 3 && c < 3) || (r < 3 && c > 7) || (r > 7 && c < 3);
-      const bit = ((hash >>> ((r * 11 + c) % 28)) & 1) === 1;
-      if (inFinder || bit) {
-        cells.push(`<rect x="${8 + c * 8}" y="${8 + r * 8}" width="7" height="7" rx="1" fill="#153a69"/>`);
-      }
-    }
-  }
+  const copyLabel = copyStatus === 'copying' ? '복사 중…' : copyStatus === 'copied' ? '✅ 주소 복사 완료!' : '📋 수업 주소 복사';
   return `<div id="qr-modal-box" class="qr-modal-box" role="region" aria-label="학생 접속 QR 및 공유 링크">
-    <svg class="qr-code-svg" viewBox="0 0 104 104" role="img" aria-label="수업 접속 QR 코드 모형">
-      <rect x="2" y="2" width="100" height="100" rx="6" fill="#fff" stroke="#153a69" stroke-width="3"/>
-      ${cells.join('')}
-    </svg>
+    ${qrSvg}
     <div class="qr-modal-info">
       <strong>📱 현재 수업 단원 바로가기 링크</strong>
       <code id="qr-share-url">${url}</code>
       <div class="qr-modal-actions">
-        <button type="button" id="copy-share-btn" data-action="copy-share-url" class="secondary-btn talk-dock-btn">${urlCopied ? '✅ 주소 복사 완료!' : '📋 수업 주소 복사'}</button>
+        <button type="button" id="copy-share-btn" data-action="copy-share-url" ${copyStatus === 'copying' ? 'disabled' : ''} class="secondary-btn talk-dock-btn">${copyLabel}</button>
       </div>
+      <p role="status" aria-live="polite">${copyStatus === 'failed' ? '주소를 복사하지 못했습니다. 위 수업 주소를 직접 선택해 복사해 주세요.' : copyStatus === 'copied' ? '수업 주소가 클립보드에 복사되었습니다.' : ''}</p>
     </div>
   </div>`;
 }
@@ -1680,7 +1674,7 @@ window.addEventListener('keydown', event => {
   }
 });
 
-app.addEventListener('click', event => {
+app.addEventListener('click', async event => {
   const targetEl = event.target as HTMLElement;
 
   const fillSliceEl = targetEl.closest<SVGElement>('[data-fill-slice]');
@@ -1936,17 +1930,21 @@ app.addEventListener('click', event => {
     render();
   } else if (action === 'toggle-qr-modal') {
     qrModalOpen = !qrModalOpen;
-    urlCopied = false;
+    copyStatus = 'idle';
+    copyRequest++;
     playSound('click');
     render();
   } else if (action === 'copy-share-url') {
-    urlCopied = true;
-    try {
-      void navigator.clipboard?.writeText(currentShareUrl());
-    } catch {
-      // 클립보드 권한 미지원 환경 무시
-    }
-    playSound('correct');
+    if (copyStatus === 'copying') return;
+    const url = currentShareUrl();
+    const request = ++copyRequest;
+    copyStatus = 'copying';
+    render();
+    const copied = await copyLessonUrl(url, navigator.clipboard);
+    // Ignore a late clipboard response after closing, resetting, or changing units.
+    if (request !== copyRequest || !qrModalOpen || url !== currentShareUrl()) return;
+    copyStatus = copied ? 'copied' : 'failed';
+    if (copied) playSound('correct');
     render();
   } else if (action === 'toggle-duel-battle') {
     duelBattleMode = !duelBattleMode;
