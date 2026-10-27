@@ -13,6 +13,7 @@ const checks = [
 ];
 
 let failed = false;
+const assetUrls = new Set();
 for (const check of checks) {
   const url = new URL(check.path, origin);
   try {
@@ -21,8 +22,25 @@ for (const check of checks) {
     const passed = response.status === check.expected && (!check.marker || body.includes(check.marker));
     console.log(`${passed ? 'PASS' : 'FAIL'} ${url.pathname}: HTTP ${response.status}, expected ${check.expected}${check.marker ? ', lesson title verified' : ''}`);
     failed ||= !passed;
+    if (body) {
+      for (const match of body.matchAll(/(?:src|href)="([^"]+\.(?:js|css))"/g)) {
+        assetUrls.add(new URL(match[1], origin.origin).toString());
+      }
+    }
   } catch (error) {
     console.error(`FAIL ${url.pathname}: ${error.message}`);
+    failed = true;
+  }
+}
+
+for (const assetUrl of assetUrls) {
+  try {
+    const res = await fetch(assetUrl, { cache: 'no-store', signal: AbortSignal.timeout(15000) });
+    const passed = res.status === 200;
+    console.log(`${passed ? 'PASS' : 'FAIL'} ${new URL(assetUrl).pathname}: HTTP ${res.status}, expected 200`);
+    failed ||= !passed;
+  } catch (error) {
+    console.error(`FAIL ${assetUrl}: ${error.message}`);
     failed = true;
   }
 }
