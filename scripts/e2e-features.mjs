@@ -321,9 +321,42 @@ async function testLessonFeatures(browser) {
 
   const stampTitle = await page.locator('.stamp-tour-board h3').textContent();
   log('재미 개선 #9: 3대 주제 스탬프 투어 보드 획득 확인', stampTitle?.includes('1 / 3') ?? false, `"${stampTitle}"`);
+  const confettiExists = await page.locator('#confetti-burst').count() === 1;
+  log('제로클러터 전략 #5: 4단계 클리어 순간 무중력 색종이(#confetti-burst) 연출 작동', confettiExists);
+
   await page.click('button[data-action="next-unit"]');
   const nextUnitH2 = await page.locator('#step h2').textContent();
   log('재미 개선 #9: 다음 이야기 도전하기 버튼으로 즉시 다음 주제(1/4 vs 1/7) 시작', nextUnitH2?.includes('1/4과 1/7') ?? false);
+
+  // 제로클러터 10대 전략 추가 검증 (미니 분수 아이콘, 수업 QR 모달, 깜짝 분수 뽑기, SVG 직접 터치, 1:1 대결 모드, 프리젠터 리모컨 키)
+  const miniFracCount = await page.locator('.mini-frac-svg').count();
+  log('제로클러터 전략 #6: 보기 버튼(A·B) 내부 인라인 미니 분수 아이콘(.mini-frac-svg) 표시', miniFracCount === 2, `${miniFracCount}개`);
+
+  await page.click('#qr-share-btn');
+  const qrVisible = await page.locator('#qr-modal-box').isVisible();
+  const qrUrlText = await page.locator('#qr-share-url').textContent();
+  log('제로클러터 전략 #3: 교사 독 1초 수업 QR 모달 및 단원 바로가기 링크 표시', qrVisible && (qrUrlText?.includes('topic=2') ?? false), `"${qrUrlText}"`);
+  await page.click('#qr-share-btn');
+
+  await page.click('#random-unit-btn');
+  const randomBtnText = await page.locator('#random-unit-btn').textContent();
+  log('제로클러터 전략 #2: 상단 캡슐 바 깜짝 분수 원터치 생성칩 작동', randomBtnText?.includes('1/') ?? false, `"${randomBtnText?.trim()}"`);
+
+  await page.keyboard.press('PageDown');
+  const afterPgDnH2 = await page.locator('#step h2').textContent();
+  log('제로클러터 전략 #9: 무선 프리젠터 PageDown 키로 다음 단계(② 직접 실험하기) 즉시 이동', afterPgDnH2?.includes('② 직접 실험하기') ?? false);
+
+  await page.locator('[data-fill-slice="3"]').click();
+  const fillAfterSliceTouch = await page.locator('#fill-whole-status').textContent();
+  const conceptTabBadge = await page.locator('button[data-explore-tab="concept"]').textContent();
+  await page.click('button[data-action="toggle-fair-cut"]');
+  const conceptTabDone = await page.locator('button[data-explore-tab="concept"]').textContent();
+  log('제로클러터 전략 #1 & #7: SVG 막대 조각 직접 터치 조작 및 실험 탭 완료(✅) 배지 표시', (fillAfterSliceTouch?.includes('3/') ?? false) && (conceptTabDone?.includes('✅') ?? false), `탭="${conceptTabBadge?.trim()} -> ${conceptTabDone?.trim()}"`);
+
+  await page.keyboard.press('PageDown');
+  await page.click('#duel-battle-toggle');
+  const battleBoardText = await page.locator('#duel-battle-board').textContent();
+  log('제로클러터 전략 #4: 전자칠판 1:1 청팀 vs 홍팀 대결 모드 토글 및 점수판 표시', battleBoardText?.includes('청팀') && battleBoardText?.includes('홍팀'), `"${battleBoardText?.trim()}"`);
 
   log('수업 JS 에러 없음', errors.length === 0, errors.length > 0 ? errors.join('; ') : '');
 

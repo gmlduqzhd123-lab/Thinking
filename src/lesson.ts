@@ -57,6 +57,22 @@ const teacherTalkPrompts: Record<Phase, string> = {
   result: '🙋 선생님 질문 톡: "오늘 발견한 단위분수의 규칙을 한 문장으로 함께 읽어 봐요!"',
 };
 
+const talkFrames: Record<Phase, string> = {
+  think: '저는 1/○이 더 크다고 생각해요. 왜냐하면 ___ 때문이에요.',
+  explore: '실험해 보니 나누는 수가 클수록 한 조각이 ___졌어요.',
+  check: '분모가 작을수록 한 조각의 크기가 더 ___요.',
+  result: '같은 전체를 더 많이 나눌수록 한 조각은 ___집니다.',
+};
+
+const RANDOM_PAIR_POOL: readonly [number, number][] = [
+  [2, 5],
+  [3, 7],
+  [4, 9],
+  [2, 8],
+  [3, 10],
+  [5, 12],
+];
+
 const DEFAULT_DUEL_ROUNDS: DuelRound[] = [
   { id: 0, leftDenom: 7, rightDenom: 2, answer: 'right' },
   { id: 1, leftDenom: 3, rightDenom: 9, answer: 'left' },
@@ -88,6 +104,8 @@ const aiEnabled = app.dataset.aiEnabled === 'true';
 let aiPanel: { sync(active: boolean): void; dispose(): void } | undefined;
 let sharedAudioCtx: AudioContext | undefined;
 let selectedUnitId = 'M01';
+let customPair: [number, number] | null = null;
+let randomPairIdx = 0;
 let visualModel: VisualModel = 'bar';
 let phase: Phase = 'think';
 let soundEnabled = true;
@@ -112,6 +130,8 @@ let duelRounds: DuelRound[] = DEFAULT_DUEL_ROUNDS.map(r => ({ ...r }));
 let duelPicks: Record<number, DuelPick | null> = { 0: null, 1: null, 2: null };
 let duelStreak = 0;
 let duelShuffleCount = 0;
+let duelBattleMode = false;
+let battleScores: [number, number] = [0, 0];
 let trainOrder: number[] = [];
 let mysteryDenomPick: number | null = null;
 let ruleChoice: RuleChoice = '';
@@ -126,11 +146,21 @@ let pollData: Record<Poll, RawCounts | null> = { first: null, again: null, trans
 let talkSecondsLeft = 0;
 let talkInterval: ReturnType<typeof setInterval> | undefined;
 let pickedGroup: number | null = null;
+let qrModalOpen = false;
+let urlCopied = false;
 let error = '';
 
 // ─── 헬퍼 ────────────────────────────────────────────────────────
 function currentUnit() {
   return getUnit(selectedUnitId);
+}
+
+function activeDenominators(): { readonly first: readonly [number, number]; readonly transfer: readonly [number, number] } {
+  if (customPair) {
+    const [a, b] = customPair;
+    return { first: [a, b], transfer: [Math.min(11, a + 1), Math.min(12, b + 2)] };
+  }
+  return currentUnit().denominators;
 }
 
 function isDarkTheme(): boolean {
@@ -189,11 +219,12 @@ function stopTalkCountdown() {
   talkSecondsLeft = 0;
 }
 
-function resetSession(keepUnit = false, keepStamps = false) {
+function resetSession(keepUnit = false, keepStamps = false, keepCustomPair = false) {
   aiPanel?.dispose();
   stopSpeech();
   stopTalkCountdown();
   if (!keepUnit) selectedUnitId = 'M01';
+  if (!keepCustomPair) customPair = null;
   if (!keepStamps) clearedUnits.clear();
   visualModel = 'bar';
   phase = 'think';
@@ -210,14 +241,17 @@ function resetSession(keepUnit = false, keepStamps = false) {
   exploreTab = 'all';
   fairCutAligned = false;
   pinnedFlags = [2, 4];
-  exploreBaseDenominator = currentUnit().denominators.first[0];
-  exploreDenominator = currentUnit().denominators.first[1];
+  const [fA, fB] = activeDenominators().first;
+  exploreBaseDenominator = fA;
+  exploreDenominator = fB;
   exploreMoved = false;
   filledPieces = 1;
   duelRounds = DEFAULT_DUEL_ROUNDS.map(r => ({ ...r }));
   duelPicks = { 0: null, 1: null, 2: null };
   duelStreak = 0;
   duelShuffleCount = 0;
+  duelBattleMode = false;
+  battleScores = [0, 0];
   trainOrder = [];
   mysteryDenomPick = null;
   ruleChoice = '';
@@ -225,6 +259,8 @@ function resetSession(keepUnit = false, keepStamps = false) {
   friendLetterChoice = '';
   bridgeChoice = '';
   pickedGroup = null;
+  qrModalOpen = false;
+  urlCopied = false;
   classPollOpen = { first: false, again: false, transfer: false };
   pollBlind = false;
   participantsRaw = '20';
@@ -262,7 +298,7 @@ function circleFraction(denominator: number, undividedPreview = false): string {
       ? `<circle cx="${cx}" cy="${cy}" r="${r - 14}" fill="none" stroke="${stroke}" stroke-width="2" stroke-dasharray="4 4"/>`
       : '';
     return `<figure class="fraction fraction-circle ${patternMode ? 'pattern-active' : ''}">
-      <svg viewBox="0 0 160 160" role="img"
+      <svg data-svg-action="toggle-spoiler" class="touchable-svg" viewBox="0 0 160 160" role="img"
         aria-label="아직 자르지 않은 전체 크기가 같은 간식 모형 (${denominator}명이 똑같이 나눌 예정)">
         <circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill}" fill-opacity="0.28" stroke="${stroke}" stroke-width="3" stroke-dasharray="6 4"/>
         <circle cx="${cx}" cy="${cy}" r="${r - 8}" fill="none" stroke="${stroke}" stroke-width="1.2" stroke-opacity="0.4"/>
@@ -389,7 +425,7 @@ function bar(denominator: number, undividedPreview = false): string {
       ? `<line x1="14" y1="22" x2="586" y2="22" stroke="${stroke}" stroke-width="2" stroke-opacity="0.55" stroke-dasharray="6 4"/><line x1="14" y1="46" x2="586" y2="46" stroke="${stroke}" stroke-width="2" stroke-opacity="0.55" stroke-dasharray="2 5"/>`
       : '';
     return `<figure class="fraction ${patternMode ? 'pattern-active' : ''}">
-      <svg viewBox="0 0 600 70" role="img"
+      <svg data-svg-action="toggle-spoiler" class="touchable-svg" viewBox="0 0 600 70" role="img"
         aria-label="아직 자르지 않은 전체 길이가 같은 ${snackName()} 모형 (${denominator}명이 똑같이 나눌 예정)">
         <rect x="0" y="10" width="600" height="48" rx="8" fill="${fill}" fill-opacity="0.22" stroke="${stroke}" stroke-width="3" stroke-dasharray="8 5"/>
         <line x1="14" y1="34" x2="586" y2="34" stroke="${stroke}" stroke-width="1.2" stroke-opacity="0.35" stroke-dasharray="4 4"/>
@@ -464,9 +500,15 @@ function choiceLabel(choice: Choice | null, dA: number, dB: number, poll: Poll =
   return labels[choice];
 }
 
+function miniFracSvg(denom: number): string {
+  const w = Math.max(4, Math.round(34 / denom));
+  return `<svg class="mini-frac-svg" viewBox="0 0 36 12" aria-hidden="true"><rect x="1" y="1" width="34" height="10" rx="2" fill="var(--lesson-bar-bg, #fff)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="1.5"/><rect x="1" y="1" width="${w}" height="10" rx="1.5" fill="var(--lesson-bar-fill, #ffca62)"/></svg>`;
+}
+
 function renderChoiceButtons(poll: Poll, dA: number, dB: number): string {
   const selected = myChoices[poll];
   const [leftD, rightD] = isTransferReversed(poll) ? [dB, dA] : [dA, dB];
+  const icons = [miniFracSvg(leftD), miniFracSvg(rightD), '', ''];
   const labels = [
     `A. 1/${leftD}이 더 크다`,
     `B. 1/${rightD}이 더 크다`,
@@ -475,7 +517,7 @@ function renderChoiceButtons(poll: Poll, dA: number, dB: number): string {
   ];
   return `<div class="solo-choice-grid" role="group" aria-label="생각 선택 보기">
     ${CHOICES.map((ch, i) =>
-      `<button type="button" data-pick-poll="${poll}" data-pick-choice="${ch}" class="solo-choice-btn ${selected === ch ? 'solo-choice-selected' : ''}" aria-pressed="${selected === ch}">${labels[i]}</button>`
+      `<button type="button" data-pick-poll="${poll}" data-pick-choice="${ch}" class="solo-choice-btn ${selected === ch ? 'solo-choice-selected' : ''}" aria-pressed="${selected === ch}">${icons[i]}${labels[i]}</button>`
     ).join('')}
   </div>`;
 }
@@ -568,18 +610,61 @@ function renderConfidencePicker(poll: 'first' | 'again'): string {
   </div>`;
 }
 
+function currentShareUrl(): string {
+  const base = `${window.location.origin}${window.location.pathname}`;
+  const params = new URLSearchParams();
+  const topicNum = selectedUnitId === 'M02' ? '2' : selectedUnitId === 'M03' ? '3' : '1';
+  params.set('topic', topicNum);
+  if (isLargeScale()) params.set('scale', 'large');
+  return `${base}?${params.toString()}`;
+}
+
+function renderQrModalBox(): string {
+  if (!qrModalOpen) return '';
+  const url = currentShareUrl();
+  let hash = 2166136261;
+  for (let i = 0; i < url.length; i++) {
+    hash = Math.imul(hash ^ url.charCodeAt(i), 16777619);
+  }
+  const cells: string[] = [];
+  for (let r = 0; r < 11; r++) {
+    for (let c = 0; c < 11; c++) {
+      const inFinder = (r < 3 && c < 3) || (r < 3 && c > 7) || (r > 7 && c < 3);
+      const bit = ((hash >>> ((r * 11 + c) % 28)) & 1) === 1;
+      if (inFinder || bit) {
+        cells.push(`<rect x="${8 + c * 8}" y="${8 + r * 8}" width="7" height="7" rx="1" fill="#153a69"/>`);
+      }
+    }
+  }
+  return `<div id="qr-modal-box" class="qr-modal-box" role="region" aria-label="학생 접속 QR 및 공유 링크">
+    <svg class="qr-code-svg" viewBox="0 0 104 104" role="img" aria-label="수업 접속 QR 코드 모형">
+      <rect x="2" y="2" width="100" height="100" rx="6" fill="#fff" stroke="#153a69" stroke-width="3"/>
+      ${cells.join('')}
+    </svg>
+    <div class="qr-modal-info">
+      <strong>📱 현재 수업 단원 바로가기 링크</strong>
+      <code id="qr-share-url">${url}</code>
+      <div class="qr-modal-actions">
+        <button type="button" id="copy-share-btn" data-action="copy-share-url" class="secondary-btn talk-dock-btn">${urlCopied ? '✅ 주소 복사 완료!' : '📋 수업 주소 복사'}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
 function renderTeacherTalkBar(p: Phase): string {
   const bellLabel = talkSecondsLeft > 0 ? `🔔 짝 토론 (${talkSecondsLeft}초)` : '🔔 30초 짝 토론';
   const groupBadge = pickedGroup !== null
-    ? `<span id="picked-group-badge" class="picked-group-badge" role="status">🎤 발표: <strong>${pickedGroup}모둠</strong>!</span>`
+    ? `<span id="picked-group-badge" class="picked-group-badge" role="status">🎤 발표: <strong>${pickedGroup}모둠</strong>! · 💬 말틀: <em>"${talkFrames[p]}"</em></span>`
     : '';
   return `<div class="teacher-talk-banner">
     <p class="teacher-talk-text">${teacherTalkPrompts[p]}</p>
     <div class="talk-dock" role="group" aria-label="짝 토론 및 발표 모둠 도구">
       <button type="button" id="talk-bell-btn" data-action="talk-bell" class="secondary-btn talk-dock-btn" aria-pressed="${talkSecondsLeft > 0}">${bellLabel}</button>
       <button type="button" data-action="pick-group" class="secondary-btn talk-dock-btn">🎲 모둠 뽑기</button>
+      <button type="button" id="qr-share-btn" data-action="toggle-qr-modal" class="secondary-btn talk-dock-btn" aria-pressed="${qrModalOpen}">📱 수업 QR</button>
       ${groupBadge}
     </div>
+    ${renderQrModalBox()}
   </div>`;
 }
 
@@ -590,7 +675,7 @@ function hasPollInput(counts: RawCounts | null): boolean {
 
 function renderBeforeAfterPollComparison(): string {
   if (pollBlind || !hasPollInput(pollData.again)) return '';
-  const [fA] = currentUnit().denominators.first;
+  const [fA] = activeDenominators().first;
   const firstA = Math.max(0, parseInt(pollData.first?.A ?? '0', 10) || 0);
   const againA = Math.max(0, parseInt(pollData.again?.A ?? '0', 10) || 0);
   const n = Math.max(1, parseParticipants(participantsRaw) ?? 20, firstA, againA);
@@ -652,14 +737,13 @@ function renderOptionalClassPoll(poll: Poll, dA: number, dB: number): string {
 
 // ─── 4단계 화면별 본문 ───────────────────────────────────────────
 
-/** 1단계: 캡슐형 주제 탭 + 한 줄 질문 배너 + 시각 모형 + 1클릭 선택 & 점진적 후속 질문 + 하단 교사 독. */
+/** 1단계: 캡슐형 주제 탭 + 깜짝 분수 뽑기 + 한 줄 질문 배너 + 시각 모형 + 1클릭 선택 & 점진적 후속 질문 + 하단 교사 독. */
 function renderThinkPhase(): string {
-  const unit = currentUnit();
-  const [firstA, firstB] = unit.denominators.first;
+  const [firstA, firstB] = activeDenominators().first;
   const story = storyDilemmas[selectedUnitId] ?? storyDilemmas.M01;
 
   const unitCards = listUnits().map(u => {
-    const active = u.id === selectedUnitId;
+    const active = !customPair && u.id === selectedUnitId;
     const isCleared = clearedUnits.has(u.id);
     const shortTitle = u.title.replace(' · ', ' (') + ')';
     return `<button type="button" data-unit-id="${u.id}" class="unit-card-btn ${active ? 'unit-card-active' : ''}" aria-pressed="${active}">
@@ -671,6 +755,9 @@ function renderThinkPhase(): string {
   return `
     <div class="unit-card-bar" role="group" aria-label="탐구할 분수 이야기 고르기">
       ${unitCards}
+      <button type="button" id="random-unit-btn" data-action="random-unit" class="secondary-btn random-unit-pill ${customPair ? 'unit-card-active' : ''}" aria-pressed="${customPair !== null}">
+        🎲 깜짝 분수${customPair ? ` (1/${firstA} vs 1/${firstB})` : ''}
+      </button>
     </div>
 
     <div class="step-card">
@@ -722,7 +809,7 @@ function renderThinkPhase(): string {
       </div>
 
       <div class="actions next-step-bar">
-        <button type="button" data-action="next" class="primary-next-btn">② 직접 실험하러 가기 →</button>
+        <button type="button" data-action="next" class="primary-next-btn ${myChoices.first ? 'next-btn-ready' : ''}">② 직접 실험하러 가기 →</button>
       </div>
     </div>`;
 }
@@ -753,17 +840,22 @@ function renderFillWholeContent(): string {
     const x = ((i + 1) * segW).toFixed(2);
     return `<line x1="${x}" y1="10" x2="${x}" y2="54" stroke="${stroke}" stroke-width="2"/>`;
   }).join('');
+  const hitSlices = Array.from({ length: exploreDenominator }, (_, i) => {
+    const x = (i * segW).toFixed(2);
+    return `<rect class="svg-hit-slice" data-fill-slice="${i + 1}" x="${x}" y="10" width="${segW.toFixed(2)}" height="44" fill="transparent"/>`;
+  }).join('');
   const isComplete = clampedFilled === exploreDenominator;
   const fillPattern = patternMode
     ? `<line x1="4" y1="22" x2="${Math.max(6, filledW - 4).toFixed(2)}" y2="22" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2" stroke-dasharray="6 4"/><line x1="4" y1="42" x2="${Math.max(6, filledW - 4).toFixed(2)}" y2="42" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="2" stroke-dasharray="2 5"/>`
     : '';
 
   return `<figure class="whole-fill-figure ${patternMode ? 'pattern-active' : ''}">
-      <svg viewBox="0 0 600 66" role="img" aria-label="1/${exploreDenominator} 조각을 ${clampedFilled}개 모아 ${clampedFilled}/${exploreDenominator}만큼 채운 막대">
+      <svg class="touchable-svg" viewBox="0 0 600 66" role="img" aria-label="1/${exploreDenominator} 조각을 ${clampedFilled}개 모아 ${clampedFilled}/${exploreDenominator}만큼 채운 막대">
         <rect x="0" y="10" width="600" height="44" rx="6" fill="${bg}" stroke="${stroke}" stroke-width="3"/>
         <rect x="0" y="10" width="${filledW.toFixed(2)}" height="44" rx="4" fill="${fill}"/>
         ${fillPattern}
         ${dividers}
+        ${hitSlices}
       </svg>
       <figcaption>1/${exploreDenominator} 조각 <strong>${clampedFilled}개</strong> = <strong>${clampedFilled}/${exploreDenominator}</strong> ${isComplete ? '(= 전체 1 완성!)' : ''}</figcaption>
     </figure>
@@ -848,19 +940,25 @@ function renderFlagNumberLine(): string {
   const flagsSvg = sorted.map((d, idx) => {
     const x = (startX + width / d).toFixed(2);
     const poleTop = poleTops[idx % poleTops.length];
-    return `<g>
+    return `<g class="touchable-svg" data-svg-flag="${d}">
       <line x1="${x}" y1="${poleTop}" x2="${x}" y2="56" stroke="#d9381e" stroke-width="2.2"/>
       <circle cx="${x}" cy="56" r="4.5" fill="#d9381e"/>
       <text x="${x}" y="${poleTop - 2}" text-anchor="middle" font-size="12" font-weight="800" fill="#d9381e">🚩1/${d}</text>
     </g>`;
   }).join('');
 
+  const tickHits = FLAG_DENOMS.map(d => {
+    const x = (startX + width / d).toFixed(2);
+    return `<circle class="svg-hit-slice" data-svg-flag="${d}" cx="${x}" cy="56" r="10" fill="transparent"/>`;
+  }).join('');
+
   return `<figure class="flag-line-figure">
-    <svg viewBox="0 0 600 84" role="img" aria-label="0부터 1까지 수직선 위에 ${sorted.map(d => `1/${d}`).join(', ')} 깃발을 꽂아 위치를 비교한 모형">
+    <svg class="touchable-svg" viewBox="0 0 600 84" role="img" aria-label="0부터 1까지 수직선 위에 ${sorted.map(d => `1/${d}`).join(', ')} 깃발을 꽂아 위치를 비교한 모형">
       <line x1="${startX}" y1="56" x2="${endX}" y2="56" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3.5"/>
       <line x1="${startX}" y1="42" x2="${startX}" y2="68" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3"/>
       <line x1="${endX}" y1="42" x2="${endX}" y2="68" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3"/>
       ${flagsSvg}
+      ${tickHits}
       <text x="${startX}" y="80" text-anchor="middle" font-size="13" font-weight="800" fill="var(--lesson-bar-stroke, #153a69)">0</text>
       <text x="${endX}" y="80" text-anchor="middle" font-size="13" font-weight="800" fill="var(--lesson-bar-stroke, #153a69)">1 (전체)</text>
     </svg>
@@ -870,7 +968,7 @@ function renderFlagNumberLine(): string {
 
 /** 2단계: 탭형 카테고리 필터 + 2열 컴팩트 그리드 실험 + 하단 교사 독. */
 function renderExplorePhase(): string {
-  const [firstA, firstB] = currentUnit().denominators.first;
+  const [firstA, firstB] = activeDenominators().first;
   const myFirstText = choiceLabel(myChoices.first, firstA, firstB, 'first');
   const myReasonText = reasonSelected !== '' ? reasonStudentBubbles[Number(reasonSelected)] : '직접 실험으로 확인하기';
 
@@ -893,6 +991,11 @@ function renderExplorePhase(): string {
   const showConcept = exploreTab === 'all' || exploreTab === 'concept';
   const showLife = exploreTab === 'all' || exploreTab === 'life';
 
+  const coreDone = showOverlap || exploreMoved;
+  const conceptDone = filledPieces === exploreDenominator || fairCutAligned;
+  const lifeDone = pinnedFlags.length >= 4 || showTrapExperiment || showRealLife;
+  const anyExpDone = coreDone || conceptDone || lifeDone;
+
   return `
     <div class="step-card">
       <h2 tabindex="-1">② 직접 실험하기 · 눈으로 확인하는 분수 실험</h2>
@@ -904,9 +1007,9 @@ function renderExplorePhase(): string {
 
       <div class="exp-tab-bar" role="group" aria-label="실험 묶음 선택">
         <button type="button" data-explore-tab="all" class="secondary-btn exp-tab-btn ${exploreTab === 'all' ? 'quick-denom-active' : ''}" aria-pressed="${exploreTab === 'all'}">🌟 전체 보기</button>
-        <button type="button" data-explore-tab="core" class="secondary-btn exp-tab-btn ${exploreTab === 'core' ? 'quick-denom-active' : ''}" aria-pressed="${exploreTab === 'core'}">✂️ 핵심 비교 (실험 1·2)</button>
-        <button type="button" data-explore-tab="concept" class="secondary-btn exp-tab-btn ${exploreTab === 'concept' ? 'quick-denom-active' : ''}" aria-pressed="${exploreTab === 'concept'}">🧩 원리 실험 (실험 3·4)</button>
-        <button type="button" data-explore-tab="life" class="secondary-btn exp-tab-btn ${exploreTab === 'life' ? 'quick-denom-active' : ''}" aria-pressed="${exploreTab === 'life'}">🚩 수직선·실생활 (실험 5·6·7)</button>
+        <button type="button" data-explore-tab="core" class="secondary-btn exp-tab-btn ${exploreTab === 'core' ? 'quick-denom-active' : ''}" aria-pressed="${exploreTab === 'core'}">✂️ 핵심 비교 (실험 1·2)${coreDone ? ' ✅' : ''}</button>
+        <button type="button" data-explore-tab="concept" class="secondary-btn exp-tab-btn ${exploreTab === 'concept' ? 'quick-denom-active' : ''}" aria-pressed="${exploreTab === 'concept'}">🧩 원리 실험 (실험 3·4)${conceptDone ? ' ✅' : ''}</button>
+        <button type="button" data-explore-tab="life" class="secondary-btn exp-tab-btn ${exploreTab === 'life' ? 'quick-denom-active' : ''}" aria-pressed="${exploreTab === 'life'}">🚩 수직선·실생활 (실험 5·6·7)${lifeDone ? ' ✅' : ''}</button>
       </div>
 
       ${showCore ? `
@@ -977,7 +1080,7 @@ function renderExplorePhase(): string {
           <section class="experiment-box fair-cut-box" aria-label="실험 4 공평하게 똑같이 나누기 조건 실험">
             <h3>🔪 실험 4 · 공평하게 나누기(등분할) 조건</h3>
             <figure class="fair-cut-figure">
-              <svg viewBox="0 0 600 66" role="img" aria-label="${fairCutAligned ? '눈금을 똑같은 간격(200씩)으로 정렬해 바르게 3등분한 1/3 모형' : '눈금이 90, 260으로 불공평하게 잘려 크기가 제각각인 3조각 모형'}">
+              <svg class="touchable-svg" data-svg-action="toggle-fair-cut" viewBox="0 0 600 66" role="img" aria-label="${fairCutAligned ? '눈금을 똑같은 간격(200씩)으로 정렬해 바르게 3등분한 1/3 모형' : '눈금이 90, 260으로 불공평하게 잘려 크기가 제각각인 3조각 모형'}">
                 <rect x="0" y="10" width="600" height="44" rx="6" fill="var(--lesson-bar-bg, #fff)" stroke="var(--lesson-bar-stroke, #153a69)" stroke-width="3"/>
                 <rect x="0" y="10" width="${fairCutAligned ? 200 : 90}" height="44" rx="4" fill="${fairCutAligned ? '#ffca62' : '#fde2e2'}"/>
                 <line x1="${fairCutAligned ? 200 : 90}" y1="10" x2="${fairCutAligned ? 200 : 90}" y2="54" stroke="#d9381e" stroke-width="3"/>
@@ -1090,22 +1193,22 @@ function renderExplorePhase(): string {
 
       <div class="actions next-step-bar">
         <button type="button" data-action="back" class="secondary-btn">← 이전 단계</button>
-        <button type="button" data-action="next" class="primary-next-btn">③ 내 생각 다시 점검하기 →</button>
+        <button type="button" data-action="next" class="primary-next-btn ${anyExpDone ? 'next-btn-ready' : ''}">③ 내 생각 다시 점검하기 →</button>
       </div>
     </div>`;
 }
 
 /** 3단계: 2열 컴팩트 점검 카드 + 번개 미니게임 + 기차/추리 2열 퍼즐 + 하단 교사 독. */
 function renderCheckPhase(): string {
-  const [firstA, firstB] = currentUnit().denominators.first;
-  const [transferA, transferB] = currentUnit().denominators.transfer;
+  const { first: [firstA, firstB], transfer: [transferA, transferB] } = activeDenominators();
 
   const duelScore = duelRounds.filter(r => duelPicks[r.id] === r.answer).length;
   const duelRowsHtml = duelRounds.map(r => {
     const picked = duelPicks[r.id];
     const isCorrect = picked === r.answer;
+    const teamTag = duelBattleMode ? (r.id % 2 === 0 ? ' · 🔵청팀' : ' · 🔴홍팀') : '';
     return `<div class="duel-round-row">
-      <span class="duel-round-badge">라운드 ${r.id + 1}</span>
+      <span class="duel-round-badge">라운드 ${r.id + 1}${teamTag}</span>
       <div class="duel-btn-pair" role="group" aria-label="라운드 ${r.id + 1} 더 큰 분수 고르기">
         <button type="button" data-duel-round="${r.id}" data-duel-pick="left" class="secondary-btn duel-card-btn ${picked === 'left' ? 'solo-choice-selected' : ''}" aria-pressed="${picked === 'left'}">1/${r.leftDenom} 조각</button>
         <span class="duel-vs">VS</span>
@@ -1156,8 +1259,12 @@ function renderCheckPhase(): string {
       <section class="check-subcard duel-game-box" aria-label="번개 미니게임 더 큰 단위분수 찾기">
         <div class="duel-header-row">
           <h3>3) ⚡ 번개 미니게임 · 더 큰 분수 고르기</h3>
-          <button type="button" data-action="duel-shuffle" class="secondary-btn">🎲 랜덤 3문제</button>
+          <div class="duel-header-actions">
+            <button type="button" id="duel-battle-toggle" data-action="toggle-duel-battle" class="secondary-btn" aria-pressed="${duelBattleMode}">${duelBattleMode ? '👯 1:1 대결 켜짐' : '👯 1:1 대결 모드'}</button>
+            <button type="button" data-action="duel-shuffle" class="secondary-btn">🎲 랜덤 3문제</button>
+          </div>
         </div>
+        ${duelBattleMode ? `<div id="duel-battle-board" class="duel-battle-board" role="status">🔵 청팀 <strong>${battleScores[0]}점</strong> <span class="battle-vs">VS</span> 🔴 홍팀 <strong>${battleScores[1]}점</strong></div>` : ''}
         <div class="duel-rounds-list">
           ${duelRowsHtml}
         </div>
@@ -1192,7 +1299,7 @@ function renderCheckPhase(): string {
 
       <div class="actions next-step-bar">
         <button type="button" data-action="back" class="secondary-btn">← 이전 단계</button>
-        <button type="button" data-action="next" class="primary-next-btn">④ 오늘의 발견 결과 보기 →</button>
+        <button type="button" data-action="next" class="primary-next-btn ${myChoices.again && myChoices.transfer ? 'next-btn-ready' : ''}">④ 오늘의 발견 결과 보기 →</button>
       </div>
     </div>`;
 }
@@ -1200,9 +1307,7 @@ function renderCheckPhase(): string {
 /** 4단계: 성장 카드 + 2열 규칙/편지 + 2열 브릿지/스탬프 + 하단 교사 독. */
 function renderResultPhase(): string {
   clearedUnits.add(selectedUnitId);
-  const unit = currentUnit();
-  const [fA, fB] = unit.denominators.first;
-  const [tA, tB] = unit.denominators.transfer;
+  const { first: [fA, fB], transfer: [tA, tB] } = activeDenominators();
   const story = storyDilemmas[selectedUnitId] ?? storyDilemmas.M01;
   const blankText = notebookBlankRevealed ? '작아집니다!' : ruleChoice === 'bigger' ? '커집니다(?)' : ruleChoice === 'same' ? '같습니다(?)' : '______';
 
@@ -1268,6 +1373,14 @@ function renderResultPhase(): string {
 
   return `
     <div class="step-card">
+      <div id="confetti-burst" class="confetti-burst" aria-hidden="true">
+        <svg viewBox="0 0 600 28" preserveAspectRatio="none">
+          <circle cx="45" cy="14" r="5" fill="#f59e0b"/><rect x="110" y="6" width="10" height="6" rx="2" fill="#3b82f6"/>
+          <circle cx="185" cy="18" r="6" fill="#10b981"/><rect x="260" y="5" width="12" height="6" rx="2" fill="#ec4899"/>
+          <circle cx="340" cy="16" r="5" fill="#8b5cf6"/><rect x="415" y="8" width="10" height="6" rx="2" fill="#f97316"/>
+          <circle cx="490" cy="12" r="6" fill="#06b6d4"/><rect x="550" y="6" width="10" height="6" rx="2" fill="#eab308"/>
+        </svg>
+      </div>
       <h2 tabindex="-1">④ 오늘의 발견 · 성장 카드와 마스터 스탬프</h2>
 
       <div class="solo-report-card" role="region" aria-label="내 생각의 성장 카드">
@@ -1434,9 +1547,7 @@ function render(focus = false) {
 }
 
 function updateClassPollStatusesDOM() {
-  const unit = currentUnit();
-  const [fA, fB] = unit.denominators.first;
-  const [tA, tB] = unit.denominators.transfer;
+  const { first: [fA, fB], transfer: [tA, tB] } = activeDenominators();
   app.querySelectorAll<HTMLElement>('.class-poll-status[data-status-poll]').forEach(el => {
     const p = el.dataset.statusPoll as Poll;
     el.textContent = formatClassPollStatus(p);
@@ -1502,30 +1613,58 @@ app.addEventListener('input', event => {
   }
 });
 
-// 단축키 지원 (Alt+←, Alt+→ 및 1~4 숫자키로 A~D 보기 빠른 선택)
+// 단축키 지원 (Alt+←, Alt+→, 무선 프리젠터 PageDown/PageUp, Space 액션, 1~4 숫자키)
 window.addEventListener('keydown', event => {
   if (event.repeat) return;
   const activeTag = (document.activeElement as HTMLElement | null)?.tagName;
   if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return;
 
-  if (!event.altKey && !event.ctrlKey && !event.metaKey && ['1', '2', '3', '4'].includes(event.key)) {
-    if (phase === 'think' || phase === 'check') {
-      const inTransfer = (document.activeElement as HTMLElement | null)?.closest('[aria-label="한 걸음 더 새로운 응용 문제"]') !== null;
-      const targetPoll: Poll = phase === 'think' ? 'first' : inTransfer ? 'transfer' : 'again';
-      const ch = CHOICES[Number(event.key) - 1];
-      if (ch) {
-        myChoices[targetPoll] = ch;
-        error = '';
-        playSound(targetPoll !== 'first' && ch === correctChoiceForPoll(targetPoll) ? 'correct' : 'click');
-        render();
+  const idx = order.indexOf(phase);
+
+  if (!event.altKey && !event.ctrlKey && !event.metaKey) {
+    if (['1', '2', '3', '4'].includes(event.key)) {
+      if (phase === 'think' || phase === 'check') {
+        const inTransfer = (document.activeElement as HTMLElement | null)?.closest('[aria-label="한 걸음 더 새로운 응용 문제"]') !== null;
+        const targetPoll: Poll = phase === 'think' ? 'first' : inTransfer ? 'transfer' : 'again';
+        const ch = CHOICES[Number(event.key) - 1];
+        if (ch) {
+          myChoices[targetPoll] = ch;
+          error = '';
+          playSound(targetPoll !== 'first' && ch === correctChoiceForPoll(targetPoll) ? 'correct' : 'click');
+          render();
+        }
       }
+      return;
     }
-    return;
+    if (event.key === 'PageDown' && idx < order.length - 1) {
+      event.preventDefault();
+      stopSpeech();
+      stopTalkCountdown();
+      phase = order[idx + 1];
+      render(true);
+      return;
+    }
+    if (event.key === 'PageUp' && idx > 0) {
+      event.preventDefault();
+      stopSpeech();
+      stopTalkCountdown();
+      phase = order[idx - 1];
+      render(true);
+      return;
+    }
+    if (event.key === ' ' && (activeTag === 'BODY' || activeTag === 'MAIN' || activeTag === 'H2')) {
+      event.preventDefault();
+      if (phase === 'think') spoilerPreview = !spoilerPreview;
+      else if (phase === 'explore') showOverlap = !showOverlap;
+      else if (phase === 'result') notebookBlankRevealed = !notebookBlankRevealed;
+      playSound('click');
+      render();
+      return;
+    }
   }
 
   if (!event.altKey) return;
 
-  const idx = order.indexOf(phase);
   if (event.key === 'ArrowRight' && idx < order.length - 1) {
     event.preventDefault();
     stopSpeech();
@@ -1542,7 +1681,43 @@ window.addEventListener('keydown', event => {
 });
 
 app.addEventListener('click', event => {
-  const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button');
+  const targetEl = event.target as HTMLElement;
+
+  const fillSliceEl = targetEl.closest<SVGElement>('[data-fill-slice]');
+  if (fillSliceEl && fillSliceEl.dataset.fillSlice) {
+    filledPieces = Math.max(1, Math.min(exploreDenominator, Number(fillSliceEl.dataset.fillSlice)));
+    playSound(filledPieces === exploreDenominator ? 'fanfare' : 'click');
+    render();
+    return;
+  }
+
+  const svgFlagEl = targetEl.closest<SVGElement>('[data-svg-flag]');
+  if (svgFlagEl && svgFlagEl.dataset.svgFlag) {
+    const d = Number(svgFlagEl.dataset.svgFlag);
+    pinnedFlags = pinnedFlags.includes(d) ? pinnedFlags.filter(x => x !== d) : [...pinnedFlags, d];
+    playSound('click');
+    render();
+    return;
+  }
+
+  const svgActionEl = targetEl.closest<SVGElement>('[data-svg-action]');
+  if (svgActionEl && svgActionEl.dataset.svgAction) {
+    const svgAct = svgActionEl.dataset.svgAction;
+    if (svgAct === 'toggle-spoiler') {
+      spoilerPreview = !spoilerPreview;
+      playSound('click');
+      render();
+      return;
+    }
+    if (svgAct === 'toggle-fair-cut') {
+      fairCutAligned = !fairCutAligned;
+      playSound(fairCutAligned ? 'correct' : 'click');
+      render();
+      return;
+    }
+  }
+
+  const button = targetEl.closest<HTMLButtonElement>('button');
   if (!button) return;
 
   // 효과음 토글, 다크 모드 & 큰 글씨 모드
@@ -1663,6 +1838,10 @@ app.addEventListener('click', event => {
     } else {
       duelStreak = 0;
     }
+    battleScores = [
+      duelRounds.filter(item => item.id % 2 === 0 && duelPicks[item.id] === item.answer).length,
+      duelRounds.filter(item => item.id % 2 === 1 && duelPicks[item.id] === item.answer).length,
+    ];
     render();
     return;
   }
@@ -1746,7 +1925,34 @@ app.addEventListener('click', event => {
 
   const action = button.dataset.action;
 
-  if (action === 'speak-story') {
+  if (action === 'random-unit') {
+    const pair = RANDOM_PAIR_POOL[randomPairIdx % RANDOM_PAIR_POOL.length];
+    randomPairIdx++;
+    resetSession(true, true);
+    customPair = pair;
+    exploreBaseDenominator = pair[0];
+    exploreDenominator = pair[1];
+    playSound('click');
+    render();
+  } else if (action === 'toggle-qr-modal') {
+    qrModalOpen = !qrModalOpen;
+    urlCopied = false;
+    playSound('click');
+    render();
+  } else if (action === 'copy-share-url') {
+    urlCopied = true;
+    try {
+      void navigator.clipboard?.writeText(currentShareUrl());
+    } catch {
+      // 클립보드 권한 미지원 환경 무시
+    }
+    playSound('correct');
+    render();
+  } else if (action === 'toggle-duel-battle') {
+    duelBattleMode = !duelBattleMode;
+    playSound('click');
+    render();
+  } else if (action === 'speak-story') {
     ttsSpoken = true;
     playSound('click');
     try {
@@ -1876,6 +2082,7 @@ app.addEventListener('click', event => {
       };
     });
     duelPicks = { 0: null, 1: null, 2: null };
+    battleScores = [0, 0];
     playSound('click');
     render();
   } else if (action === 'train-reset') {
@@ -1942,6 +2149,18 @@ window.addEventListener('pagehide', () => resetSession());
 window.addEventListener('pageshow', event => { if (event.persisted) resetSession(); });
 
 // ─── 초기 렌더 ───────────────────────────────────────────────────
+try {
+  const urlParams = new URLSearchParams(window.location.search);
+  const qTopic = urlParams.get('topic') || urlParams.get('unit');
+  if (qTopic === '1' || qTopic === 'M01') selectedUnitId = 'M01';
+  else if (qTopic === '2' || qTopic === 'M02') selectedUnitId = 'M02';
+  else if (qTopic === '3' || qTopic === 'M03') selectedUnitId = 'M03';
+  if (urlParams.get('scale') === 'large') {
+    document.documentElement.setAttribute('data-scale', 'large');
+  }
+} catch {
+  // URL 파라미터 파싱 실패 시 무시
+}
 exploreBaseDenominator = currentUnit().denominators.first[0];
 exploreDenominator = currentUnit().denominators.first[1];
 render();
