@@ -1733,6 +1733,23 @@ button[data-reason][aria-pressed="true"] {
   box-shadow: 0 0 0 3px var(--lesson-focus-ring), 0 4px 12px rgba(21, 58, 105, 0.22);
 }
 
+.talk-bell-done {
+  border-color: var(--lesson-accent-gold-dark);
+  background: var(--lesson-answer-bg);
+  font-weight: 800;
+}
+
+.battle-winner-tag {
+  font-weight: 800;
+  color: var(--lesson-accent-blue);
+}
+
+.touchable-svg:focus-visible,
+.svg-hit-slice:focus-visible {
+  outline: 2px solid var(--lesson-accent-blue);
+  outline-offset: 2px;
+}
+
 @media (max-width: 650px) {
   .exp-grid-2col,
   .check-grid-2col,

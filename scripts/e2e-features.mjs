@@ -340,23 +340,42 @@ async function testLessonFeatures(browser) {
 
   await page.click('#random-unit-btn');
   const randomBtnText = await page.locator('#random-unit-btn').textContent();
-  log('제로클러터 전략 #2: 상단 캡슐 바 깜짝 분수 원터치 생성칩 작동', randomBtnText?.includes('1/') ?? false, `"${randomBtnText?.trim()}"`);
+  const customLeadText = await page.locator('.question-lead').textContent();
+  await page.click('#qr-share-btn');
+  const customQrUrl = await page.locator('#qr-share-url').textContent();
+  await page.click('#qr-share-btn');
+  log('제로클러터 전략 #2 & 추가보완 #1: 깜짝 분수 생성칩·질문 대사·QR 링크(?pair=) 동기화', (randomBtnText?.includes('1/') ?? false) && (customLeadText?.includes('1/2') ?? false) && (customQrUrl?.includes('pair=2-5') ?? false), `"${randomBtnText?.trim()} / ${customQrUrl}"`);
+
+  await page.click('#talk-duration-btn');
+  const talkDurText = await page.locator('#talk-duration-btn').textContent();
+  log('추가보완 #7: 교사 독 짝 토론 타이머 시간(30초/15초/60초) 순환 선택 작동', talkDurText?.includes('15초') ?? false, `"${talkDurText?.trim()}"`);
 
   await page.keyboard.press('PageDown');
   const afterPgDnH2 = await page.locator('#step h2').textContent();
   log('제로클러터 전략 #9: 무선 프리젠터 PageDown 키로 다음 단계(② 직접 실험하기) 즉시 이동', afterPgDnH2?.includes('② 직접 실험하기') ?? false);
 
-  await page.locator('[data-fill-slice="3"]').click();
+  await page.locator('[data-fill-slice="3"]').focus();
+  await page.keyboard.press('Enter');
   const fillAfterSliceTouch = await page.locator('#fill-whole-status').textContent();
-  const conceptTabBadge = await page.locator('button[data-explore-tab="concept"]').textContent();
   await page.click('button[data-action="toggle-fair-cut"]');
+  const conceptTabBeforeFull = await page.locator('button[data-explore-tab="concept"]').textContent();
+  await page.click('button[data-action="fill-piece-full"]');
   const conceptTabDone = await page.locator('button[data-explore-tab="concept"]').textContent();
-  log('제로클러터 전략 #1 & #7: SVG 막대 조각 직접 터치 조작 및 실험 탭 완료(✅) 배지 표시', (fillAfterSliceTouch?.includes('3/') ?? false) && (conceptTabDone?.includes('✅') ?? false), `탭="${conceptTabBadge?.trim()} -> ${conceptTabDone?.trim()}"`);
+  log('제로클러터 전략 #1·#7 & 추가보완 #3·#6: SVG 키보드(Enter)/터치 조작 및 실험 탭 완료(✅) 배지 실시간 동기화', (fillAfterSliceTouch?.includes('3/') ?? false) && (conceptTabDone?.includes('✅') ?? false), `탭="${conceptTabBeforeFull?.trim()} -> ${conceptTabDone?.trim()}"`);
 
   await page.keyboard.press('PageDown');
   await page.click('#duel-battle-toggle');
+  const battleRoundCount = await page.locator('.duel-round-row').count();
+  await page.click('button[data-duel-round="0"][data-duel-pick="right"]');
+  await page.click('button[data-duel-round="1"][data-duel-pick="left"]');
+  await page.click('button[data-duel-round="2"][data-duel-pick="right"]');
+  await page.click('button[data-duel-round="3"][data-duel-pick="left"]');
   const battleBoardText = await page.locator('#duel-battle-board').textContent();
-  log('제로클러터 전략 #4: 전자칠판 1:1 청팀 vs 홍팀 대결 모드 토글 및 점수판 표시', battleBoardText?.includes('청팀') && battleBoardText?.includes('홍팀'), `"${battleBoardText?.trim()}"`);
+  log('제로클러터 전략 #4 & 추가보완 #2: 1:1 대결 모드 4라운드 균형 배정 및 승리/무승부 판정 배지 표시', battleRoundCount === 4 && (battleBoardText?.includes('청팀') ?? false) && (battleBoardText?.includes('무승부') || battleBoardText?.includes('승리')), `"${battleBoardText?.trim()}"`);
+
+  await page.click('#puzzle-shuffle-btn');
+  const shuffledMysteryEq = await page.locator('.mystery-equation').textContent();
+  log('추가보완 #4: 3단계 분수 기차 & 숨은 분모 추리 새 퍼즐 뽑기 작동', shuffledMysteryEq?.includes('1/6') ?? false, `"${shuffledMysteryEq?.trim()}"`);
 
   log('수업 JS 에러 없음', errors.length === 0, errors.length > 0 ? errors.join('; ') : '');
 
@@ -394,6 +413,10 @@ async function testLessonAiPanelFeatures(browser) {
   const coachingCount = await page.locator('.ai-coaching-card').count();
   const counterExampleCount = await page.locator('.coaching-counter').count();
   log('추가 개발 #10 & 고도화 #10: 교사용 3단계 발문 코칭 및 맞춤 반례 힌트 제공·열림 상태 유지', coachingCount === 3 && counterExampleCount === 3 && coachingStillOpen, `${coachingCount}개 카드 시나리오`);
+
+  await page.click('button[data-unit-id="M02"]');
+  const m02ChipText = await page.locator('button[data-ai-chip="0"]').textContent();
+  log('추가보완 #5: 단원 전환(M02: 1/4 vs 1/7) 시 로컬 AI 패널 예시 칩·발문 가이드 문맥 자동 동기화', m02ChipText?.includes('1/7') ?? false, `"${m02ChipText?.trim()}"`);
 
   log('AI 보조 수업 JS 에러 없음', errors.length === 0, errors.length > 0 ? errors.join('; ') : '');
 

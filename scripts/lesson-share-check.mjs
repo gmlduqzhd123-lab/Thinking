@@ -1,8 +1,13 @@
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import { chromium } from 'playwright';
 import jsQR from 'jsqr';
 
-const browser = await chromium.launch({ ...(process.env.M0_BROWSER_PATH ? { executablePath: process.env.M0_BROWSER_PATH } : {}), headless: true });
+const browserPath = process.env.M0_BROWSER_PATH || [
+  'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+  'C:/Program Files/Microsoft Edge/Application/msedge.exe',
+].find(existsSync);
+const browser = await chromium.launch(browserPath ? { executablePath: browserPath, headless: true } : { channel: 'msedge', headless: true });
 try {
   const page = await browser.newPage();
   await page.addInitScript(() => {
