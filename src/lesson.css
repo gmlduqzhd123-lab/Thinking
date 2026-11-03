@@ -1782,3 +1782,29 @@ button[data-reason][aria-pressed="true"] {
   }
   .chart-fill { background: #999; }
 }
+
+/* ─── 📲 앱 설치 · 📱 QR (엽쌤 앱 공통 상단 버튼, src/ys-kit.ts) ───────── */
+.ys-top { display: flex; gap: 6px; align-items: center; margin-left: auto; }
+.ys-chip { white-space: nowrap; }
+.ys-credit { margin: 6px 0 0; font-size: 0.82rem; }
+.ys-credit a { color: inherit; text-decoration: underline; }
+.ys-dialog { width: min(92vw, 520px); max-height: 92dvh; border: 0; border-radius: 20px; padding: 22px 20px 16px; text-align: center; color: #16283d; background: #fff; }
+.ys-dialog::backdrop { background: rgba(15, 23, 42, 0.7); }
+.ys-dialog h2 { margin: 0; font-size: 1.35rem; }
+.ys-dialog-sub { margin: 6px 0; color: #46586d; font-size: 0.95rem; }
+.ys-qr-image { display: block; width: min(100%, 62vh, 420px); height: auto; margin: 12px auto; }
+.ys-qr-url { font-family: ui-monospace, monospace; word-break: break-all; margin: 4px 0; }
+.ys-install-steps { text-align: left; margin: 12px auto; padding-left: 1.4em; line-height: 1.6; }
+.ys-dialog-close { display: block; width: 100%; margin-top: 12px; padding: 12px; border: 0; border-radius: 12px; background: #16283d; color: #fff; font-weight: 700; font-size: 1rem; cursor: pointer; text-decoration: none; box-sizing: border-box; }
+@media (max-width: 560px) {
+  .ys-wide { display: none; }
+  /* 휴대폰: 1줄 = 제목 + 설치·QR, 2줄 = 효과음·큰글씨·테마 */
+  header > .header-brand { flex: 1 1 0; min-width: 0; }
+  header > .ys-top { order: 1; }
+  header > .header-controls { order: 2; width: 100%; }
+  header h1 { white-space: nowrap; }
+}
+@media (max-width: 400px) {
+  header h1 { font-size: 1.12rem; }
+  header > .ys-top .ys-chip { padding: 0 9px; font-size: 0.82rem; }
+}

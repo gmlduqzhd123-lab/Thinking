@@ -5,6 +5,7 @@ import m01 from './units/m01';
 import m02 from './units/m02';
 import m03 from './units/m03';
 import './lesson.css';
+import { installHidden, openInstall, openQr } from './ys-kit';
 import { createLessonQrSvg, copyLessonUrl } from './lesson-share';
 import { miniFracSvg, barFractionSvg, renderFlagNumberLineSvg, type VisualModel } from './lesson-svg';
 
@@ -1127,6 +1128,10 @@ function renderPageHeader(): string {
       <h1>🧭 생각의 갈림길 AI</h1>
       <span class="eyebrow">${aiEnabled ? '로컬 AI 수업' : '단위분수 탐구'}</span>
     </div>
+    <div class="ys-top">
+      ${installHidden() ? '' : '<button type="button" class="scale-toggle ys-chip" data-action="ys-install">📲 <span class="ys-wide">앱&nbsp;</span>설치</button>'}
+      <button type="button" class="scale-toggle ys-chip" data-action="ys-qr" aria-label="QR 코드로 접속">📱 QR</button>
+    </div>
     <div class="header-controls">
       <button id="sound-toggle" class="scale-toggle" aria-label="효과음 전환" aria-pressed="${soundEnabled}" type="button">${soundEnabled ? '🔊 효과음' : '🔇 음소거'}</button>
       <button id="scale-toggle" class="scale-toggle" aria-label="큰 글씨 모드 전환" aria-pressed="${large}" type="button">${large ? '🔍 기본' : '🔍 큰글씨'}</button>
@@ -1159,7 +1164,7 @@ function render(focus = false) {
     renderProgressNav(),
     `<section id="step" role="region" aria-label="${currentLabel}">${body()}<p id="error" role="alert">${error}</p></section>`,
     `<div id="step-announce" class="sr-only" aria-live="assertive" role="status"></div>`,
-    '<footer>🔒 활동 내용은 현재 브라우저 메모리에만 머물며 외부로 전송·저장되지 않습니다.</footer>',
+    '<footer>🔒 활동 내용은 현재 브라우저 메모리에만 머물며 외부로 전송·저장되지 않습니다.<p class="ys-credit">© 2026 엽쌤. All rights reserved. · <a href="https://gmlduqzhd123-lab.github.io/YScode/">엽쌤의 다른 앱 보기 →</a></p></footer>',
   ].join('');
 
   const [fA, fB] = activeDenominators().first;
@@ -1569,6 +1574,10 @@ app.addEventListener('click', async event => {
     exploreDenominator = pair[1];
     playSound('click');
     render();
+  } else if (action === 'ys-install') {
+    void openInstall();
+  } else if (action === 'ys-qr') {
+    openQr();
   } else if (action === 'toggle-qr-modal') {
     qrModalOpen = !qrModalOpen;
     copyStatus = 'idle';

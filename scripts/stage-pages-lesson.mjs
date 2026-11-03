@@ -17,6 +17,10 @@ await mkdir(join(target, 'assets'), { recursive: true });
 await copyFile(join(dist, 'lesson.html'), join(target, 'lesson.html'));
 await copyFile(join(dist, 'lesson.html'), join(target, 'index.html'));
 for (const asset of assets) await copyFile(join(dist, 'assets', asset), join(target, 'assets', asset));
+// 엽쌤 앱 공통 파일(앱 설치·QR·공유 그림·아이콘). 모델·WASM은 여기 없다.
+const PUBLIC_FILES = ['manifest.webmanifest', 'qr.svg', 'og-image.jpg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png'];
+await mkdir(join(target, 'icons'), { recursive: true });
+for (const file of PUBLIC_FILES) await copyFile(join(dist, file), join(target, file));
 const staged = await readdir(join(target, 'assets'));
 if (staged.length !== 4) throw new Error('Staged asset count mismatch');
-console.log(JSON.stringify({ staged: ['index.html', 'lesson.html', ...staged.map(name => `assets/${name}`)], omitted: 'local ONNX model, WASM, holdout TSV' }, null, 2));
+console.log(JSON.stringify({ staged: ['index.html', 'lesson.html', ...PUBLIC_FILES, ...staged.map(name => `assets/${name}`)], omitted: 'local ONNX model, WASM, holdout TSV' }, null, 2));
